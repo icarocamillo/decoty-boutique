@@ -1,0 +1,16 @@
+/* Estilos globais do sistema */
+@layer base {
+  body {
+    @apply bg-zinc-50 text-zinc-900 antialiased;
+  }
+}
+
+/* Custom Scrollbar Styles (Fallback for non-webkit) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d4d4d8 transparent;
+}
+
+.dark * {
+  scrollbar-color: #52525b transparent;
+}

@@ -1,0 +1,488 @@
+
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Product } from '../types';
+import { PackagePlus, Search, Edit, ArrowUp, ArrowDown, ArrowUpDown, Filter, Settings, Check } from 'lucide-react';
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
+import { Badge } from './ui/Badge';
+import { ProductFormModal } from './ProductFormModal';
+import { SIZES_LIST } from '../constants';
+import { Pagination } from './ui/Pagination';
+import { mockService } from '../services/mockService';
+
+interface ProductListProps {
+  products: Product[];
+  onUpdate?: () => void;
+}
+
+type SortKey = keyof Product;
+
+const CATEGORIES = [
+  'Vestidos', 'Blusas', 'Camisas', 'Calças', 'Saias', 'Casacos', 'Jaquetas', 'Bermudas',
+  'Pulseira', 'Brinco', 'Colar'
+];
+const MATERIALS = ['Malha', 'Tecido Plano', 'Bijuteria'];
+
+export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) => {
+  // State for Data & Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [brands, setBrands] = useState<string[]>([]);
+  const [selectedBrand, setSelectedBrand] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedMaterial, setSelectedMaterial] = useState('');
+  const [selectedSize, setSelectedSize] = useState('');
+  
+  // State for UI
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [productToEdit, setProductToEdit] = useState<Product | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null);
+  
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+
+  // Carrega marcas dos fornecedores
+  useEffect(() => {
+    const fetchBrands = async () => {
+      try {
+        const suppliers = await mockService.getSuppliers();
+        const supplierBrands = suppliers
+          .map(s => s.fantasy_name)
+          .filter((name): name is string => !!name && name.trim() !== '');
+        
+        const uniqueBrands = Array.from(new Set(supplierBrands)).sort();
+        setBrands(uniqueBrands);
+      } catch (error) {
+        console.error("Erro ao carregar marcas", error);
+      }
+    };
+    fetchBrands();
+  }, []);
+
+  // Reset page on filter change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedBrand, selectedCategory, selectedMaterial, selectedSize, itemsPerPage]);
+
+  // State for Column Customization
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+  const columnMenuRef = useRef<HTMLDivElement>(null);
+  
+  const [visibleColumns, setVisibleColumns] = useState({
+    id_decoty: true,
+    nome: true,
+    sku: false,
+    ean: false,
+    categoria: true,
+    tamanho: true,
+    cor: true,
+    tipo_material: false,
+    preco_venda: true,
+    estoque: true
+  });
+
+  const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(event.target as Node)) {
+        setIsColumnMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSort = (key: SortKey) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const toggleColumn = (key: keyof typeof visibleColumns) => {
+    setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const filteredProducts = useMemo(() => {
+    let result = products.filter(p => {
+      // Text Search
+      const matchesSearch = 
+        p.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        p.id_decoty.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.sku.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Filter Matches
+      const matchesBrand = selectedBrand ? p.marca === selectedBrand : true;
+      const matchesCategory = selectedCategory ? p.categoria === selectedCategory : true;
+      const matchesMaterial = selectedMaterial ? p.tipo_material === selectedMaterial : true;
+      const matchesSize = selectedSize ? p.tamanho === selectedSize : true;
+
+      return matchesSearch && matchesBrand && matchesCategory && matchesMaterial && matchesSize;
+    });
+
+    // Sorting
+    if (sortConfig) {
+      result.sort((a, b) => {
+        const aVal = a[sortConfig.key];
+        const bVal = b[sortConfig.key];
+
+        if (aVal === undefined || bVal === undefined) return 0;
+
+        // Custom sort for numeric ID represented as string
+        if (sortConfig.key === 'id') {
+           const numA = parseInt((aVal as string).replace(/\D/g, ''), 10);
+           const numB = parseInt((bVal as string).replace(/\D/g, ''), 10);
+           
+           if (!isNaN(numA) && !isNaN(numB)) {
+              return sortConfig.direction === 'asc' ? numA - numB : numB - numA;
+           }
+        }
+
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [products, searchTerm, selectedBrand, selectedCategory, selectedMaterial, selectedSize, sortConfig]);
+
+  // Pagination Logic
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProducts = filteredProducts.slice(startIndex, endIndex);
+
+  const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
+    if (sortConfig?.key === columnKey) {
+      return sortConfig.direction === 'asc' ? <ArrowUp size={14} className="ml-1" /> : <ArrowDown size={14} className="ml-1" />;
+    }
+    return <ArrowUpDown size={14} className="ml-1 opacity-30" />;
+  };
+
+  const handleEditClick = (product: Product) => {
+    setProductToEdit(product);
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setTimeout(() => setProductToEdit(null), 300);
+  };
+
+  const getStockStatus = (qty: number) => {
+    if (qty === 0) return { variant: 'destructive' as const, label: '0 un' };
+    if (qty <= 2) return { variant: 'warning' as const, label: `${qty} un` };
+    return { variant: 'success' as const, label: `${qty} un` };
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in-up">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+           <h2 className="text-2xl font-bold text-zinc-800 dark:text-white">Produtos Cadastrados</h2>
+           <p className="text-zinc-500 dark:text-zinc-400">Gerencie seu catálogo de roupas</p>
+        </div>
+        <Button className="flex items-center gap-2" onClick={() => { setProductToEdit(null); setIsModalOpen(true); }}>
+          <PackagePlus size={18} /> Cadastrar Produto
+        </Button>
+      </div>
+
+      <Card className="overflow-hidden">
+        {/* Toolbar */}
+        <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center">
+           
+           <div className="flex flex-col md:flex-row gap-3 w-full xl:w-auto flex-wrap">
+             {/* Search */}
+             <div className="relative w-full md:w-60">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <input 
+                  type="text" 
+                  placeholder="Buscar por ID, Nome, SKU..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none transition-all"
+                />
+              </div>
+
+              {/* Filters */}
+              <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                 {/* Marca */}
+                 <div className="relative w-full sm:w-32">
+                   <select 
+                     className="w-full appearance-none pl-3 pr-8 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none"
+                     value={selectedBrand}
+                     onChange={(e) => setSelectedBrand(e.target.value)}
+                   >
+                     <option value="">Marcas</option>
+                     {brands.map(b => <option key={b} value={b}>{b}</option>)}
+                   </select>
+                   <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                 </div>
+
+                 {/* Categoria */}
+                 <div className="relative w-full sm:w-32">
+                   <select 
+                     className="w-full appearance-none pl-3 pr-8 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none"
+                     value={selectedCategory}
+                     onChange={(e) => setSelectedCategory(e.target.value)}
+                   >
+                     <option value="">Categorias</option>
+                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                   </select>
+                   <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                 </div>
+
+                 {/* Tamanho */}
+                 <div className="relative w-full sm:w-32">
+                   <select 
+                     className="w-full appearance-none pl-3 pr-8 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none"
+                     value={selectedSize}
+                     onChange={(e) => setSelectedSize(e.target.value)}
+                   >
+                     <option value="">Tamanhos</option>
+                     {SIZES_LIST.map(s => <option key={s} value={s}>{s}</option>)}
+                   </select>
+                   <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                 </div>
+
+                 {/* Material */}
+                 <div className="relative w-full sm:w-32">
+                   <select 
+                     className="w-full appearance-none pl-3 pr-8 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none"
+                     value={selectedMaterial}
+                     onChange={(e) => setSelectedMaterial(e.target.value)}
+                   >
+                     <option value="">Materiais</option>
+                     {MATERIALS.map(m => <option key={m} value={m}>{m}</option>)}
+                   </select>
+                   <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                 </div>
+              </div>
+           </div>
+
+           {/* Customization */}
+           <div className="relative" ref={columnMenuRef}>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)} 
+                className="flex items-center gap-2 text-zinc-600 border-zinc-200 dark:border-zinc-700 dark:text-zinc-400"
+              >
+                <Settings size={16} /> Personalizar Colunas
+              </Button>
+              
+              {isColumnMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 z-20 overflow-hidden animate-fade-in-up">
+                  <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-100 dark:border-zinc-700">
+                    <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">Exibir Colunas</span>
+                  </div>
+                  <div className="p-2 space-y-1 max-h-64 overflow-y-auto">
+                    {[
+                      { key: 'id_decoty', label: 'ID Decoty' },
+                      { key: 'nome', label: 'Produto' },
+                      { key: 'sku', label: 'SKU' },
+                      { key: 'ean', label: 'EAN' },
+                      { key: 'categoria', label: 'Categoria' },
+                      { key: 'tamanho', label: 'Tamanho' },
+                      { key: 'cor', label: 'Cor' },
+                      { key: 'tipo_material', label: 'Material' },
+                      { key: 'preco_venda', label: 'Preço Venda' },
+                      { key: 'estoque', label: 'Estoque' },
+                    ].map((col) => (
+                      <button
+                        key={col.key}
+                        onClick={() => toggleColumn(col.key as keyof typeof visibleColumns)}
+                        className="w-full flex items-center justify-between px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded transition-colors"
+                      >
+                        <span>{col.label}</span>
+                        {visibleColumns[col.key as keyof typeof visibleColumns] && <Check size={14} className="text-green-600" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+           </div>
+        </div>
+
+        <div className="overflow-x-auto min-h-[400px]">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800">
+              <tr>
+                {visibleColumns.id_decoty && (
+                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap" onClick={() => handleSort('id_decoty')}>
+                    <div className="flex items-center">ID Decoty <SortIcon columnKey="id_decoty" /></div>
+                  </th>
+                )}
+                {visibleColumns.nome && (
+                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('nome')}>
+                    <div className="flex items-center">Produto <SortIcon columnKey="nome" /></div>
+                  </th>
+                )}
+                {visibleColumns.sku && (
+                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('sku')}>
+                    <div className="flex items-center">SKU <SortIcon columnKey="sku" /></div>
+                  </th>
+                )}
+                {visibleColumns.ean && (
+                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('ean')}>
+                    <div className="flex items-center">EAN <SortIcon columnKey="ean" /></div>
+                  </th>
+                )}
+                {visibleColumns.categoria && (
+                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('categoria')}>
+                    <div className="flex items-center">Categoria <SortIcon columnKey="categoria" /></div>
+                  </th>
+                )}
+                {visibleColumns.tamanho && (
+                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-center" onClick={() => handleSort('tamanho')}>
+                    <div className="flex items-center justify-center">Tam. <SortIcon columnKey="tamanho" /></div>
+                  </th>
+                )}
+                {visibleColumns.cor && (
+                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('cor')}>
+                    <div className="flex items-center">Cor <SortIcon columnKey="cor" /></div>
+                  </th>
+                )}
+                 {visibleColumns.tipo_material && (
+                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('tipo_material')}>
+                    <div className="flex items-center">Material <SortIcon columnKey="tipo_material" /></div>
+                  </th>
+                )}
+                {visibleColumns.preco_venda && (
+                  <th className="px-4 py-3 font-medium text-right cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('preco_venda')}>
+                    <div className="flex items-center justify-end">Preço Venda <SortIcon columnKey="preco_venda" /></div>
+                  </th>
+                )}
+                {visibleColumns.estoque && (
+                  <th className="px-4 py-3 font-medium text-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('quantidade_estoque')}>
+                     <div className="flex items-center justify-center">Estoque <SortIcon columnKey="quantidade_estoque" /></div>
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              {currentProducts.map((product) => {
+                const stock = getStockStatus(product.quantidade_estoque);
+                
+                return (
+                  <tr 
+                    key={product.id} 
+                    onClick={() => handleEditClick(product)}
+                    className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors group cursor-pointer"
+                  >
+                    {/* ID */}
+                    {visibleColumns.id_decoty && (
+                      <td className="px-4 py-2 text-zinc-500 dark:text-zinc-500 font-mono text-xs whitespace-nowrap">
+                        {product.id_decoty}
+                      </td>
+                    )}
+                    
+                    {/* Produto */}
+                    {visibleColumns.nome && (
+                      <td className="px-4 py-2">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-zinc-900 dark:text-white text-sm truncate max-w-[200px]">{product.nome}</span>
+                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{product.marca}</span>
+                        </div>
+                      </td>
+                    )}
+
+                     {/* SKU */}
+                    {visibleColumns.sku && (
+                      <td className="px-4 py-2 text-zinc-600 dark:text-zinc-400">
+                         <div className="text-[11px] font-mono bg-zinc-100 dark:bg-zinc-800 px-1 rounded w-fit whitespace-nowrap">{product.sku}</div>
+                      </td>
+                    )}
+
+                    {/* EAN */}
+                    {visibleColumns.ean && (
+                      <td className="px-4 py-2 text-zinc-500 dark:text-zinc-500 text-[11px] font-mono">
+                         {product.ean}
+                      </td>
+                    )}
+
+                    {/* Categoria */}
+                    {visibleColumns.categoria && (
+                      <td className="px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300">
+                          {product.categoria}
+                      </td>
+                    )}
+
+                    {/* Tamanho */}
+                    {visibleColumns.tamanho && (
+                      <td className="px-4 py-2 text-center">
+                        <Badge variant="outline">{product.tamanho}</Badge>
+                      </td>
+                    )}
+
+                     {/* Cor */}
+                    {visibleColumns.cor && (
+                      <td className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400 truncate max-w-[100px]" title={product.cor}>
+                        {product.cor}
+                      </td>
+                    )}
+
+                     {/* Material */}
+                    {visibleColumns.tipo_material && (
+                      <td className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400">
+                        {product.tipo_material}
+                      </td>
+                    )}
+
+                    {/* Preço Venda */}
+                    {visibleColumns.preco_venda && (
+                      <td className="px-4 py-2 text-right font-medium text-zinc-900 dark:text-white">
+                        {formatCurrency(product.preco_venda)}
+                      </td>
+                    )}
+
+                    {/* Estoque */}
+                    {visibleColumns.estoque && (
+                      <td className="px-4 py-2 text-center">
+                        <Badge variant={stock.variant}>
+                          {stock.label}
+                        </Badge>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+              {currentProducts.length === 0 && (
+                 <tr>
+                    <td colSpan={10} className="p-8 text-center text-zinc-500 dark:text-zinc-400">
+                      Nenhum produto encontrado com os filtros atuais.
+                    </td>
+                 </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Paginação */}
+        {totalItems > 0 && (
+          <Pagination 
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={setItemsPerPage}
+          />
+        )}
+      </Card>
+
+      <ProductFormModal 
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        onSuccess={() => onUpdate && onUpdate()}
+        productToEdit={productToEdit}
+      />
+    </div>
+  );
+};
