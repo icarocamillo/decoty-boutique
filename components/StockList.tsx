@@ -134,9 +134,9 @@ export const StockList: React.FC<StockListProps> = ({ entries, products, onUpdat
 
   // Helper para formatar a coluna Responsável / Motivo
   const formatResponsibleAndReason = (entry: StockEntry) => {
-    const user = entry.responsavel.split('@')[0]; 
-    const fullUser = entry.responsavel; 
-    const displayUser = fullUser.includes('@') ? user : fullUser;
+    // Extração robusta do nome do usuário (trata formato 'Nome - Email' ou apenas 'Email')
+    const sellerRaw = entry.responsavel;
+    const displayUser = sellerRaw.includes(' - ') ? sellerRaw.split(' - ')[0] : sellerRaw.split('@')[0];
 
     const rawMotivo = entry.motivo || '';
 
@@ -162,7 +162,7 @@ export const StockList: React.FC<StockListProps> = ({ entries, products, onUpdat
       };
     }
 
-    // Cenário 3: Cancelamento Venda (FORMATO ATUALIZADO: [User] - #[ID])
+    // Cenário 3: Cancelamento Venda (FORMATO: [User] - #[ID])
     if (rawMotivo.includes('Cancelamento de Venda')) {
       const idMatch = rawMotivo.match(/#(\w+)/);
       const id = idMatch ? idMatch[1] : '?';
@@ -175,7 +175,7 @@ export const StockList: React.FC<StockListProps> = ({ entries, products, onUpdat
       };
     }
 
-    // Cenário Venda (Saída) (FORMATO ATUALIZADO: [User] - #[ID])
+    // Cenário Venda (Saída) (FORMATO SOLICITADO: [Nome] - #[Venda])
     if (rawMotivo.includes('Saída - Venda')) {
       const idMatch = rawMotivo.match(/#(\w+)/);
       const id = idMatch ? idMatch[1] : '?';
