@@ -21,6 +21,24 @@ import { ManagementReportPage } from './components/ManagementReportPage';
 import { ClientHistoryPage } from './components/ClientHistoryPage';
 import { SupplierList } from './components/SupplierList';
 
+// Função para obter o tema inicial
+const getInitialTheme = (): boolean => {
+  // Se estiver no navegador
+  if (typeof window !== 'undefined') {
+    // Tenta recuperar do localStorage
+    const savedTheme = localStorage.getItem('darkMode');
+    if (savedTheme !== null) {
+      return savedTheme === 'true';
+    }
+    
+    // Se não tiver no localStorage, verifica a preferência do sistema
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  
+  // Valor padrão para SSR
+  return false;
+};
+
 // Custom Luxury Logo Component - "D" in Rouge Script
 const BrandLogo = () => (
   <div className="flex items-center justify-center w-11 h-11 rounded-lg bg-zinc-900 dark:bg-zinc-100 shadow-md transition-colors duration-300">
@@ -42,7 +60,7 @@ const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { userRole } = useAuth(); 
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => getInitialTheme());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -59,14 +77,31 @@ const AppLayout: React.FC = () => {
 
   // Theme Logic
   useEffect(() => {
+    console.log('Tema atualizado:', isDarkMode ? 'escuro' : 'claro');
+    
+    // Aplicar/remover a classe dark no html
     if (isDarkMode) {
+      console.log('Aplicando classe dark ao documento');
       document.documentElement.classList.add('dark');
     } else {
+      console.log('Removendo classe dark do documento');
       document.documentElement.classList.remove('dark');
+    }
+    
+    // Salvar preferência no localStorage
+    if (typeof window !== 'undefined') {
+      console.log('Salvando preferência no localStorage:', isDarkMode);
+      localStorage.setItem('darkMode', String(isDarkMode));
     }
   }, [isDarkMode]);
 
-  const toggleTheme = () => setIsDarkMode(prev => !prev);
+  const toggleTheme = () => {
+    console.log('Alternando tema...');
+    setIsDarkMode(prev => {
+      console.log('Estado anterior do tema:', prev ? 'escuro' : 'claro');
+      return !prev;
+    });
+  };
 
   // Data Fetching
   const fetchDashboardData = useCallback(async () => {

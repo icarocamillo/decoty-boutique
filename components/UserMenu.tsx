@@ -80,7 +80,10 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
             </button>
             
             <button 
-              onClick={toggleTheme}
+              onClick={(e) => {
+                e.stopPropagation(); // Impede a propagação do evento
+                toggleTheme();
+              }}
               className="w-full text-left px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
             >
               {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
