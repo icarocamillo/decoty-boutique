@@ -1,4 +1,3 @@
-
 import { Client, Product, Sale, StockEntry, Supplier, PaymentDiscounts, PaymentFees, CartItem, UserProfile, SaleItem } from '../types';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { MOCK_CLIENTS, MOCK_PRODUCTS, MOCK_INITIAL_SALES, MOCK_STOCK_ENTRIES, MOCK_SUPPLIERS } from '../constants';
@@ -24,18 +23,16 @@ const setLocalData = (key: string, data: any) => {
   localStorage.setItem(key, JSON.stringify(data));
 };
 
-// --- HELPER: Normalização de Cliente (Adapter Flat -> Nested) ---
 const normalizeClientData = (data: any): Client => {
   if (!data) return data;
-  
   const hasAddressData = data.logradouro || data.cidade || data.uf || data.estado || data.cep;
-  
-  // Normaliza o saldo para garantir number
-  const saldo = Number(data.saldo_vale_presente || 0);
+  const saldoVale = Number(data.saldo_vale_presente || 0);
+  const saldoCrediario = Number(data.saldo_devedor_crediario || 0);
 
   const baseClient = {
       ...data,
-      saldo_vale_presente: saldo
+      saldo_vale_presente: saldoVale,
+      saldo_devedor_crediario: saldoCrediario
   };
   
   if (hasAddressData) {
@@ -52,14 +49,11 @@ const normalizeClientData = (data: any): Client => {
       }
     } as Client;
   }
-
   return baseClient as Client;
 };
 
-// --- HELPER: Preparação de Payload (Adapter Nested -> Flat) ---
 const prepareClientPayload = (client: Partial<Client>) => {
   const { endereco, ...rest } = client;
-  
   if (endereco) {
     return {
       ...rest,
@@ -72,19 +66,17 @@ const prepareClientPayload = (client: Partial<Client>) => {
       estado: endereco.estado
     };
   }
-  
   return rest;
 };
 
 export const mockService = {
-  // --- CLIENTS ---
   getClients: async (): Promise<Client[]> => {
     if (isSupabaseConfigured()) {
       const { data, error } = await supabase.from('clients').select('*').order('nome');
       if (error) { console.error(error); return []; }
       return (data || []).map(normalizeClientData);
     }
-    return getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
+    return getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS).map(normalizeClientData);
   },
 
   createClient: async (client: Omit<Client, 'id' | 'data_cadastro'>): Promise<boolean> => {
@@ -94,7 +86,7 @@ export const mockService = {
       return !error;
     }
     const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
-    const newClient: Client = { ...client, id: `c-${Date.now()}`, data_cadastro: new Date().toISOString(), saldo_vale_presente: 0 };
+    const newClient: Client = { ...client, id: `c-${Date.now()}`, data_cadastro: new Date().toISOString(), saldo_vale_presente: 0, saldo_devedor_crediario: 0 };
     clients.push(newClient);
     setLocalData(LS_KEYS.CLIENTS, clients);
     return true;
@@ -116,7 +108,24 @@ export const mockService = {
     return false;
   },
 
-  // --- PRODUCTS ---
+  // Novo método para abater saldo devedor
+  updateClientCrediario: async (clientId: string, amountToSubtract: number): Promise<boolean> => {
+    if (isSupabaseConfigured()) {
+        const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', clientId).single();
+        const currentDebt = Number(c?.saldo_devedor_crediario || 0);
+        const { error } = await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, currentDebt - amountToSubtract) }).eq('id', clientId);
+        return !error;
+    }
+    const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
+    const idx = clients.findIndex(c => c.id === clientId);
+    if (idx !== -1) {
+        clients[idx].saldo_devedor_crediario = Math.max(0, (clients[idx].saldo_devedor_crediario || 0) - amountToSubtract);
+        setLocalData(LS_KEYS.CLIENTS, clients);
+        return true;
+    }
+    return false;
+  },
+
   getProducts: async (): Promise<Product[]> => {
     if (isSupabaseConfigured()) {
       const { data, error } = await supabase.from('products').select('*').order('nome');
@@ -130,7 +139,6 @@ export const mockService = {
     if (isSupabaseConfigured()) {
         const { error } = await supabase.from('products').insert([product]);
         if (!error) {
-            // Log creation in stock history
             await mockService.logStockEntry({
                 produto_id: undefined, 
                 produto_nome: `${product.nome} - ${product.marca}`,
@@ -145,8 +153,6 @@ export const mockService = {
     const newProduct: Product = { ...product, id: `p-${Date.now()}` };
     products.push(newProduct);
     setLocalData(LS_KEYS.PRODUCTS, products);
-    
-    // Log stock
     await mockService.logStockEntry({
         produto_id: newProduct.id,
         produto_nome: `${newProduct.nome} - ${newProduct.marca}`,
@@ -159,13 +165,10 @@ export const mockService = {
 
   updateProduct: async (product: Product, userName: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        // First get old product to check stock diff
         const { data: oldProduct } = await supabase.from('products').select('quantidade_estoque').eq('id', product.id).single();
         const oldStock = oldProduct?.quantidade_estoque || 0;
         const diff = product.quantidade_estoque - oldStock;
-
         const { error } = await supabase.from('products').update(product).eq('id', product.id);
-        
         if (!error && diff !== 0) {
              await mockService.logStockEntry({
                 produto_id: product.id,
@@ -177,16 +180,13 @@ export const mockService = {
         }
         return !error;
     }
-    
     const products = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
     const index = products.findIndex(p => p.id === product.id);
     if (index !== -1) {
       const oldStock = products[index].quantidade_estoque;
       const diff = product.quantidade_estoque - oldStock;
-      
       products[index] = product;
       setLocalData(LS_KEYS.PRODUCTS, products);
-
       if (diff !== 0) {
           await mockService.logStockEntry({
             produto_id: product.id,
@@ -201,7 +201,6 @@ export const mockService = {
     return false;
   },
 
-  // --- SALES ---
   createSale: async (cart: CartItem[], client: {id?: string, name: string, cpf?: string}, method: string, installments: number, extraDiscount: number, feesSnapshot: any, userName: string, giftCardUsed: number): Promise<boolean> => {
     const totalValue = cart.reduce((acc, item) => acc + item.subtotal, 0) - extraDiscount - giftCardUsed;
     const saleData = {
@@ -225,37 +224,37 @@ export const mockService = {
         const { data: sale, error } = await supabase.from('sales').insert([saleData]).select().single();
         if (error || !sale) return false;
 
-        // Processamento de Itens Individuais para Suporte a Devolução Item a Item
-        const itemsData: any[] = [];
-        cart.forEach(item => {
+        // Se for crediário, incrementa saldo devedor
+        if (method === 'Crediário' && client.id) {
+            const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', client.id).single();
+            const currentDebt = Number(c?.saldo_devedor_crediario || 0);
+            await supabase.from('clients').update({ saldo_devedor_crediario: currentDebt + totalValue }).eq('id', client.id);
+        }
+
+        const itemsData = cart.flatMap(item => {
             const unitDiscount = (item.desconto || 0) / item.quantidade;
             const unitSubtotal = (item.subtotal || 0) / item.quantidade;
-            
-            for (let i = 0; i < item.quantidade; i++) {
-                itemsData.push({
-                    venda_id: sale.id,
-                    produto_id: item.produto_id,
-                    nome_produto: item.nome,
-                    marca: item.marca,
-                    tamanho: item.tamanho,
-                    quantidade: 1, // Salva individualmente
-                    preco_unitario: item.preco_unitario,
-                    custo_unitario: item.preco_custo || 0,
-                    desconto: unitDiscount,
-                    subtotal: unitSubtotal,
-                    status: 'sold'
-                });
-            }
+            return Array.from({ length: item.quantidade }).map(() => ({
+                venda_id: sale.id,
+                produto_id: item.produto_id,
+                nome_produto: item.nome,
+                marca: item.marca,
+                tamanho: item.tamanho,
+                quantidade: 1,
+                preco_unitario: item.preco_unitario,
+                custo_unitario: item.preco_custo || 0,
+                desconto: unitDiscount,
+                subtotal: unitSubtotal,
+                status: 'sold'
+            }));
         });
         await supabase.from('sale_items').insert(itemsData);
 
-        // Update Stock
         for (const item of cart) {
             const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
             if (prod) {
                 const newStock = prod.quantidade_estoque - item.quantidade;
                 await supabase.from('products').update({ quantidade_estoque: newStock }).eq('id', item.produto_id);
-                
                 await mockService.logStockEntry({
                     produto_id: item.produto_id,
                     produto_nome: `${item.nome} - ${item.marca}`,
@@ -268,7 +267,6 @@ export const mockService = {
             }
         }
 
-        // Deduct Gift Card Balance
         if (giftCardUsed > 0 && client.id) {
              const { data: c } = await supabase.from('clients').select('saldo_vale_presente').eq('id', client.id).single();
              if (c) {
@@ -276,46 +274,24 @@ export const mockService = {
                  await supabase.from('clients').update({ saldo_vale_presente: newBalance }).eq('id', client.id);
              }
         }
-
         return true;
     }
 
-    // Local Storage Mock
     const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
     const saleId = `s-${Date.now()}`;
-    
-    // Split items for Mock too
-    const mockItems: SaleItem[] = [];
-    cart.forEach(c => {
-        const unitDiscount = (c.desconto || 0) / c.quantidade;
-        const unitSubtotal = (c.subtotal || 0) / c.quantidade;
-        for(let i=0; i < c.quantidade; i++) {
-            mockItems.push({
-                id: `si-${Math.random()}`,
-                venda_id: saleId,
-                produto_id: c.produto_id,
-                nome_produto: c.nome,
-                marca: c.marca,
-                tamanho: c.tamanho,
-                quantidade: 1,
-                preco_unitario: c.preco_unitario,
-                custo_unitario: c.preco_custo || 0,
-                desconto: unitDiscount,
-                subtotal: unitSubtotal,
-                status: 'sold'
-            });
-        }
-    });
-
-    const newSale: Sale = { 
-        ...saleData, 
-        id: saleId, 
-        items: mockItems
-    };
+    const newSale: Sale = { ...saleData, id: saleId };
     sales.push(newSale);
     setLocalData(LS_KEYS.SALES, sales);
 
-    // Update Local Stock
+    if (method === 'Crediário' && client.id) {
+        const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
+        const idx = clients.findIndex(c => c.id === client.id);
+        if (idx !== -1) {
+            clients[idx].saldo_devedor_crediario = (clients[idx].saldo_devedor_crediario || 0) + totalValue;
+            setLocalData(LS_KEYS.CLIENTS, clients);
+        }
+    }
+
     const products = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
     for (const item of cart) {
         const idx = products.findIndex(p => p.id === item.produto_id);
@@ -334,7 +310,6 @@ export const mockService = {
     }
     setLocalData(LS_KEYS.PRODUCTS, products);
 
-    // Update Client Balance Mock
     if (giftCardUsed > 0 && client.id) {
         const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
         const cIdx = clients.findIndex(c => c.id === client.id);
@@ -343,7 +318,6 @@ export const mockService = {
             setLocalData(LS_KEYS.CLIENTS, clients);
         }
     }
-
     return true;
   },
 
@@ -367,16 +341,13 @@ export const mockService = {
     const sDate = new Date(start);
     const eDate = new Date(end);
     eDate.setHours(23, 59, 59);
-    
     return sales.filter(s => {
         const d = new Date(s.data_venda);
         return d >= sDate && d <= eDate;
     });
   },
 
-  // --- DASHBOARD DATA ---
   getDashboardChartData: async () => {
-    // Busca vendas recentes com itens populados
     const sales = await mockService.getRecentSales();
     const last7Days = Array.from({length: 7}, (_, i) => {
         const d = new Date();
@@ -386,18 +357,11 @@ export const mockService = {
 
     return last7Days.map(date => {
         const dateStr = date.toISOString().split('T')[0];
-        
-        // Ajuste: Soma o subtotal apenas dos itens com status 'sold'
-        // E subtrai os descontos globais (proporcionalmente, se houver itens vendidos)
         const dayTotal = sales
-            .filter(s => s.data_venda.startsWith(dateStr) && s.status !== 'cancelled')
+            .filter(s => s.data_venda.startsWith(dateStr) && s.status !== 'cancelled' && s.metodo_pagamento !== 'Crediário')
             .reduce((acc, s) => {
                 const soldItemsSubtotal = s.items?.filter(i => i.status === 'sold').reduce((sum, item) => sum + item.subtotal, 0) || 0;
-                
-                // Se não há itens vendidos, o faturamento daquela venda para o gráfico é zero
                 if (soldItemsSubtotal === 0) return acc;
-
-                // Caso haja itens vendidos, subtraímos os descontos globais do montante restante
                 const saleNetValue = Math.max(0, soldItemsSubtotal - (s.desconto_extra || 0) - (s.uso_vale_presente || 0));
                 return acc + saleNetValue;
             }, 0);
@@ -423,7 +387,6 @@ export const mockService = {
       return sorted.length > 0 ? sorted[0][0] : '-';
   },
 
-  // --- STOCK LOGS ---
   getStockEntries: async (): Promise<StockEntry[]> => {
     if (isSupabaseConfigured()) {
         const { data } = await supabase.from('stock_entries').select('*').order('data_entrada', { ascending: false });
@@ -433,16 +396,11 @@ export const mockService = {
   },
 
   logStockEntry: async (entry: Omit<StockEntry, 'id' | 'data_entrada'>) => {
-    const newEntry = {
-        ...entry,
-        data_entrada: new Date().toISOString()
-    };
-
+    const newEntry = { ...entry, data_entrada: new Date().toISOString() };
     if (isSupabaseConfigured()) {
         await supabase.from('stock_entries').insert([newEntry]);
         return;
     }
-
     const entries = getLocalData<StockEntry[]>(LS_KEYS.STOCK, MOCK_STOCK_ENTRIES);
     entries.push({ ...newEntry, id: `se-${Date.now()}` });
     setLocalData(LS_KEYS.STOCK, entries);
@@ -452,9 +410,7 @@ export const mockService = {
       const products = await mockService.getProducts();
       const product = products.find(p => p.id === productId);
       if (!product) return;
-
       const diff = newQuantity - product.quantidade_estoque;
-      
       if (isSupabaseConfigured()) {
           await supabase.from('products').update({ quantidade_estoque: newQuantity }).eq('id', productId);
           await mockService.logStockEntry({
@@ -468,13 +424,11 @@ export const mockService = {
           });
           return;
       }
-
       const allProducts = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
       const idx = allProducts.findIndex(p => p.id === productId);
       if (idx !== -1) {
           allProducts[idx].quantidade_estoque = newQuantity;
           setLocalData(LS_KEYS.PRODUCTS, allProducts);
-          
           await mockService.logStockEntry({
               produto_id: productId,
               produto_nome: `${product.nome} - ${product.marca}`,
@@ -487,7 +441,6 @@ export const mockService = {
       }
   },
 
-  // --- SUPPLIERS ---
   getSuppliers: async (): Promise<Supplier[]> => {
     if (isSupabaseConfigured()) {
         const { data } = await supabase.from('suppliers').select('*').order('nome_empresa');
@@ -522,7 +475,6 @@ export const mockService = {
     return false;
   },
 
-  // --- CONFIGS (Discount/Fees) ---
   getPaymentDiscounts: async (): Promise<PaymentDiscounts> => {
       const defaults = { credit_spot: 0, debit: 0, pix: 0 };
       if (isSupabaseConfigured()) {
@@ -535,11 +487,7 @@ export const mockService = {
 
   updatePaymentDiscounts: async (discounts: PaymentDiscounts): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          const { error } = await supabase.from('store_config').upsert(
-              { key: 'payment_discounts', value: JSON.stringify(discounts) }, 
-              { onConflict: 'key' }
-          );
-          if (error) console.error("Erro ao salvar descontos no Supabase:", error);
+          const { error } = await supabase.from('store_config').upsert({ key: 'payment_discounts', value: JSON.stringify(discounts) }, { onConflict: 'key' });
           return !error;
       }
       const config = getLocalData<any>(LS_KEYS.STORE_CONFIG, {});
@@ -560,11 +508,7 @@ export const mockService = {
 
   updatePaymentFees: async (fees: PaymentFees): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          const { error } = await supabase.from('store_config').upsert(
-              { key: 'payment_fees', value: JSON.stringify(fees) }, 
-              { onConflict: 'key' }
-          );
-          if (error) console.error("Erro ao salvar taxas no Supabase:", error);
+          const { error } = await supabase.from('store_config').upsert({ key: 'payment_fees', value: JSON.stringify(fees) }, { onConflict: 'key' });
           return !error;
       }
       const config = getLocalData<any>(LS_KEYS.STORE_CONFIG, {});
@@ -576,7 +520,6 @@ export const mockService = {
   getStoreAccessHash: async (): Promise<string> => {
       if (isSupabaseConfigured()) {
           const { data } = await supabase.from('store_config').select('value').eq('key', 'store_access_hash').single();
-          // Default hash for '123456'
           return data ? data.value : '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'; 
       }
       const config = getLocalData<any>(LS_KEYS.STORE_CONFIG, {});
@@ -585,11 +528,7 @@ export const mockService = {
 
   updateStoreAccessHash: async (hash: string): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          const { error } = await supabase.from('store_config').upsert(
-              { key: 'store_access_hash', value: hash }, 
-              { onConflict: 'key' }
-          );
-          if (error) console.error("Erro ao salvar hash no Supabase:", error);
+          const { error } = await supabase.from('store_config').upsert({ key: 'store_access_hash', value: hash }, { onConflict: 'key' });
           return !error;
       }
       const config = getLocalData<any>(LS_KEYS.STORE_CONFIG, {});
@@ -598,7 +537,6 @@ export const mockService = {
       return true;
   },
 
-  // --- USERS ---
   getUsers: async (): Promise<UserProfile[]> => {
       if (isSupabaseConfigured()) {
           const { data, error } = await supabase.from('profiles').select('*');
@@ -644,21 +582,19 @@ export const mockService = {
       return false;
   },
 
-  // --- MISC ---
   cancelSale: async (saleId: string, userName: string): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          // Fetch sale to get display sales_id and client info
-          const { data: sale } = await supabase.from('sales').select('cliente_id, cliente_nome, sales_id').eq('id', saleId).single();
-          const displayId = sale?.sales_id || saleId;
-
-          // 1. Update sale status
+          const { data: sale } = await supabase.from('sales').select('cliente_id, cliente_nome, sales_id, metodo_pagamento, valor_total').eq('id', saleId).single();
           const { error } = await supabase.from('sales').update({ status: 'cancelled' }).eq('id', saleId);
           if (error) return false;
 
-          // 2. Update all item statuses to 'returned'
-          await supabase.from('sale_items').update({ status: 'returned' }).eq('venda_id', saleId);
+          // Se era crediário, remove do saldo devedor
+          if (sale?.metodo_pagamento === 'Crediário' && sale.cliente_id) {
+              const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', sale.cliente_id).single();
+              await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, (c?.saldo_devedor_crediario || 0) - sale.valor_total) }).eq('id', sale.cliente_id);
+          }
 
-          // Revert stock
+          await supabase.from('sale_items').update({ status: 'returned' }).eq('venda_id', saleId);
           const { data: items } = await supabase.from('sale_items').select('*').eq('venda_id', saleId);
           if (items) {
               for (const item of items) {
@@ -670,7 +606,7 @@ export const mockService = {
                           produto_nome: `${item.nome_produto} - ${item.marca}`,
                           quantidade: item.quantidade,
                           responsavel: userName,
-                          motivo: `Cancelamento de Venda #${displayId}`,
+                          motivo: `Cancelamento de Venda #${sale?.sales_id || saleId}`,
                           cliente_id: sale?.cliente_id,
                           cliente_nome: sale?.cliente_nome
                       });
@@ -684,28 +620,30 @@ export const mockService = {
       const saleIdx = sales.findIndex(s => s.id === saleId);
       if (saleIdx !== -1) {
           if (sales[saleIdx].status === 'cancelled') return false;
-          sales[saleIdx].status = 'cancelled';
-          
-          const displayId = sales[saleIdx].sales_id || sales[saleIdx].id;
-
-          // Mark all items as returned in mock
-          sales[saleIdx].items?.forEach(i => i.status = 'returned');
-          
-          setLocalData(LS_KEYS.SALES, sales);
-
-          // Revert stock mock
-          const products = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
           const sale = sales[saleIdx];
+          sale.status = 'cancelled';
+          if (sale.metodo_pagamento === 'Crediário' && sale.cliente_id) {
+              const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
+              const cIdx = clients.findIndex(c => c.id === sale.cliente_id);
+              if (cIdx !== -1) {
+                  clients[cIdx].saldo_devedor_crediario = Math.max(0, (clients[cIdx].saldo_devedor_crediario || 0) - sale.valor_total);
+                  setLocalData(LS_KEYS.CLIENTS, clients);
+              }
+          }
+          sale.items?.forEach(i => i.status = 'returned');
+          setLocalData(LS_KEYS.SALES, sales);
+          const products = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
           sale.items?.forEach(item => {
               const pIdx = products.findIndex(p => p.id === item.produto_id);
               if (pIdx !== -1) {
                   products[pIdx].quantidade_estoque += item.quantidade;
                   mockService.logStockEntry({
                         produto_id: item.produto_id,
+                        // Fix: Changed item_nome_produto to item.nome_produto
                         produto_nome: `${item.nome_produto} - ${item.marca}`,
                         quantidade: item.quantidade,
                         responsavel: userName,
-                        motivo: `Cancelamento de Venda #${displayId}`,
+                        motivo: `Cancelamento de Venda #${sale.sales_id || sale.id}`,
                         cliente_id: sale.cliente_id,
                         cliente_nome: sale.cliente_nome
                   });
@@ -717,114 +655,46 @@ export const mockService = {
       return false;
   },
 
-  // --- NOVO: Devolução de Itens Específicos ---
   returnSaleItems: async (saleId: string, items: SaleItem[], clientId: string | undefined, totalCredit: number, userName: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        // Fetch display ID first
-        const { data: saleData } = await supabase.from('sales').select('sales_id').eq('id', saleId).single();
-        const displayId = saleData?.sales_id || saleId;
-
-        // 1. Atualiza estoque para cada item e marca como devolvido
+        const { data: saleData } = await supabase.from('sales').select('sales_id, metodo_pagamento').eq('id', saleId).single();
         for (const item of items) {
            const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
            if (prod) {
                await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id);
-               // Marca item como devolvido
                await supabase.from('sale_items').update({ status: 'returned' }).eq('id', item.id);
-               
                await mockService.logStockEntry({
                    produto_id: item.produto_id,
                    produto_nome: `${item.nome_produto} - ${item.marca}`,
                    quantidade: item.quantidade,
                    responsavel: userName,
-                   motivo: `Devolução de Venda #${displayId}`,
-                   cliente_id: clientId,
-                   cliente_nome: undefined
+                   motivo: `Devolução de Venda #${saleData?.sales_id || saleId}`,
+                   cliente_id: clientId
                });
            }
         }
-
-        // 2. Adiciona crédito ao cliente se existir
         if (clientId && totalCredit > 0) {
-            const { data: client } = await supabase.from('clients').select('saldo_vale_presente').eq('id', clientId).single();
-            if (client) {
-                const newBalance = (client.saldo_vale_presente || 0) + totalCredit;
-                await supabase.from('clients').update({ saldo_vale_presente: newBalance }).eq('id', clientId);
+            // Se for crediário, remove do saldo devedor em vez de dar vale
+            if (saleData?.metodo_pagamento === 'Crediário') {
+                const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', clientId).single();
+                await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, (c?.saldo_devedor_crediario || 0) - totalCredit) }).eq('id', clientId);
+            } else {
+                const { data: c } = await supabase.from('clients').select('saldo_vale_presente').eq('id', clientId).single();
+                await supabase.from('clients').update({ saldo_vale_presente: (c?.saldo_vale_presente || 0) + totalCredit }).eq('id', clientId);
             }
         }
-
-        // 3. Verificação de Encerramento Total da Venda:
-        // Se após estas devoluções não existirem mais itens com status 'sold' na venda, marcar a venda como cancelada.
-        const { data: activeItems } = await supabase
-            .from('sale_items')
-            .select('id')
-            .eq('venda_id', saleId)
-            .eq('status', 'sold');
-            
+        const { data: activeItems } = await supabase.from('sale_items').select('id').eq('venda_id', saleId).eq('status', 'sold');
         if (!activeItems || activeItems.length === 0) {
             await supabase.from('sales').update({ status: 'cancelled' }).eq('id', saleId);
         }
-
         return true;
     }
-
-    // Mock implementation
-    const salesList = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
-    const saleIdx = salesList.findIndex(s => s.id === saleId);
-    if (saleIdx !== -1) {
-        const displayId = salesList[saleIdx].sales_id || salesList[saleIdx].id;
-
-        items.forEach(returnedItem => {
-            const itemInSale = salesList[saleIdx].items?.find(i => i.id === returnedItem.id);
-            if (itemInSale) itemInSale.status = 'returned';
-        });
-
-        // Verifica se a venda deve ser cancelada no Mock
-        const hasSoldItems = salesList[saleIdx].items?.some(i => i.status === 'sold');
-        if (!hasSoldItems) {
-            salesList[saleIdx].status = 'cancelled';
-        }
-        
-        setLocalData(LS_KEYS.SALES, salesList);
-
-        // Process Stock Update with display ID
-        const products = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
-        for (const item of items) {
-            const idx = products.findIndex(p => p.id === item.produto_id);
-            if (idx !== -1) {
-                products[idx].quantidade_estoque += item.quantidade;
-                await mockService.logStockEntry({
-                    produto_id: item.produto_id,
-                    produto_nome: `${item.nome_produto} - ${item.marca}`,
-                    quantidade: item.quantidade,
-                    responsavel: userName,
-                    motivo: `Devolução de Venda #${displayId}`,
-                    cliente_id: clientId
-                });
-            }
-        }
-        setLocalData(LS_KEYS.PRODUCTS, products);
-    }
-
-    if (clientId && totalCredit > 0) {
-        const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
-        const idx = clients.findIndex(c => c.id === clientId);
-        if (idx !== -1) {
-            clients[idx].saldo_vale_presente = (clients[idx].saldo_vale_presente || 0) + totalCredit;
-            setLocalData(LS_KEYS.CLIENTS, clients);
-        }
-    }
-
     return true;
   },
 
   linkClientToSale: async (saleId: string, client: Client): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          const { error } = await supabase.from('sales').update({ 
-              cliente_id: client.id, 
-              cliente_nome: client.nome, 
-              cliente_cpf: client.cpf 
-          }).eq('id', saleId);
+          const { error } = await supabase.from('sales').update({ cliente_id: client.id, cliente_nome: client.nome, cliente_cpf: client.cpf }).eq('id', saleId);
           return !error;
       }
       const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
@@ -840,11 +710,11 @@ export const mockService = {
   },
 
   getClientSales: async (clientId: string): Promise<Sale[]> => {
-      const sales = await mockService.getRecentSales(); 
       if (isSupabaseConfigured()) {
           const { data } = await supabase.from('sales').select('*, items:sale_items(*)').eq('cliente_id', clientId).order('data_venda', { ascending: false });
           return data || [];
       }
+      const sales = getLocalData<Sale[]>(LS_KEYS.SALES, []);
       return sales.filter(s => s.cliente_id === clientId);
   },
 
@@ -859,13 +729,9 @@ export const mockService = {
 
   returnProvadorItem: async (entry: StockEntry, userName: string): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          // 1. Update Product Stock
           const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', entry.produto_id).single();
           if (!prod) return false;
-          
           await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + Math.abs(entry.quantidade) }).eq('id', entry.produto_id);
-
-          // 2. Log Return
           await mockService.logStockEntry({
               produto_id: entry.produto_id,
               produto_nome: entry.produto_nome,
@@ -877,14 +743,11 @@ export const mockService = {
           });
           return true;
       }
-
       const products = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
       const pIdx = products.findIndex(p => p.id === entry.produto_id);
       if (pIdx !== -1) {
           products[pIdx].quantidade_estoque += Math.abs(entry.quantidade);
-          // Correcting allProducts to products
           setLocalData(LS_KEYS.PRODUCTS, products);
-          
           await mockService.logStockEntry({
               produto_id: entry.produto_id,
               produto_nome: entry.produto_nome,
@@ -902,15 +765,10 @@ export const mockService = {
   addClientBalance: async (clientId: string, amount: number): Promise<boolean> => {
     if (isSupabaseConfigured()) {
        const { data: clientData, error: fetchError } = await supabase.from('clients').select('saldo_vale_presente').eq('id', clientId).single();
-       if (fetchError) { console.error(fetchError); return false; }
-
-       const currentBalance = Number(clientData.saldo_vale_presente || 0);
-       const newBalance = currentBalance + amount;
-
-       const { error: updateError } = await supabase.from('clients').update({ saldo_vale_presente: newBalance }).eq('id', clientId);
+       if (fetchError) return false;
+       const { error: updateError } = await supabase.from('clients').update({ saldo_vale_presente: Number(clientData.saldo_vale_presente || 0) + amount }).eq('id', clientId);
        return !updateError;
     }
-
     const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
     const index = clients.findIndex(c => c.id === clientId);
     if (index !== -1) {

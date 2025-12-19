@@ -26,10 +26,10 @@ export interface SaleItem {
   tamanho: string;
   quantidade: number;
   preco_unitario: number;
-  custo_unitario: number; // Campo agora Obrigatório para garantir histórico de CMV
+  custo_unitario: number; 
   desconto?: number;
   subtotal: number;
-  status: 'sold' | 'returned'; // NOVO: Status individual do item
+  status: 'sold' | 'returned'; 
 }
 
 export interface Sale {
@@ -46,7 +46,7 @@ export interface Sale {
   metodo_pagamento?: string;
   parcelas?: number;
   desconto_extra?: number;
-  uso_vale_presente?: number; // NOVO: Valor pago com vale presente
+  uso_vale_presente?: number; 
   vendedor?: string;
   status: 'completed' | 'cancelled';
   taxas_aplicadas?: {
@@ -96,8 +96,9 @@ export interface Client {
   celular?: string;
   is_whatsapp?: boolean;
   receber_ofertas?: boolean;
-  pode_provador?: boolean; // Nova flag para permitir provador
-  saldo_vale_presente?: number; // NOVO: Saldo de vale presente
+  pode_provador?: boolean; 
+  saldo_vale_presente?: number; 
+  saldo_devedor_crediario?: number; // NOVO: Coluna para controle de dívida
   endereco?: ClientAddress;
   data_cadastro: string;
 }
@@ -105,7 +106,7 @@ export interface Client {
 export interface Supplier {
   id: string;
   nome_empresa: string;
-  fantasy_name?: string; // Novo campo: Nome Fantasia (usado como Marca)
+  fantasy_name?: string; 
   nome_contato?: string;
   cnpj_cpf?: string;
   email?: string;
@@ -122,8 +123,8 @@ export interface StockEntry {
   quantidade: number;
   responsavel: string;
   motivo: string;
-  cliente_id?: string; // Vínculo com cliente para Provador
-  cliente_nome?: string; // Nome cacheado para facilitar exibição
+  cliente_id?: string; 
+  cliente_nome?: string; 
 }
 
 export interface StoreConfig {
@@ -133,7 +134,6 @@ export interface StoreConfig {
   updated_at?: string;
 }
 
-// --- Interfaces Financeiras ---
 export interface PaymentDiscounts {
   credit_spot: number;
   debit: number;
@@ -146,7 +146,6 @@ export interface PaymentFees {
   debit: number;
 }
 
-// --- Interface de Usuário do Sistema ---
 export interface UserProfile {
   id: string;
   name: string;

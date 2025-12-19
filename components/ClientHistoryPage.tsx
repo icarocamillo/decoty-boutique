@@ -4,7 +4,7 @@ import { Client, Sale, StockEntry } from '../types';
 import { mockService } from '../services/mockService';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { ArrowLeft, ShoppingBag, Calendar, CreditCard, User, Mail, Phone, Shirt, Loader2, Undo2, ArrowUpCircle, ArrowDownCircle, History, Gift, Plus } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Calendar, CreditCard, User, Mail, Phone, Shirt, Loader2, Undo2, ArrowUpCircle, ArrowDownCircle, History, Gift, Plus,BookOpen, Wallet } from 'lucide-react';
 import { RecentSales } from './RecentSales';
 import { Badge } from './ui/Badge';
 import { formatDateStandard } from '../utils';
@@ -27,6 +27,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
   const [processingId, setProcessingId] = useState<string | null>(null);
   
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
+  const [isCrediarioModalOpen, setIsCrediarioModalOpen] = useState(false);
 
   const recentlyReturnedIdsRef = useRef<Set<string>>(new Set());
 
@@ -183,7 +184,12 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
     );
   }
 
+  if (loading) return <div className="h-64 flex flex-col items-center justify-center text-zinc-500 animate-pulse"><Loader2 size={32} className="animate-spin mb-2" /><p>Carregando histórico...</p></div>;
+  if (!client) return <div className="p-8 text-center"><h2 className="text-xl font-bold mb-4">Cliente não encontrado</h2><Button onClick={() => navigate('/clients')}>Voltar</Button></div>;
+
   const totalSpent = sales.reduce((acc, curr) => acc + (curr.status !== 'cancelled' ? curr.valor_total : 0), 0);
+  const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
   const totalPurchases = sales.filter(s => s.status !== 'cancelled').length;
   const lastPurchaseDate = sales.length > 0 ? new Date(sales[0].data_venda).toLocaleDateString('pt-BR') : '-';
 
@@ -289,6 +295,10 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                  </button>
               </div>
            </div>
+              <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 p-4 rounded-xl flex flex-col justify-between">
+                <div><p className="text-[10px] font-bold text-red-600 uppercase mb-1 flex items-center gap-1"><BookOpen size={14} /> Saldo Crediário</p><p className="text-xl font-bold text-red-700">{formatCurrency(client.saldo_devedor_crediario || 0)}</p></div>  
+                {(client.saldo_devedor_crediario || 0) > 0 && <button onClick={() => setIsCrediarioModalOpen(true)} className="mt-2 text-xs font-bold text-red-700 hover:underline flex items-center gap-1"><Wallet size={12} /> Receber Pagamento</button>}
+              </div>
         </Card>
       </div>
 

@@ -347,11 +347,11 @@ export const ManagementReportPage: React.FC = () => {
                       <span>{formatCurrency(kpis.totalReturns)}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] text-zinc-500">
-                      <span>Diferença Descontos:</span>
+                      <span>Descontos no Pagamento:</span>
                       <span>{formatCurrency(kpis.totalDiscountOverall)}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] text-zinc-500">
-                      <span>Taxas Maquininha:</span>
+                      <span>Taxas de Maquininha:</span>
                       <span>{formatCurrency(kpis.totalFees)}</span>
                     </div>
                     <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1"></div>
@@ -397,7 +397,7 @@ export const ManagementReportPage: React.FC = () => {
                     ))}
                     {kpis.totalDiscountExtra > 0 && (
                         <div className="flex justify-between text-[10px]">
-                          <span className="text-zinc-600 dark:text-zinc-400">Extras (Negociação):</span>
+                          <span className="text-zinc-600 dark:text-zinc-400">Desconto Extra (Negociação):</span>
                           <span className="text-zinc-500">-{formatCurrency(kpis.totalDiscountExtra)}</span>
                         </div>
                     )}
