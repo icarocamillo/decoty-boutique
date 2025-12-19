@@ -211,7 +211,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
         </Card>
 
         <Card className="md:col-span-2">
-           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 p-10">
+           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 p-4">
               <div className="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl text-center flex flex-col justify-between h-full min-h-[100px]">
                  <div className="text-zinc-500 dark:text-zinc-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1">
                    <ShoppingBag size={14} /> Qtd Compras
@@ -288,6 +288,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                             <th className="px-6 py-3 font-medium">Produto</th>
                             <th className="px-6 py-3 font-medium text-center">Qtd Pendente</th>
                             <th className="px-6 py-3 font-medium">Responsável</th>
+                            <th className="px-6 py-3 font-medium text-center">Ações</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -389,8 +390,8 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
       </Card>
 
       <GiftCardAdjustmentModal isOpen={isGiftModalOpen} onClose={() => setIsGiftModalOpen(false)} onSuccess={loadData} clientId={client.id} clientName={client.nome} currentBalance={client.saldo_vale_presente || 0} />
-      {/* Removed unused sales prop to fix TypeScript error */}
-      <CrediarioPaymentModal isOpen={isCrediarioModalOpen} onClose={() => setIsCrediarioModalOpen(false)} onSuccess={loadData} client={client} />
+      {/* Agora passamos a prop 'sales' para o modal de crediário */}
+      <CrediarioPaymentModal isOpen={isCrediarioModalOpen} onClose={() => setIsCrediarioModalOpen(false)} onSuccess={loadData} client={client} sales={sales} />
     </div>
   );
 };
