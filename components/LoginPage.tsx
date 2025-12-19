@@ -53,7 +53,7 @@ export const LoginPage: React.FC = () => {
               <span className="font-rouge text-7xl text-zinc-900 pt-1">D</span>
            </div>
            <h1 className="text-5xl font-rouge text-white tracking-wide">Decoty Boutique</h1>
-           <p className="text-zinc-400 text-sm mt-1">Moda exclusiva e elegante</p>
+           <p className="text-zinc-400 text-sm mt-1">Moda sofisticada e elegante</p>
         </div>
 
         {/* Form */}
