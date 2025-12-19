@@ -158,13 +158,13 @@ const AppLayout: React.FC = () => {
       <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-30 transition-colors duration-300 shadow-sm">
         <div className="w-full max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div 
-            className="flex items-center gap-4 cursor-pointer group"
+            className="flex items-center gap-5 cursor-pointer group"
             onClick={() => navigateWithRefresh('/home')}
           >
             <div className="transform group-hover:scale-105 transition-transform duration-300">
               <BrandLogo />
             </div>
-            <h1 className="text-4xl font-rouge text-zinc-900 dark:text-white tracking-wide pt-2">
+            <h1 className="text-3xl font-rouge text-zinc-900 dark:text-white tracking-wide pt-2">
               Decoty Boutique
             </h1>
           </div>

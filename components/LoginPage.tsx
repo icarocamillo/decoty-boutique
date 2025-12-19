@@ -49,10 +49,10 @@ export const LoginPage: React.FC = () => {
         
         {/* Header Visual */}
         <div className="bg-zinc-900 p-8 text-center">
-           <div className="w-16 h-16 bg-white rounded-xl mx-auto flex items-center justify-center mb-4 shadow-lg">
-              <span className="font-rouge text-4xl text-zinc-900 pt-1">D</span>
+           <div className="w-20 h-20 bg-white rounded-xl mx-auto flex items-center justify-center mb-4 shadow-lg">
+              <span className="font-rouge text-7xl text-zinc-900 pt-1">D</span>
            </div>
-           <h1 className="text-2xl font-rouge text-white tracking-wide">Decoty Boutique</h1>
+           <h1 className="text-5xl font-rouge text-white tracking-wide">Decoty Boutique</h1>
            <p className="text-zinc-400 text-sm mt-1">Moda exclusiva e elegante</p>
         </div>
 
