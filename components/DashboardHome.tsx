@@ -37,11 +37,27 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
     <>
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in-up">
-        {/* Card 1: Vendas 7 Dias */}
+
+        {/* Card 1: Vendas Hoje */}
         <Card className="border-l-4 border-l-emerald-600 dark:border-l-emerald-400">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-emerald-100 dark:bg-zinc-800 text-emerald-700 dark:text-emerald-200 rounded-full">
               <DollarSign size={24} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Vendas Hoje</p>
+              <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(todaySales)}
+              </h3>
+            </div>
+          </div>
+        </Card>
+
+        {/* Card 2: Vendas 7 Dias */}
+        <Card className="border-l-4 border-l-blue-600 dark:border-l-blue-400">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-50 dark:bg-zinc-800 text-blue-600 dark:text-blue-400 rounded-full">
+              <TrendingUp size={24} />
             </div>
             <div>
               <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Vendas (7 dias)</p>
@@ -52,31 +68,16 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
           </div>
         </Card>
 
-        {/* Card 2: Média Diária */}
+        {/* Card 3: Média Diária */}
         <Card className="border-l-4 border-l-purple-600 dark:border-l-purple-400">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-purple-50 dark:bg-zinc-800 text-purple-600 dark:text-purple-400 rounded-full">
               <BarChart size={24} />
             </div>
             <div>
-              <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Média Diária da Semana</p>
+              <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Média Diária (7 dias)</p>
               <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dailyAverage)}
-              </h3>
-            </div>
-          </div>
-        </Card>
-
-        {/* Card 3: Vendas Hoje */}
-        <Card className="border-l-4 border-l-blue-600 dark:border-l-blue-400">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-50 dark:bg-zinc-800 text-blue-600 dark:text-blue-400 rounded-full">
-              <TrendingUp size={24} />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Vendas Hoje</p>
-              <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(todaySales)}
               </h3>
             </div>
           </div>
@@ -89,7 +90,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
               <Tag size={24} />
             </div>
             <div>
-              <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Marca Top 1 (7 dias)</p>
+              <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Marca Mais Vendida (7 dias)</p>
               <h3 className="text-xl font-bold text-zinc-900 dark:text-white truncate max-w-[150px]" title={topBrand}>
                 {topBrand}
               </h3>
