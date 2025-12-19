@@ -304,7 +304,7 @@ export const ManagementReportPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           
           {/* DOBRA 1: Fluxo (Lucro Bruto) */}
-          <Card className="border-l-4 border-l-zinc-800 dark:border-l-zinc-100">
+          <Card className="border-l-4 border-l-blue-600 dark:border-l-blue-400">
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                   <TrendingUp size={14} /> Fluxo (Lucro Bruto)
@@ -322,7 +322,7 @@ export const ManagementReportPage: React.FC = () => {
                   <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-2"></div>
                   <div className="flex justify-between text-base font-bold text-zinc-900 dark:text-white">
                       <span>Total</span>
-                      <span className={kpis.totalNet - kpis.totalCustoVendas >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      <span className={kpis.totalNet - kpis.totalCustoVendas >= 0 ? 'text-blue-400' : 'text-red-600'}>
                         {formatCurrency(roundCurrency(kpis.totalNet - kpis.totalCustoVendas))}
                       </span>
                   </div>
@@ -331,7 +331,7 @@ export const ManagementReportPage: React.FC = () => {
           </Card>
 
           {/* DOBRA 2: Receita Real vs Potencial */}
-          <Card className="border-l-4 border-l-blue-500 dark:border-l-blue-500">
+          <Card className="border-l-4 border-l-emerald-600 dark:border-l-emerald-500">
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                   <DollarSign size={14} /> Receita Real vs Potencial
@@ -357,7 +357,7 @@ export const ManagementReportPage: React.FC = () => {
                     <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1"></div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-bold text-zinc-800 dark:text-white">Receita Real</span>
-                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{formatCurrency(kpis.totalNet)}</span>
+                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-500">{formatCurrency(kpis.totalNet)}</span>
                     </div>
                 </div>
               </div>
