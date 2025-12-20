@@ -108,7 +108,6 @@ export const mockService = {
     return false;
   },
 
-  // Novo método para abater saldo devedor
   updateClientCrediario: async (clientId: string, amountToSubtract: number): Promise<boolean> => {
     if (isSupabaseConfigured()) {
         const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', clientId).single();
@@ -124,6 +123,37 @@ export const mockService = {
         return true;
     }
     return false;
+  },
+
+  processCrediarioPayment: async (clientId: string, itemIds: string[], totalAmount: number, vendaId: string): Promise<boolean> => {
+    if (isSupabaseConfigured()) {
+        // 1. Marcar itens como pagos
+        await supabase.from('sale_items').update({ status_pagamento: 'pago' }).in('id', itemIds);
+        
+        // 2. Abater saldo do cliente
+        await mockService.updateClientCrediario(clientId, totalAmount);
+        
+        // 3. Verificar se ainda existem itens pendentes na venda
+        const { data: pending } = await supabase.from('sale_items').select('id').eq('venda_id', vendaId).eq('status_pagamento', 'pendente');
+        
+        if (!pending || pending.length === 0) {
+            await supabase.from('sales').update({ status_pagamento: 'pago' }).eq('id', vendaId);
+        }
+        return true;
+    }
+    // Mock Local
+    const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
+    const saleIdx = sales.findIndex(s => s.id === vendaId);
+    if (saleIdx !== -1) {
+        sales[saleIdx].items?.forEach(item => {
+            if (itemIds.includes(item.id)) item.status_pagamento = 'pago';
+        });
+        const hasPending = sales[saleIdx].items?.some(i => i.status_pagamento === 'pendente' && i.status === 'sold');
+        if (!hasPending) sales[saleIdx].status_pagamento = 'pago';
+        setLocalData(LS_KEYS.SALES, sales);
+    }
+    await mockService.updateClientCrediario(clientId, totalAmount);
+    return true;
   },
 
   getProducts: async (): Promise<Product[]> => {
@@ -203,6 +233,9 @@ export const mockService = {
 
   createSale: async (cart: CartItem[], client: {id?: string, name: string, cpf?: string}, method: string, installments: number, extraDiscount: number, feesSnapshot: any, userName: string, giftCardUsed: number): Promise<boolean> => {
     const totalValue = cart.reduce((acc, item) => acc + item.subtotal, 0) - extraDiscount - giftCardUsed;
+    const isCrediario = method === 'Crediário';
+    
+    // Explicitly cast status_pagamento to prevent inference as string
     const saleData = {
         data_venda: new Date().toISOString(),
         valor_total: totalValue,
@@ -211,6 +244,7 @@ export const mockService = {
         cliente_cpf: client.cpf,
         produtos_resumo: cart.map(i => `${i.quantidade}x ${i.nome}`).join(', '),
         metodo_pagamento: method,
+        status_pagamento: (isCrediario ? 'pendente' : 'pago') as 'pendente' | 'pago',
         parcelas: installments,
         desconto_extra: extraDiscount,
         uso_vale_presente: giftCardUsed,
@@ -224,8 +258,7 @@ export const mockService = {
         const { data: sale, error } = await supabase.from('sales').insert([saleData]).select().single();
         if (error || !sale) return false;
 
-        // Se for crediário, incrementa saldo devedor
-        if (method === 'Crediário' && client.id) {
+        if (isCrediario && client.id) {
             const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', client.id).single();
             const currentDebt = Number(c?.saldo_devedor_crediario || 0);
             await supabase.from('clients').update({ saldo_devedor_crediario: currentDebt + totalValue }).eq('id', client.id);
@@ -245,7 +278,9 @@ export const mockService = {
                 custo_unitario: item.preco_custo || 0,
                 desconto: unitDiscount,
                 subtotal: unitSubtotal,
-                status: 'sold'
+                status: 'sold' as const,
+                // Explicitly cast status_pagamento to prevent inference as string
+                status_pagamento: (isCrediario ? 'pendente' : 'pago') as 'pendente' | 'pago'
             }));
         });
         await supabase.from('sale_items').insert(itemsData);
@@ -279,11 +314,34 @@ export const mockService = {
 
     const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
     const saleId = `s-${Date.now()}`;
-    const newSale: Sale = { ...saleData, id: saleId };
+    
+    // Unroll items for mock consistency
+    const mockedItems: SaleItem[] = cart.flatMap(item => {
+        const unitDiscount = (item.desconto || 0) / item.quantidade;
+        const unitSubtotal = (item.subtotal || 0) / item.quantidade;
+        return Array.from({ length: item.quantidade }).map((_, idx) => ({
+            id: `si-${saleId}-${item.produto_id}-${idx}`,
+            venda_id: saleId,
+            produto_id: item.produto_id,
+            nome_produto: item.nome,
+            marca: item.marca,
+            tamanho: item.tamanho,
+            quantidade: 1,
+            preco_unitario: item.preco_unitario,
+            custo_unitario: item.preco_custo || 0,
+            desconto: unitDiscount,
+            subtotal: unitSubtotal,
+            status: 'sold' as const,
+            // Explicitly cast status_pagamento to prevent inference as string
+            status_pagamento: (isCrediario ? 'pendente' : 'pago') as 'pendente' | 'pago'
+        }));
+    });
+
+    const newSale: Sale = { ...saleData, id: saleId, items: mockedItems };
     sales.push(newSale);
     setLocalData(LS_KEYS.SALES, sales);
 
-    if (method === 'Crediário' && client.id) {
+    if (isCrediario && client.id) {
         const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
         const idx = clients.findIndex(c => c.id === client.id);
         if (idx !== -1) {
@@ -639,7 +697,6 @@ export const mockService = {
                   products[pIdx].quantidade_estoque += item.quantidade;
                   mockService.logStockEntry({
                         produto_id: item.produto_id,
-                        // Fix: Changed item_nome_produto to item.nome_produto
                         produto_nome: `${item.nome_produto} - ${item.marca}`,
                         quantidade: item.quantidade,
                         responsavel: userName,
@@ -674,7 +731,6 @@ export const mockService = {
            }
         }
         if (clientId && totalCredit > 0) {
-            // Se for crediário, remove do saldo devedor em vez de dar vale
             if (saleData?.metodo_pagamento === 'Crediário') {
                 const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', clientId).single();
                 await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, (c?.saldo_devedor_crediario || 0) - totalCredit) }).eq('id', clientId);
@@ -747,6 +803,7 @@ export const mockService = {
       const pIdx = products.findIndex(p => p.id === entry.produto_id);
       if (pIdx !== -1) {
           products[pIdx].quantidade_estoque += Math.abs(entry.quantidade);
+          // Changed allProducts to products to fix the error
           setLocalData(LS_KEYS.PRODUCTS, products);
           await mockService.logStockEntry({
               produto_id: entry.produto_id,

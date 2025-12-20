@@ -30,6 +30,7 @@ export interface SaleItem {
   desconto?: number;
   subtotal: number;
   status: 'sold' | 'returned'; 
+  status_pagamento?: 'pago' | 'pendente'; // NOVO
 }
 
 export interface Sale {
@@ -44,6 +45,7 @@ export interface Sale {
   cliente_cpf?: string;
   produtos_resumo?: string;
   metodo_pagamento?: string;
+  status_pagamento?: 'pago' | 'pendente'; // NOVO
   parcelas?: number;
   desconto_extra?: number;
   uso_vale_presente?: number; 
@@ -98,7 +100,7 @@ export interface Client {
   receber_ofertas?: boolean;
   pode_provador?: boolean; 
   saldo_vale_presente?: number; 
-  saldo_devedor_crediario?: number; // NOVO: Coluna para controle de dívida
+  saldo_devedor_crediario?: number; 
   endereco?: ClientAddress;
   data_cadastro: string;
 }

@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, User, CreditCard, Tag, Package, Receipt, Link, AlertTriangle, Mail, ShieldCheck, PieChart, Activity, Phone, Smartphone, Search, Loader2, Check, Gift, Undo2 } from 'lucide-react';
+import { X, User, CreditCard, Tag, Package, Receipt, Link, AlertTriangle, Mail, ShieldCheck, PieChart, Activity, Phone, Smartphone, Search, Loader2, Check, Gift, Undo2, Wallet, Hourglass } from 'lucide-react';
 import { Sale, Client, SaleItem } from '../types';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
@@ -319,11 +320,26 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                   {weekDay}, {dateTime}
                 </p>
                 <span className="text-zinc-300 dark:text-zinc-600">—</span>
-                {currentSale.status === 'cancelled' ? (
-                    <Badge variant="destructive" className="text-[10px] px-1.5 h-4">Cancelada</Badge>
-                ) : (
-                    <Badge variant="success" className="text-[10px] px-1.5 h-4">Concluída</Badge>
-                )}
+                <div className="flex items-center gap-1.5">
+                    {currentSale.status === 'cancelled' ? (
+                        <Badge variant="destructive" className="text-[10px] px-1.5 h-4">Cancelada</Badge>
+                    ) : (
+                        <Badge variant="success" className="text-[10px] px-1.5 h-4">Concluída</Badge>
+                    )}
+
+                    {/* STATUS DE PAGAMENTO GLOBAL */}
+                    {currentSale.status !== 'cancelled' && (
+                        currentSale.status_pagamento === 'pago' ? (
+                            <Badge variant="success" className="text-[10px] px-1.5 h-4 gap-1">
+                                <Check size={8} /> Pago
+                            </Badge>
+                        ) : (
+                            <Badge variant="warning" className="text-[10px] px-1.5 h-4 gap-1">
+                                <Hourglass size={8} /> Pagamento Pendente
+                            </Badge>
+                        )
+                    )}
+                </div>
               </div>
             </div>
           </div>
@@ -536,6 +552,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                       <th className="px-4 py-3 text-center bg-zinc-50 dark:bg-zinc-800">Tam.</th>
                       <th className="px-4 py-3 text-center bg-zinc-50 dark:bg-zinc-800">Qtd</th>
                       <th className="px-4 py-3 text-center bg-zinc-50 dark:bg-zinc-800">Status</th>
+                      <th className="px-4 py-3 text-center bg-zinc-50 dark:bg-zinc-800">Pagamento</th>
                       <th className="px-4 py-3 text-right bg-zinc-50 dark:bg-zinc-800">Preço Un.</th>
                       <th className="px-4 py-3 text-center bg-zinc-50 dark:bg-zinc-800">Desc.</th>
                       <th className="px-4 py-3 text-right bg-zinc-50 dark:bg-zinc-800">Subtotal</th>
@@ -570,6 +587,20 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                                    <Badge variant="success" className="text-[10px] px-2 h-5">Vendido</Badge>
                                )}
                             </td>
+                            {/* COLUNA DE PAGAMENTO POR ITEM */}
+                            <td className="px-4 py-3 text-center">
+                               {!isReturned && currentSale.status !== 'cancelled' && (
+                                   item.status_pagamento === 'pago' ? (
+                                       <Badge variant="success" className="text-[9px] px-1.5 h-4 gap-1">
+                                           <Check size={8} /> Pago
+                                       </Badge>
+                                   ) : (
+                                       <Badge variant="warning" className="text-[9px] px-1.5 h-4 gap-1">
+                                           <Hourglass size={8} /> Pendente
+                                       </Badge>
+                                   )
+                               )}
+                            </td>
                             <td className="px-4 py-3 text-right text-zinc-600 dark:text-zinc-400">
                               {formatCurrency(item.preco_unitario)}
                             </td>
@@ -590,7 +621,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                       })
                     ) : (
                       <tr>
-                        <td colSpan={7} className="px-4 py-8 text-center text-zinc-400">
+                        <td colSpan={8} className="px-4 py-8 text-center text-zinc-400">
                           Detalhes dos itens não disponíveis.
                         </td>
                       </tr>
