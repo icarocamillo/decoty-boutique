@@ -43,16 +43,16 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
     setInstallments(1);
   }, [method]);
 
-  // Filtra as vendas que foram feitas no crediário para este cliente
+  // Filtra as vendas que possuem status_pagamento pendente (ou são de crediário antigas sem o campo setado)
   const crediarioSales = useMemo(() => {
-    return sales.filter(s => s.metodo_pagamento === 'Crediário' && s.status === 'completed')
+    return sales.filter(s => s.metodo_pagamento === 'Crediário' && s.status === 'completed' && s.status_pagamento !== 'pago')
       .sort((a, b) => new Date(b.data_venda).getTime() - new Date(a.data_venda).getTime());
   }, [sales]);
 
-  // Itens da venda selecionada (apenas os que não foram devolvidos)
+  // Itens da venda selecionada (apenas os que não foram devolvidos E que ainda estão pendentes de pagamento)
   const availableItems = useMemo(() => {
     if (!selectedSale?.items) return [];
-    return selectedSale.items.filter(item => item.status === 'sold');
+    return selectedSale.items.filter(item => item.status === 'sold' && item.status_pagamento !== 'pago');
   }, [selectedSale]);
 
   const toggleItem = (itemId: string) => {
@@ -79,11 +79,16 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
   }, [method, totalToPay, feesConfig, installments]);
 
   const handleSave = async () => {
-    if (totalToPay <= 0 || !method) return;
+    if (totalToPay <= 0 || !method || !selectedSale) return;
     
     setLoading(true);
-    // No mock, abatemos o valor total dos itens selecionados do saldo devedor do cliente
-    const success = await mockService.updateClientCrediario(client.id, totalToPay);
+    // Chamamos o novo método que gerencia status granular
+    const success = await mockService.processCrediarioPayment(
+        client.id, 
+        Array.from(selectedItemIds), 
+        totalToPay, 
+        selectedSale.id
+    );
     
     if (success) {
         onSuccess();
@@ -201,6 +206,9 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                                 <span className="font-bold text-zinc-900 dark:text-zinc-100">{formatCurrency(item.subtotal)}</span>
                             </label>
                         ))}
+                        {availableItems.length === 0 && (
+                            <p className="text-center py-4 text-zinc-400 text-sm">Nenhum item pendente nesta venda.</p>
+                        )}
                     </div>
 
                     <div className="mt-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-700 flex justify-between items-center">
