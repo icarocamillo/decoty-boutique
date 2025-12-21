@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, User, CreditCard, Tag, Package, Receipt, Link, AlertTriangle, Mail, ShieldCheck, PieChart, Activity, Phone, Smartphone, Search, Loader2, Check, Gift, Undo2, Wallet, Hourglass } from 'lucide-react';
+/* Added BookOpen to the list of imports from lucide-react */
+import { X, User, CreditCard, Tag, Package, Receipt, Link, AlertTriangle, Mail, ShieldCheck, PieChart, Activity, Phone, Smartphone, Search, Loader2, Check, Gift, Undo2, Wallet, Hourglass, BookOpen } from 'lucide-react';
 import { Sale, Client, SaleItem, UserProfile } from '../types';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
@@ -56,7 +57,15 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
     };
 
     const selectedItems = availableItems.filter(i => selectedVirtualIds.has(i.virtualId));
-    const totalToRefund = selectedItems.reduce((acc, curr) => acc + curr.subtotal, 0);
+    
+    // Cálculo segregado por status de pagamento
+    const totalPaidToRefund = selectedItems
+        .filter(i => i.status_pagamento === 'pago')
+        .reduce((acc, curr) => acc + curr.subtotal, 0);
+    
+    const totalPendingToAbate = selectedItems
+        .filter(i => i.status_pagamento !== 'pago')
+        .reduce((acc, curr) => acc + curr.subtotal, 0);
 
     const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -73,7 +82,7 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
                     <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600"><X size={20} /></button>
                 </div>
 
-                <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
                     {availableItems.length === 0 ? (
                         <div className="text-center py-8">
                             <div className="bg-zinc-100 dark:bg-zinc-800 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
@@ -84,13 +93,13 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
                         </div>
                     ) : (
                         <>
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400">Selecione os itens que o cliente deseja devolver:</p>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">Selecione os itens para devolução:</p>
                             
                             <div className="space-y-2">
                                 {availableItems.map(item => (
                                     <label 
                                         key={item.virtualId} 
-                                        className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all ${
+                                        className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-all ${
                                             selectedVirtualIds.has(item.virtualId) 
                                             ? 'border-red-500 bg-red-50/30 dark:bg-red-900/10 ring-1 ring-red-500' 
                                             : 'border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800'
@@ -105,7 +114,15 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
                                             />
                                             <div className="min-w-0">
                                                 <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200 truncate">{item.nome_produto}</p>
-                                                <p className="text-xs text-zinc-500">{item.tamanho} • {formatCurrency(item.preco_unitario)}</p>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <span className="text-[10px] text-zinc-500 uppercase font-bold">{item.tamanho}</span>
+                                                    <span className="text-zinc-300">•</span>
+                                                    {item.status_pagamento === 'pago' ? (
+                                                        <Badge variant="success" className="text-[9px] h-4 px-1">Pago</Badge>
+                                                    ) : (
+                                                        <Badge variant="warning" className="text-[9px] h-4 px-1">Pendente</Badge>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                         <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">{formatCurrency(item.subtotal)}</span>
@@ -115,22 +132,38 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
                         </>
                     )}
 
-                    {!client && availableItems.length > 0 && (
+                    {client && (
+                        <div className="space-y-2 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                            <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Resumo do Estorno</h4>
+                            <div className="grid grid-cols-1 gap-2">
+                                <div className="flex justify-between items-center p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
+                                    <span className="text-xs text-zinc-600 dark:text-zinc-400 flex items-center gap-1.5">
+                                        <Gift size={12} className="text-amber-500" /> Crédito Vale Presente (Itens Pagos)
+                                    </span>
+                                    <span className="text-sm font-bold text-zinc-900 dark:text-white">{formatCurrency(totalPaidToRefund)}</span>
+                                </div>
+                                <div className="flex justify-between items-center p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
+                                    <span className="text-xs text-zinc-600 dark:text-zinc-400 flex items-center gap-1.5">
+                                        <BookOpen size={12} className="text-blue-500" /> Abatimento de Dívida (Itens Pendentes)
+                                    </span>
+                                    <span className="text-sm font-bold text-zinc-900 dark:text-white">{formatCurrency(totalPendingToAbate)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {!client && selectedItems.length > 0 && (
                         <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 p-3 rounded-lg flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
                             <AlertTriangle size={16} className="shrink-0" />
-                            <span><strong>Aviso:</strong> Como esta venda não está vinculada a um cliente cadastrado, o valor da devolução <strong>não poderá ser gerado como Vale Presente</strong> automático. Vincule um cliente primeiro.</span>
+                            <span><strong>Aviso:</strong> Venda sem cliente vinculado. O valor da devolução (mesmo itens pagos) não gerará crédito automático.</span>
                         </div>
                     )}
                 </div>
 
-                <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
-                    <div className="flex justify-between items-center px-1">
-                        <span className="text-sm font-medium text-zinc-500">Crédito a ser gerado:</span>
-                        <span className="text-xl font-bold text-zinc-900 dark:text-white">{formatCurrency(totalToRefund)}</span>
-                    </div>
+                <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800">
                     <Button 
                         variant="destructive" 
-                        className="w-full h-12 gap-2" 
+                        className="w-full h-12 gap-2 shadow-lg" 
                         disabled={selectedVirtualIds.size === 0 || isLoading || availableItems.length === 0}
                         onClick={() => onConfirm(selectedItems)}
                     >
@@ -262,7 +295,6 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
 
   const handleConfirmReturn = async (selectedItems: SaleItem[]) => {
     setIsCancelling(true);
-    // CORREÇÃO AQUI: Passamos o ID (UUID) do usuário logado, nunca o nome "Usuário"
     const userId = currentUser?.id;
     
     if (!userId) {
@@ -271,11 +303,11 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
         return;
     }
 
-    const totalRefund = selectedItems.reduce((acc, curr) => acc + curr.subtotal, 0);
-    
     try {
-        await mockService.returnSaleItems(currentSale.id, selectedItems, currentSale.cliente_id, totalRefund, userId);
-        alert(`Devolução processada com sucesso! ${currentSale.cliente_id ? `R$ ${totalRefund.toFixed(2)} adicionados ao vale-presente.` : ''}`);
+        // A lógica de soma segregada agora é feita dentro do mockService para maior segurança
+        await mockService.returnSaleItems(currentSale.id, selectedItems, currentSale.cliente_id, userId);
+        
+        alert("Devolução processada com sucesso!");
         if (onSaleCancelled) onSaleCancelled();
         onClose();
     } catch (error) {
@@ -413,7 +445,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                                             className="w-full text-left px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex items-center justify-between group"
                                         >
                                             <div className="min-w-0">
-                                                <p className="text-sm font-bold truncate text-zinc-800 dark:text-zinc-200 group-hover:text-blue-700 dark:group-hover:text-blue-300">{c.nome}</p>
+                                                <p className="text-sm font-bold truncate text-zinc-800 dark:text-zinc-200 group-hover:text-blue-700 dark:hover:text-blue-300">{c.nome}</p>
                                                 <p className="text-xs text-zinc-500 truncate">{c.cpf || c.email || 'Sem dados extra'}</p>
                                             </div>
                                             <Check size={14} className="opacity-0 group-hover:opacity-100 text-blue-600" />

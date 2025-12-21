@@ -763,17 +763,23 @@ export const mockService = {
       return false;
   },
 
-  returnSaleItems: async (saleId: string, items: SaleItem[], clientId: string | undefined, totalCredit: number, userId: string): Promise<boolean> => {
+  returnSaleItems: async (saleId: string, items: SaleItem[], clientId: string | undefined, userId: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        const { data: saleData } = await supabase.from('sales').select('sales_id, ui_id, cliente_nome').eq('id', saleId).single();
+        const { data: saleData } = await supabase.from('sales').select('sales_id, ui_id, cliente_nome, metodo_pagamento').eq('id', saleId).single();
         const saleDisplayId = saleData?.sales_id || saleData?.ui_id || saleId;
         const clientName = saleData?.cliente_nome;
+
+        let giftCardSum = 0;
+        let debtReductionSum = 0;
 
         for (const item of items) {
            const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
            if (prod) {
+               // Atualiza estoque
                await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id);
+               // Atualiza status do item da venda
                await supabase.from('sale_items').update({ status: 'returned' }).eq('id', item.id);
+               // Log de estoque
                await mockService.logStockEntry({
                    produto_id: item.produto_id,
                    produto_nome: `${item.nome_produto} - ${item.marca}`,
@@ -783,18 +789,34 @@ export const mockService = {
                    cliente_id: clientId,
                    cliente_nome: clientName
                });
+
+               // Lógica granular de crédito
+               if (item.status_pagamento === 'pago') {
+                   giftCardSum += item.subtotal;
+               } else {
+                   debtReductionSum += item.subtotal;
+               }
            }
         }
-        if (clientId && totalCredit > 0) {
-            const { data: saleFin } = await supabase.from('sales').select('metodo_pagamento').eq('id', saleId).single();
-            if (saleFin?.metodo_pagamento === 'Crediário') {
+
+        if (clientId) {
+            // Aplica abatimento de dívida (independente do método, se estava pendente reduz o devedor)
+            if (debtReductionSum > 0) {
                 const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', clientId).single();
-                await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, (c?.saldo_devedor_crediario || 0) - totalCredit) }).eq('id', clientId);
-            } else {
+                await supabase.from('clients').update({ 
+                    saldo_devedor_crediario: Math.max(0, Number(c?.saldo_devedor_crediario || 0) - debtReductionSum) 
+                }).eq('id', clientId);
+            }
+            
+            // Aplica crédito vale presente apenas para o que estava PAGO
+            if (giftCardSum > 0) {
                 const { data: c } = await supabase.from('clients').select('saldo_vale_presente').eq('id', clientId).single();
-                await supabase.from('clients').update({ saldo_vale_presente: (c?.saldo_vale_presente || 0) + totalCredit }).eq('id', clientId);
+                await supabase.from('clients').update({ 
+                    saldo_vale_presente: Number(c?.saldo_vale_presente || 0) + giftCardSum 
+                }).eq('id', clientId);
             }
         }
+
         const { data: activeItems = [] } = await supabase.from('sale_items').select('id').eq('venda_id', saleId).eq('status', 'sold');
         if (!activeItems || activeItems.length === 0) {
             await supabase.from('sales').update({ status: 'cancelled' }).eq('id', saleId);
@@ -810,6 +832,8 @@ export const mockService = {
     const saleDisplayId = sale.ui_id || sale.id;
 
     const allProducts = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
+    let giftCardSum = 0;
+    let debtReductionSum = 0;
 
     for (const itemToReturn of items) {
         if (sale.items) {
@@ -829,19 +853,26 @@ export const mockService = {
                 cliente_id: clientId,
                 cliente_nome: sale.cliente_nome
             });
+
+            if (itemToReturn.status_pagamento === 'pago') {
+                giftCardSum += itemToReturn.subtotal;
+            } else {
+                debtReductionSum += itemToReturn.subtotal;
+            }
         }
     }
 
     setLocalData(LS_KEYS.PRODUCTS, allProducts);
     
-    if (clientId && totalCredit > 0) {
+    if (clientId) {
         const allClients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
         const cIdx = allClients.findIndex(c => c.id === clientId);
         if (cIdx !== -1) {
-            if (sale.metodo_pagamento === 'Crediário') {
-                allClients[cIdx].saldo_devedor_crediario = Math.max(0, (allClients[cIdx].saldo_devedor_crediario || 0) - totalCredit);
-            } else {
-                allClients[cIdx].saldo_vale_presente = (allClients[cIdx].saldo_vale_presente || 0) + totalCredit;
+            if (debtReductionSum > 0) {
+                allClients[cIdx].saldo_devedor_crediario = Math.max(0, (allClients[cIdx].saldo_devedor_crediario || 0) - debtReductionSum);
+            }
+            if (giftCardSum > 0) {
+                allClients[cIdx].saldo_vale_presente = (allClients[cIdx].saldo_vale_presente || 0) + giftCardSum;
             }
             setLocalData(LS_KEYS.CLIENTS, allClients);
         }
