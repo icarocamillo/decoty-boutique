@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, BookOpen, Check, Loader2, DollarSign, CreditCard, Wallet, Calendar, Receipt, ArrowLeft, ChevronRight, Package, Info, Percent } from 'lucide-react';
 import { Button } from './ui/Button';
@@ -152,7 +151,8 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                             >
                                 <div>
                                     <p className="text-sm font-bold text-zinc-900 dark:text-white">
-                                        Venda #{sale.sales_id || sale.id.slice(0,8)}
+                                        {/* Fix: replaced non-existent sales_id with ui_id from Sale type */}
+                                        Venda #{sale.ui_id || sale.id.slice(0,8)}
                                     </p>
                                     <p className="text-xs text-zinc-500 flex items-center gap-1">
                                         <Calendar size={12} /> {new Date(sale.data_venda).toLocaleDateString('pt-BR')}

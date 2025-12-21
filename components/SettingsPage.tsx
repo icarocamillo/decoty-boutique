@@ -64,16 +64,18 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleGenerateAndSaveHash = async () => {
-     if (!newPassword.trim()) {
-       alert("Digite uma nova senha.");
+     const cleanPassword = newPassword.trim();
+     if (!cleanPassword) {
+       alert("Digite uma nova palavra-chave para a loja.");
        return;
      }
 
      setSavingHash(true);
      try {
-       // Uso da função segura (Async)
-       const hash = await generateHash(newPassword);
+       // Gera a hash SHA-256 e normaliza para minúsculas
+       const hash = await generateHash(cleanPassword);
        
+       // Salva no banco (mockService agora usa key='store_access_hash')
        const success = await mockService.updateStoreAccessHash(hash);
        
        if (success) {
@@ -82,20 +84,18 @@ export const SettingsPage: React.FC = () => {
           setNewPassword('');
           setTimeout(() => setIsUpdated(false), 3000);
        } else {
-          alert("Erro ao salvar a senha. Verifique sua conexão ou permissões.");
+          alert("Erro ao salvar a nova palavra-chave. Verifique políticas RLS ou conexão.");
        }
      } catch (error) {
         console.error(error);
-        alert("Erro técnico ao gerar hash.");
+        alert("Erro técnico ao processar segurança.");
      } finally {
         setSavingHash(false);
      }
   };
 
-  // Helper para converter input (ex: "10,5") para float (10.5)
   const parsePercentage = (value: string) => {
       if (!value) return 0;
-      // Substitui vírgula por ponto e converte
       const cleanValue = value.replace(',', '.');
       const num = parseFloat(cleanValue);
       return isNaN(num) ? 0 : num;
@@ -144,11 +144,11 @@ export const SettingsPage: React.FC = () => {
         setConfigUpdated(true);
         setTimeout(() => setConfigUpdated(false), 3000);
       } else {
-        alert("Erro ao salvar configurações financeiras. Verifique o console para mais detalhes.");
+        alert("Erro ao salvar configurações financeiras.");
       }
     } catch (error) {
       console.error(error);
-      alert("Erro de comunicação ao salvar.");
+      alert("Erro de comunicação ao salvar configurações.");
     } finally {
       setSavingConfig(false);
     }
@@ -176,29 +176,29 @@ export const SettingsPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           <div className="lg:col-span-1 space-y-6">
-            <Card title="Segurança & Acesso" description="Chave mestra para cadastro.">
+            <Card title="Segurança & Acesso" description="Chave de autorização para equipe.">
                 <div className="p-6 space-y-6">
                     <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
                     <h4 className="text-sm font-semibold text-zinc-800 dark:text-white mb-2 flex items-center gap-2">
-                        <Lock size={16} className="text-zinc-500" /> Hash Ativo
+                        <Lock size={16} className="text-zinc-500" /> Hash SHA-256 Gravada
                     </h4>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
-                        Código criptografado (SHA-256) usado para validar novos cadastros de funcionários.
+                        Código criptografado que autoriza novos registros.
                     </p>
-                    <div className="font-mono text-xs break-all bg-white dark:bg-zinc-900 p-3 rounded border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 select-all">
-                        {loadingHash ? 'Carregando...' : currentHash}
+                    <div className="font-mono text-[10px] break-all bg-white dark:bg-zinc-900 p-3 rounded border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 select-all min-h-[40px]">
+                        {loadingHash ? 'Carregando...' : (currentHash || 'Nenhuma hash encontrada')}
                     </div>
                     </div>
 
                     <div className="space-y-4">
                         <div className="border-t border-zinc-100 dark:border-zinc-800 pt-4">
-                            <h4 className="text-sm font-semibold text-zinc-800 dark:text-white mb-4">Atualizar Senha</h4>
+                            <h4 className="text-sm font-semibold text-zinc-800 dark:text-white mb-4">Nova Palavra-chave</h4>
                             <div className="space-y-2">
-                                <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Nova Senha</label>
+                                <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Palavra Secreta</label>
                                 <div className="relative">
                                   <input 
                                     type={showPassword ? 'text' : 'password'}
-                                    placeholder="Ex: MinhaSenha2025"
+                                    placeholder="Ex: LojaDecoty2024"
                                     className="w-full pl-4 pr-10 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none transition-all"
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
@@ -214,28 +214,29 @@ export const SettingsPage: React.FC = () => {
                                 </div>
                                 <Button onClick={handleGenerateAndSaveHash} className="w-full mt-2 flex items-center justify-center gap-2" disabled={savingHash}>
                                     {savingHash ? <Loader2 className="animate-spin" size={18} /> : (isUpdated ? <Check size={18} /> : <RefreshCw size={18} />)}
-                                    {savingHash ? 'Salvando...' : (isUpdated ? 'Salvo!' : 'Atualizar Hash')}
+                                    {savingHash ? 'Salvando...' : (isUpdated ? 'Atualizado!' : 'Gerar e Salvar Hash')}
                                 </Button>
+                                <p className="text-[10px] text-zinc-400 italic">Ao salvar, a palavra será transformada em SHA-256 e gravada no banco.</p>
                             </div>
                         </div>
                     </div>
                 </div>
             </Card>
 
-            <Card title="Sobre o Sistema">
+            <Card title="Infraestrutura">
                 <div className="text-sm text-zinc-600 dark:text-zinc-400 space-y-4 p-6 pt-2">
                     <div className="flex items-start gap-3">
                         <Database className="shrink-0 mt-1 text-zinc-400" size={18} />
                         <div>
-                            <p className="font-semibold text-zinc-900 dark:text-white">Banco de Dados</p>
-                            <p>{isSupabaseConfigured() ? 'Conectado ao Supabase (Produção)' : 'LocalStorage (Ambiente de Teste)'}</p>
+                            <p className="font-semibold text-zinc-900 dark:text-white">Conexão</p>
+                            <p>{isSupabaseConfigured() ? 'Supabase Cloud (Produção)' : 'LocalStorage (Offline)'}</p>
                         </div>
                     </div>
                     <div className="flex items-start gap-3">
                         <ShieldAlert className="shrink-0 mt-1 text-zinc-400" size={18} />
                         <div>
-                            <p className="font-semibold text-zinc-900 dark:text-white">Segurança</p>
-                            <p>Hash SHA-256 ativo para novos registros.</p>
+                            <p className="font-semibold text-zinc-900 dark:text-white">Identificador</p>
+                            <p>store_access_hash</p>
                         </div>
                     </div>
                 </div>
@@ -243,7 +244,7 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           <div className="lg:col-span-2 space-y-6">
-            <Card title="Configurações Financeiras" description="Defina as porcentagens de descontos e taxas operacionais.">
+            <Card title="Configurações Financeiras" description="Porcentagens para cálculos automáticos de taxas e descontos.">
                 <div className="p-6">
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="space-y-4">
@@ -251,7 +252,7 @@ export const SettingsPage: React.FC = () => {
                             <span className="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 p-1.5 rounded-lg">
                               <DollarSign size={16} />
                             </span>
-                            <h4 className="font-bold text-zinc-700 dark:text-zinc-300 text-sm">Descontos ao Cliente</h4>
+                            <h4 className="font-bold text-zinc-700 dark:text-zinc-300 text-sm">Descontos Automáticos</h4>
                          </div>
                          
                          <div className="space-y-4">
@@ -260,13 +261,9 @@ export const SettingsPage: React.FC = () => {
                                <div className="relative">
                                   <input 
                                     type="number" 
-                                    min="0"
-                                    max="100"
-                                    step="0.1"
                                     className={`${inputNumberClass} focus:ring-2 focus:ring-green-500`}
                                     value={discounts.pix}
                                     onChange={(e) => handleDiscountChange('pix', e.target.value)}
-                                    placeholder="0"
                                   />
                                   <Percent size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                                </div>
@@ -277,13 +274,9 @@ export const SettingsPage: React.FC = () => {
                                <div className="relative">
                                   <input 
                                     type="number" 
-                                    min="0"
-                                    max="100"
-                                    step="0.1"
                                     className={`${inputNumberClass} focus:ring-2 focus:ring-green-500`}
                                     value={discounts.debit}
                                     onChange={(e) => handleDiscountChange('debit', e.target.value)}
-                                    placeholder="0"
                                   />
                                   <Percent size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                                </div>
@@ -294,13 +287,9 @@ export const SettingsPage: React.FC = () => {
                                <div className="relative">
                                   <input 
                                     type="number" 
-                                    min="0"
-                                    max="100"
-                                    step="0.1"
                                     className={`${inputNumberClass} focus:ring-2 focus:ring-green-500`}
                                     value={discounts.credit_spot}
                                     onChange={(e) => handleDiscountChange('credit_spot', e.target.value)}
-                                    placeholder="0"
                                   />
                                   <Percent size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                                </div>
@@ -313,22 +302,18 @@ export const SettingsPage: React.FC = () => {
                             <span className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-1.5 rounded-lg">
                               <Wallet size={16} />
                             </span>
-                            <h4 className="font-bold text-zinc-700 dark:text-zinc-300 text-sm">Taxas da Maquininha</h4>
+                            <h4 className="font-bold text-zinc-700 dark:text-zinc-300 text-sm">Taxas de Operação</h4>
                          </div>
 
                          <div className="space-y-4">
                             <div className="space-y-2">
-                               <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Débito (%)</label>
+                               <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Cartão Débito (%)</label>
                                <div className="relative">
                                   <input 
                                     type="number" 
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
                                     className={`${inputNumberClass} focus:ring-2 focus:ring-red-500`}
                                     value={fees.debit}
                                     onChange={(e) => handleFeeChange('debit', e.target.value)}
-                                    placeholder="0"
                                   />
                                   <Percent size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                                </div>
@@ -339,13 +324,9 @@ export const SettingsPage: React.FC = () => {
                                <div className="relative">
                                   <input 
                                     type="number" 
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
                                     className={`${inputNumberClass} focus:ring-2 focus:ring-red-500`}
                                     value={fees.credit_spot}
                                     onChange={(e) => handleFeeChange('credit_spot', e.target.value)}
-                                    placeholder="0"
                                   />
                                   <Percent size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                                </div>
@@ -356,13 +337,9 @@ export const SettingsPage: React.FC = () => {
                                <div className="relative">
                                   <input 
                                     type="number" 
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
                                     className={`${inputNumberClass} focus:ring-2 focus:ring-red-500`}
                                     value={fees.credit_installment}
                                     onChange={(e) => handleFeeChange('credit_installment', e.target.value)}
-                                    placeholder="0"
                                   />
                                   <Percent size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                                </div>
@@ -374,7 +351,7 @@ export const SettingsPage: React.FC = () => {
                    <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800 flex justify-end">
                       <Button onClick={handleSaveConfig} className="flex items-center gap-2" disabled={loadingConfig || savingConfig}>
                           {savingConfig ? <Loader2 className="animate-spin" size={18} /> : (configUpdated ? <Check size={18} /> : <RefreshCw size={18} />)}
-                          {savingConfig ? 'Salvando...' : (configUpdated ? 'Salvo!' : 'Salvar Alterações')}
+                          {savingConfig ? 'Salvando...' : (configUpdated ? 'Configuração Salva!' : 'Salvar Configurações')}
                       </Button>
                    </div>
                 </div>

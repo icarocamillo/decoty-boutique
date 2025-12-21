@@ -1,3 +1,4 @@
+
 import { Client, Product, Sale, StockEntry, Supplier, PaymentDiscounts, PaymentFees, CartItem, UserProfile, SaleItem } from '../types';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { MOCK_CLIENTS, MOCK_PRODUCTS, MOCK_INITIAL_SALES, MOCK_STOCK_ENTRIES, MOCK_SUPPLIERS } from '../constants';
@@ -52,21 +53,34 @@ const normalizeClientData = (data: any): Client => {
   return baseClient as Client;
 };
 
-const prepareClientPayload = (client: Partial<Client>) => {
-  const { endereco, ...rest } = client;
+const prepareClientPayload = (client: any) => {
+  const { endereco, id, data_cadastro, telefone, ...rest } = client;
+  
+  const payload: any = {
+    nome: rest.nome,
+    cpf: rest.cpf || null,
+    email: rest.email || '',
+    telefone_fixo: rest.telefone_fixo || null,
+    celular: rest.celular || null,
+    is_whatsapp: !!rest.is_whatsapp,
+    receber_ofertas: !!rest.receber_ofertas,
+    pode_provador: !!rest.pode_provador,
+    saldo_vale_presente: Number(rest.saldo_vale_presente || 0),
+    saldo_devedor_crediario: Number(rest.saldo_devedor_crediario || 0)
+  };
+
   if (endereco) {
-    return {
-      ...rest,
-      cep: endereco.cep,
-      logradouro: endereco.logradouro,
-      numero: endereco.numero,
-      complemento: endereco.complemento,
-      bairro: endereco.bairro,
-      cidade: endereco.cidade,
-      estado: endereco.estado
-    };
+    Object.assign(payload, {
+      cep: endereco.cep || '',
+      logradouro: endereco.logradouro || '',
+      numero: endereco.numero || '',
+      complemento: endereco.complemento || '',
+      bairro: endereco.bairro || '',
+      cidade: endereco.cidade || '',
+      estado: endereco.estado || ''
+    });
   }
-  return rest;
+  return payload;
 };
 
 export const mockService = {
@@ -83,7 +97,11 @@ export const mockService = {
     if (isSupabaseConfigured()) {
       const payload = prepareClientPayload(client);
       const { error } = await supabase.from('clients').insert([payload]);
-      return !error;
+      if (error) {
+          console.error("Erro Supabase Cadastro:", error.message);
+          return false;
+      }
+      return true;
     }
     const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
     const newClient: Client = { ...client, id: `c-${Date.now()}`, data_cadastro: new Date().toISOString(), saldo_vale_presente: 0, saldo_devedor_crediario: 0 };
@@ -96,7 +114,11 @@ export const mockService = {
     if (isSupabaseConfigured()) {
       const payload = prepareClientPayload(client);
       const { error } = await supabase.from('clients').update(payload).eq('id', client.id);
-      return !error;
+      if (error) {
+          console.error("Erro Supabase Update:", error.message);
+          return false;
+      }
+      return true;
     }
     const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
     const index = clients.findIndex(c => c.id === client.id);
@@ -127,21 +149,14 @@ export const mockService = {
 
   processCrediarioPayment: async (clientId: string, itemIds: string[], totalAmount: number, vendaId: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        // 1. Marcar itens como pagos
         await supabase.from('sale_items').update({ status_pagamento: 'pago' }).in('id', itemIds);
-        
-        // 2. Abater saldo do cliente
         await mockService.updateClientCrediario(clientId, totalAmount);
-        
-        // 3. Verificar se ainda existem itens pendentes na venda
-        const { data: pending } = await supabase.from('sale_items').select('id').eq('venda_id', vendaId).eq('status_pagamento', 'pendente');
-        
+        const { data: pending } = await supabase.from('sale_items').select('id').eq('venda_id', vendaId).eq('status_pagamento', 'pendente').eq('status', 'sold');
         if (!pending || pending.length === 0) {
             await supabase.from('sales').update({ status_pagamento: 'pago' }).eq('id', vendaId);
         }
         return true;
     }
-    // Mock Local
     const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
     const saleIdx = sales.findIndex(s => s.id === vendaId);
     if (saleIdx !== -1) {
@@ -165,35 +180,37 @@ export const mockService = {
     return getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
   },
 
-  createProduct: async (product: Omit<Product, 'id'>, userName: string): Promise<boolean> => {
+  createProduct: async (product: Omit<Product, 'id' | 'ui_id'>, userId: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        const { error } = await supabase.from('products').insert([product]);
-        if (!error) {
+        const { data, error } = await supabase.from('products').insert([product]).select().single();
+        if (!error && data) {
             await mockService.logStockEntry({
-                produto_id: undefined, 
-                produto_nome: `${product.nome} - ${product.marca}`,
-                quantidade: product.quantidade_estoque,
-                responsavel: userName,
+                produto_id: data.id, 
+                produto_nome: `${data.nome} - ${data.marca}`,
+                quantidade: data.quantidade_estoque,
+                responsavel: userId,
                 motivo: 'Cadastro de Produto'
             });
+            return true;
         }
-        return !error;
+        return false;
     }
     const products = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
-    const newProduct: Product = { ...product, id: `p-${Date.now()}` };
+    const lastUiId = products.length > 0 ? Math.max(...products.map(p => p.ui_id || 0)) : 0;
+    const newProduct: Product = { ...product as any, id: `p-${Date.now()}`, ui_id: lastUiId + 1 };
     products.push(newProduct);
     setLocalData(LS_KEYS.PRODUCTS, products);
     await mockService.logStockEntry({
         produto_id: newProduct.id,
         produto_nome: `${newProduct.nome} - ${newProduct.marca}`,
         quantidade: newProduct.quantidade_estoque,
-        responsavel: userName,
+        responsavel: userId,
         motivo: 'Cadastro de Produto'
     });
     return true;
   },
 
-  updateProduct: async (product: Product, userName: string): Promise<boolean> => {
+  updateProduct: async (product: Product, userId: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
         const { data: oldProduct } = await supabase.from('products').select('quantidade_estoque').eq('id', product.id).single();
         const oldStock = oldProduct?.quantidade_estoque || 0;
@@ -204,7 +221,7 @@ export const mockService = {
                 produto_id: product.id,
                 produto_nome: `${product.nome} - ${product.marca}`,
                 quantidade: diff,
-                responsavel: userName,
+                responsavel: userId,
                 motivo: 'Atualização de Produto (Manual)'
             });
         }
@@ -222,7 +239,7 @@ export const mockService = {
             produto_id: product.id,
             produto_nome: `${product.nome} - ${product.marca}`,
             quantidade: diff,
-            responsavel: userName,
+            responsavel: userId,
             motivo: 'Atualização de Produto (Manual)'
         });
       }
@@ -231,91 +248,105 @@ export const mockService = {
     return false;
   },
 
-  createSale: async (cart: CartItem[], client: {id?: string, name: string, cpf?: string}, method: string, installments: number, extraDiscount: number, feesSnapshot: any, userName: string, giftCardUsed: number): Promise<boolean> => {
+  createSale: async (cart: CartItem[], client: {id?: string, name: string, cpf?: string}, method: string, installments: number, extraDiscount: number, feesSnapshot: any, userId: string, giftCardUsed: number): Promise<boolean> => {
     const totalValue = cart.reduce((acc, item) => acc + item.subtotal, 0) - extraDiscount - giftCardUsed;
     const isCrediario = method === 'Crediário';
-    
-    // Explicitly cast status_pagamento to prevent inference as string
+    const feeValueTotal = feesSnapshot?.valor || 0;
+
     const saleData = {
         data_venda: new Date().toISOString(),
         valor_total: totalValue,
-        cliente_id: client.id,
+        valor_liquido_lojista: totalValue - feeValueTotal, 
+        cliente_id: client.id || null,
         cliente_nome: client.name,
-        cliente_cpf: client.cpf,
+        cliente_cpf: client.cpf || null,
         produtos_resumo: cart.map(i => `${i.quantidade}x ${i.nome}`).join(', '),
         metodo_pagamento: method,
         status_pagamento: (isCrediario ? 'pendente' : 'pago') as 'pendente' | 'pago',
         parcelas: installments,
         desconto_extra: extraDiscount,
         uso_vale_presente: giftCardUsed,
-        vendedor: userName,
+        responsavel: userId, 
         status: 'completed' as const,
         item_count: cart.reduce((acc, item) => acc + item.quantidade, 0),
         taxas_aplicadas: feesSnapshot
     };
 
     if (isSupabaseConfigured()) {
-        const { data: sale, error } = await supabase.from('sales').insert([saleData]).select().single();
-        if (error || !sale) return false;
-
-        if (isCrediario && client.id) {
-            const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', client.id).single();
-            const currentDebt = Number(c?.saldo_devedor_crediario || 0);
-            await supabase.from('clients').update({ saldo_devedor_crediario: currentDebt + totalValue }).eq('id', client.id);
-        }
-
-        const itemsData = cart.flatMap(item => {
-            const unitDiscount = (item.desconto || 0) / item.quantidade;
-            const unitSubtotal = (item.subtotal || 0) / item.quantidade;
-            return Array.from({ length: item.quantidade }).map(() => ({
-                venda_id: sale.id,
-                produto_id: item.produto_id,
-                nome_produto: item.nome,
-                marca: item.marca,
-                tamanho: item.tamanho,
-                quantidade: 1,
-                preco_unitario: item.preco_unitario,
-                custo_unitario: item.preco_custo || 0,
-                desconto: unitDiscount,
-                subtotal: unitSubtotal,
-                status: 'sold' as const,
-                // Explicitly cast status_pagamento to prevent inference as string
-                status_pagamento: (isCrediario ? 'pendente' : 'pago') as 'pendente' | 'pago'
-            }));
-        });
-        await supabase.from('sale_items').insert(itemsData);
-
-        for (const item of cart) {
-            const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
-            if (prod) {
-                const newStock = prod.quantidade_estoque - item.quantidade;
-                await supabase.from('products').update({ quantidade_estoque: newStock }).eq('id', item.produto_id);
-                await mockService.logStockEntry({
-                    produto_id: item.produto_id,
-                    produto_nome: `${item.nome} - ${item.marca}`,
-                    quantidade: -item.quantidade,
-                    responsavel: userName,
-                    motivo: `Saída - Venda #${sale.sales_id || sale.id}`,
-                    cliente_id: client.id,
-                    cliente_nome: client.name
-                });
+        try {
+            // Buscamos o registro criado incluindo o sales_id/ui_id gerado pelo banco
+            const { data: sale, error: saleError } = await supabase.from('sales').insert([saleData]).select().single();
+            
+            if (saleError || !sale) {
+                console.error("Erro Supabase ao criar venda:", saleError);
+                return false;
             }
-        }
 
-        if (giftCardUsed > 0 && client.id) {
-             const { data: c } = await supabase.from('clients').select('saldo_vale_presente').eq('id', client.id).single();
-             if (c) {
-                 const newBalance = (c.saldo_vale_presente || 0) - giftCardUsed;
-                 await supabase.from('clients').update({ saldo_vale_presente: newBalance }).eq('id', client.id);
-             }
+            const saleDisplayId = sale.sales_id || sale.ui_id || sale.id;
+
+            if (isCrediario && client.id) {
+                const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', client.id).single();
+                const currentDebt = Number(c?.saldo_devedor_crediario || 0);
+                await supabase.from('clients').update({ saldo_devedor_crediario: currentDebt + totalValue }).eq('id', client.id);
+            }
+
+            const itemsData = cart.flatMap(item => {
+                const unitDiscount = (item.desconto || 0) / item.quantidade;
+                const unitSubtotal = (item.subtotal || 0) / item.quantidade;
+                return Array.from({ length: item.quantidade }).map(() => ({
+                    venda_id: sale.id,
+                    produto_id: item.produto_id,
+                    nome_produto: item.nome,
+                    marca: item.marca,
+                    tamanho: item.tamanho,
+                    quantidade: 1,
+                    preco_unitario: item.preco_unitario,
+                    custo_unitario: item.preco_custo || 0,
+                    desconto: unitDiscount,
+                    subtotal: unitSubtotal,
+                    status: 'sold' as const,
+                    status_pagamento: (isCrediario ? 'pendente' : 'pago') as 'pendente' | 'pago'
+                }));
+            });
+            
+            const { error: itemsError } = await supabase.from('sale_items').insert(itemsData);
+            if (itemsError) {
+                console.error("Erro Supabase ao inserir itens da venda:", itemsError);
+            }
+
+            for (const item of cart) {
+                const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
+                if (prod) {
+                    const newStock = prod.quantidade_estoque - item.quantidade;
+                    await supabase.from('products').update({ quantidade_estoque: newStock }).eq('id', item.produto_id);
+                    await mockService.logStockEntry({
+                        produto_id: item.produto_id,
+                        produto_nome: `${item.nome} - ${item.marca}`,
+                        quantidade: -item.quantidade,
+                        responsavel: userId,
+                        motivo: `Saída - Venda #${saleDisplayId}`,
+                        cliente_id: client.id,
+                        cliente_nome: client.name
+                    });
+                }
+            }
+
+            if (giftCardUsed > 0 && client.id) {
+                 const { data: c } = await supabase.from('clients').select('saldo_vale_presente').eq('id', client.id).single();
+                 if (c) {
+                     const newBalance = (c.saldo_vale_presente || 0) - giftCardUsed;
+                     await supabase.from('clients').update({ saldo_vale_presente: newBalance }).eq('id', client.id);
+                 }
+            }
+            return true;
+        } catch (err) {
+            console.error("Erro crítico inesperado ao finalizar venda (Supabase):", err);
+            return false;
         }
-        return true;
     }
 
     const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
     const saleId = `s-${Date.now()}`;
-    
-    // Unroll items for mock consistency
     const mockedItems: SaleItem[] = cart.flatMap(item => {
         const unitDiscount = (item.desconto || 0) / item.quantidade;
         const unitSubtotal = (item.subtotal || 0) / item.quantidade;
@@ -332,12 +363,11 @@ export const mockService = {
             desconto: unitDiscount,
             subtotal: unitSubtotal,
             status: 'sold' as const,
-            // Explicitly cast status_pagamento to prevent inference as string
             status_pagamento: (isCrediario ? 'pendente' : 'pago') as 'pendente' | 'pago'
         }));
     });
 
-    const newSale: Sale = { ...saleData, id: saleId, items: mockedItems };
+    const newSale: Sale = { ...saleData, id: saleId, items: mockedItems, ui_id: sales.length + 1 };
     sales.push(newSale);
     setLocalData(LS_KEYS.SALES, sales);
 
@@ -359,8 +389,8 @@ export const mockService = {
                 produto_id: item.produto_id,
                 produto_nome: `${item.nome} - ${item.marca}`,
                 quantidade: -item.quantidade,
-                responsavel: userName,
-                motivo: `Saída - Venda #${newSale.sales_id || newSale.id}`,
+                responsavel: userId,
+                motivo: `Saída - Venda #${newSale.ui_id || newSale.id}`,
                 cliente_id: client.id,
                 cliente_nome: client.name
             });
@@ -382,7 +412,7 @@ export const mockService = {
   getRecentSales: async (): Promise<Sale[]> => {
     if (isSupabaseConfigured()) {
         const { data } = await supabase.from('sales').select('*, items:sale_items(*)').order('data_venda', { ascending: false }).limit(20);
-        return data || [];
+        return (data || []).map(s => ({ ...s, ui_id: s.sales_id || s.ui_id }));
     }
     const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
     return sales.sort((a, b) => new Date(b.data_venda).getTime() - new Date(a.data_venda).getTime()).slice(0, 20);
@@ -390,10 +420,8 @@ export const mockService = {
 
   getSalesByPeriod: async (start: string, end: string): Promise<Sale[]> => {
     if (isSupabaseConfigured()) {
-        const startISO = `${start}T00:00:00`;
-        const endISO = `${end}T23:59:59`;
-        const { data } = await supabase.from('sales').select('*, items:sale_items(*)').gte('data_venda', startISO).lte('data_venda', endISO);
-        return data || [];
+        const { data } = await supabase.from('sales').select('*, items:sale_items(*)').gte('data_venda', `${start}T00:00:00`).lte('data_venda', `${end}T23:59:59`);
+        return (data || []).map(s => ({ ...s, ui_id: s.sales_id || s.ui_id }));
     }
     const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
     const sDate = new Date(start);
@@ -406,10 +434,16 @@ export const mockService = {
   },
 
   getDashboardChartData: async () => {
-    const sales = await mockService.getRecentSales();
+    const today = new Date().toISOString().split('T')[0];
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    const startStr = sevenDaysAgo.toISOString().split('T')[0];
+    
+    const sales = await mockService.getSalesByPeriod(startStr, today);
+    
     const last7Days = Array.from({length: 7}, (_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (6 - i));
+        const d = new Date(sevenDaysAgo);
+        d.setDate(d.getDate() + i);
         return d;
     });
 
@@ -432,7 +466,12 @@ export const mockService = {
   },
 
   getTopSellingBrand: async (): Promise<string> => {
-      const sales = await mockService.getRecentSales();
+      const today = new Date().toISOString().split('T')[0];
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const startStr = sevenDaysAgo.toISOString().split('T')[0];
+      
+      const sales = await mockService.getSalesByPeriod(startStr, today);
       const brandCounts: Record<string, number> = {};
       sales.forEach(s => {
           if (s.status !== 'cancelled' && s.items) {
@@ -454,35 +493,55 @@ export const mockService = {
   },
 
   logStockEntry: async (entry: Omit<StockEntry, 'id' | 'data_entrada'>) => {
-    const newEntry = { ...entry, data_entrada: new Date().toISOString() };
+    const newEntry = { 
+        produto_id: entry.produto_id,
+        produto_nome: entry.produto_nome,
+        quantidade: entry.quantidade,
+        responsavel: entry.responsavel, 
+        motivo: entry.motivo,
+        cliente_id: entry.cliente_id || null,
+        cliente_nome: entry.cliente_nome || null,
+        data_entrada: new Date().toISOString() 
+    };
+
     if (isSupabaseConfigured()) {
-        await supabase.from('stock_entries').insert([newEntry]);
+        // Validação preventiva no código: Se o 'responsavel' não for um UUID (contém espaços ou letras fora de A-F), loga erro local antes de tentar o banco
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(newEntry.responsavel);
+        if (!isUuid) {
+            console.error("Erro crítico: Tentativa de registrar log de estoque com responsável inválido (não é UUID):", newEntry.responsavel);
+            return;
+        }
+
+        const { error } = await supabase.from('stock_entries').insert([newEntry]);
+        if (error) console.error("Falha ao registrar log de estoque no Supabase (Verifique FK profiles):", error);
         return;
     }
     const entries = getLocalData<StockEntry[]>(LS_KEYS.STOCK, MOCK_STOCK_ENTRIES);
-    entries.push({ ...newEntry, id: `se-${Date.now()}` });
+    entries.push({ ...newEntry, id: `se-${Date.now()}` } as StockEntry);
     setLocalData(LS_KEYS.STOCK, entries);
   },
 
-  updateProductStock: async (productId: string, newQuantity: number, reason: string, clientInfo: {id: string, name: string} | undefined, userName: string) => {
+  updateProductStock: async (productId: string, newQuantity: number, reason: string, clientInfo: {id: string, name: string} | undefined, userId: string) => {
       const products = await mockService.getProducts();
       const product = products.find(p => p.id === productId);
       if (!product) return;
+      
       const diff = newQuantity - product.quantidade_estoque;
+      
       if (isSupabaseConfigured()) {
           await supabase.from('products').update({ quantidade_estoque: newQuantity }).eq('id', productId);
           await mockService.logStockEntry({
               produto_id: productId,
               produto_nome: `${product.nome} - ${product.marca}`,
               quantidade: diff,
-              responsavel: userName,
+              responsavel: userId, 
               motivo: reason,
               cliente_id: clientInfo?.id,
               cliente_nome: clientInfo?.name
           });
           return;
       }
-      const allProducts = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
+      const allProducts = await mockService.getProducts();
       const idx = allProducts.findIndex(p => p.id === productId);
       if (idx !== -1) {
           allProducts[idx].quantidade_estoque = newQuantity;
@@ -491,7 +550,7 @@ export const mockService = {
               produto_id: productId,
               produto_nome: `${product.nome} - ${product.marca}`,
               quantidade: diff,
-              responsavel: userName,
+              responsavel: userId,
               motivo: reason,
               cliente_id: clientInfo?.id,
               cliente_nome: clientInfo?.name
@@ -536,7 +595,7 @@ export const mockService = {
   getPaymentDiscounts: async (): Promise<PaymentDiscounts> => {
       const defaults = { credit_spot: 0, debit: 0, pix: 0 };
       if (isSupabaseConfigured()) {
-          const { data } = await supabase.from('store_config').select('value').eq('key', 'payment_discounts').single();
+          const { data } = await supabase.from('store_config').select('value').eq('key', 'payment_discounts').maybeSingle();
           return data ? JSON.parse(data.value) : defaults;
       }
       const config = getLocalData<any>(LS_KEYS.STORE_CONFIG, {});
@@ -557,7 +616,7 @@ export const mockService = {
   getPaymentFees: async (): Promise<PaymentFees> => {
       const defaults = { credit_spot: 0, credit_installment: 0, debit: 0 };
       if (isSupabaseConfigured()) {
-          const { data } = await supabase.from('store_config').select('value').eq('key', 'payment_fees').single();
+          const { data } = await supabase.from('store_config').select('value').eq('key', 'payment_fees').maybeSingle();
           return data ? JSON.parse(data.value) : defaults;
       }
       const config = getLocalData<any>(LS_KEYS.STORE_CONFIG, {});
@@ -577,11 +636,16 @@ export const mockService = {
 
   getStoreAccessHash: async (): Promise<string> => {
       if (isSupabaseConfigured()) {
-          const { data } = await supabase.from('store_config').select('value').eq('key', 'store_access_hash').single();
-          return data ? data.value : '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'; 
+          const { data, error } = await supabase
+              .from('store_config')
+              .select('value')
+              .eq('key', 'store_access_hash')
+              .maybeSingle();
+          if (error) return '';
+          return data ? String(data.value || '').trim() : ''; 
       }
       const config = getLocalData<any>(LS_KEYS.STORE_CONFIG, {});
-      return config.store_access_hash || '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92';
+      return config.store_access_hash || '';
   },
 
   updateStoreAccessHash: async (hash: string): Promise<boolean> => {
@@ -599,13 +663,7 @@ export const mockService = {
       if (isSupabaseConfigured()) {
           const { data, error } = await supabase.from('profiles').select('*');
           if (error) return [];
-          return data.map((p: any) => ({
-              id: p.id,
-              name: p.name || 'User',
-              email: p.email || '',
-              role: p.role || 'salesperson',
-              active: p.active
-          }));
+          return data.map((p: any) => ({ id: p.id, name: p.name || 'User', email: p.email || '', role: p.role || 'salesperson', active: p.active }));
       }
       return getLocalData<any[]>(LS_KEYS.USERS, []);
   },
@@ -617,11 +675,7 @@ export const mockService = {
       }
       const users = getLocalData<any[]>(LS_KEYS.USERS, []);
       const idx = users.findIndex(u => u.id === userId);
-      if (idx !== -1) {
-          users[idx].active = active;
-          setLocalData(LS_KEYS.USERS, users);
-          return true;
-      }
+      if (idx !== -1) { users[idx].active = active; setLocalData(LS_KEYS.USERS, users); return true; }
       return false;
   },
 
@@ -632,21 +686,18 @@ export const mockService = {
       }
       const users = getLocalData<any[]>(LS_KEYS.USERS, []);
       const idx = users.findIndex(u => u.id === userId);
-      if (idx !== -1) {
-          users[idx].role = role;
-          setLocalData(LS_KEYS.USERS, users);
-          return true;
-      }
+      if (idx !== -1) { users[idx].role = role; setLocalData(LS_KEYS.USERS, users); return true; }
       return false;
   },
 
-  cancelSale: async (saleId: string, userName: string): Promise<boolean> => {
+  cancelSale: async (saleId: string, userId: string): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          const { data: sale } = await supabase.from('sales').select('cliente_id, cliente_nome, sales_id, metodo_pagamento, valor_total').eq('id', saleId).single();
+          const { data: sale } = await supabase.from('sales').select('cliente_id, cliente_nome, sales_id, ui_id, metodo_pagamento, valor_total').eq('id', saleId).single();
           const { error } = await supabase.from('sales').update({ status: 'cancelled' }).eq('id', saleId);
           if (error) return false;
 
-          // Se era crediário, remove do saldo devedor
+          const saleDisplayId = sale?.sales_id || sale?.ui_id || saleId;
+
           if (sale?.metodo_pagamento === 'Crediário' && sale.cliente_id) {
               const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', sale.cliente_id).single();
               await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, (c?.saldo_devedor_crediario || 0) - sale.valor_total) }).eq('id', sale.cliente_id);
@@ -663,8 +714,8 @@ export const mockService = {
                           produto_id: item.produto_id,
                           produto_nome: `${item.nome_produto} - ${item.marca}`,
                           quantidade: item.quantidade,
-                          responsavel: userName,
-                          motivo: `Cancelamento de Venda #${sale?.sales_id || saleId}`,
+                          responsavel: userId, 
+                          motivo: `Cancelamento de Venda #${saleDisplayId}`,
                           cliente_id: sale?.cliente_id,
                           cliente_nome: sale?.cliente_nome
                       });
@@ -699,8 +750,8 @@ export const mockService = {
                         produto_id: item.produto_id,
                         produto_nome: `${item.nome_produto} - ${item.marca}`,
                         quantidade: item.quantidade,
-                        responsavel: userName,
-                        motivo: `Cancelamento de Venda #${sale.sales_id || sale.id}`,
+                        responsavel: userId,
+                        motivo: `Cancelamento de Venda #${sale.ui_id || sale.id}`,
                         cliente_id: sale.cliente_id,
                         cliente_nome: sale.cliente_nome
                   });
@@ -712,9 +763,12 @@ export const mockService = {
       return false;
   },
 
-  returnSaleItems: async (saleId: string, items: SaleItem[], clientId: string | undefined, totalCredit: number, userName: string): Promise<boolean> => {
+  returnSaleItems: async (saleId: string, items: SaleItem[], clientId: string | undefined, totalCredit: number, userId: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        const { data: saleData } = await supabase.from('sales').select('sales_id, metodo_pagamento').eq('id', saleId).single();
+        const { data: saleData } = await supabase.from('sales').select('sales_id, ui_id, cliente_nome').eq('id', saleId).single();
+        const saleDisplayId = saleData?.sales_id || saleData?.ui_id || saleId;
+        const clientName = saleData?.cliente_nome;
+
         for (const item of items) {
            const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
            if (prod) {
@@ -724,14 +778,16 @@ export const mockService = {
                    produto_id: item.produto_id,
                    produto_nome: `${item.nome_produto} - ${item.marca}`,
                    quantidade: item.quantidade,
-                   responsavel: userName,
-                   motivo: `Devolução de Venda #${saleData?.sales_id || saleId}`,
-                   cliente_id: clientId
+                   responsavel: userId, 
+                   motivo: `Devolução de Venda #${saleDisplayId}`,
+                   cliente_id: clientId,
+                   cliente_nome: clientName
                });
            }
         }
         if (clientId && totalCredit > 0) {
-            if (saleData?.metodo_pagamento === 'Crediário') {
+            const { data: saleFin } = await supabase.from('sales').select('metodo_pagamento').eq('id', saleId).single();
+            if (saleFin?.metodo_pagamento === 'Crediário') {
                 const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', clientId).single();
                 await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, (c?.saldo_devedor_crediario || 0) - totalCredit) }).eq('id', clientId);
             } else {
@@ -739,12 +795,62 @@ export const mockService = {
                 await supabase.from('clients').update({ saldo_vale_presente: (c?.saldo_vale_presente || 0) + totalCredit }).eq('id', clientId);
             }
         }
-        const { data: activeItems } = await supabase.from('sale_items').select('id').eq('venda_id', saleId).eq('status', 'sold');
+        const { data: activeItems = [] } = await supabase.from('sale_items').select('id').eq('venda_id', saleId).eq('status', 'sold');
         if (!activeItems || activeItems.length === 0) {
             await supabase.from('sales').update({ status: 'cancelled' }).eq('id', saleId);
         }
         return true;
     }
+
+    // LÓGICA MOCK (LocalStorage)
+    const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
+    const saleIdx = sales.findIndex(s => s.id === saleId);
+    if (saleIdx === -1) return false;
+    const sale = sales[saleIdx];
+    const saleDisplayId = sale.ui_id || sale.id;
+
+    const allProducts = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
+
+    for (const itemToReturn of items) {
+        if (sale.items) {
+            const siIdx = sale.items.findIndex(si => si.id === itemToReturn.id);
+            if (siIdx !== -1) sale.items[siIdx].status = 'returned';
+        }
+
+        const pIdx = allProducts.findIndex(p => p.id === itemToReturn.produto_id);
+        if (pIdx !== -1) {
+            allProducts[pIdx].quantidade_estoque += itemToReturn.quantidade;
+            await mockService.logStockEntry({
+                produto_id: itemToReturn.produto_id,
+                produto_nome: `${itemToReturn.nome_produto} - ${itemToReturn.marca}`,
+                quantidade: itemToReturn.quantidade,
+                responsavel: userId,
+                motivo: `Devolução de Venda #${saleDisplayId}`,
+                cliente_id: clientId,
+                cliente_nome: sale.cliente_nome
+            });
+        }
+    }
+
+    setLocalData(LS_KEYS.PRODUCTS, allProducts);
+    
+    if (clientId && totalCredit > 0) {
+        const allClients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
+        const cIdx = allClients.findIndex(c => c.id === clientId);
+        if (cIdx !== -1) {
+            if (sale.metodo_pagamento === 'Crediário') {
+                allClients[cIdx].saldo_devedor_crediario = Math.max(0, (allClients[cIdx].saldo_devedor_crediario || 0) - totalCredit);
+            } else {
+                allClients[cIdx].saldo_vale_presente = (allClients[cIdx].saldo_vale_presente || 0) + totalCredit;
+            }
+            setLocalData(LS_KEYS.CLIENTS, allClients);
+        }
+    }
+
+    const hasActiveItems = sale.items?.some(i => i.status === 'sold');
+    if (!hasActiveItems) sale.status = 'cancelled';
+
+    setLocalData(LS_KEYS.SALES, sales);
     return true;
   },
 
@@ -768,7 +874,7 @@ export const mockService = {
   getClientSales: async (clientId: string): Promise<Sale[]> => {
       if (isSupabaseConfigured()) {
           const { data } = await supabase.from('sales').select('*, items:sale_items(*)').eq('cliente_id', clientId).order('data_venda', { ascending: false });
-          return data || [];
+          return (data || []).map(s => ({ ...s, ui_id: s.sales_id || s.ui_id }));
       }
       const sales = getLocalData<Sale[]>(LS_KEYS.SALES, []);
       return sales.filter(s => s.cliente_id === clientId);
@@ -783,7 +889,7 @@ export const mockService = {
       return entries.filter(e => e.cliente_id === clientId);
   },
 
-  returnProvadorItem: async (entry: StockEntry, userName: string): Promise<boolean> => {
+  returnProvadorItem: async (entry: StockEntry, userId: string): Promise<boolean> => {
       if (isSupabaseConfigured()) {
           const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', entry.produto_id).single();
           if (!prod) return false;
@@ -792,7 +898,7 @@ export const mockService = {
               produto_id: entry.produto_id,
               produto_nome: entry.produto_nome,
               quantidade: Math.abs(entry.quantidade),
-              responsavel: userName,
+              responsavel: userId, 
               motivo: 'Retorno Provador',
               cliente_id: entry.cliente_id,
               cliente_nome: entry.cliente_nome
@@ -803,13 +909,12 @@ export const mockService = {
       const pIdx = products.findIndex(p => p.id === entry.produto_id);
       if (pIdx !== -1) {
           products[pIdx].quantidade_estoque += Math.abs(entry.quantidade);
-          // Changed allProducts to products to fix the error
           setLocalData(LS_KEYS.PRODUCTS, products);
           await mockService.logStockEntry({
               produto_id: entry.produto_id,
               produto_nome: entry.produto_nome,
               quantidade: Math.abs(entry.quantidade),
-              responsavel: userName,
+              responsavel: userId,
               motivo: 'Retorno Provador',
               cliente_id: entry.cliente_id,
               cliente_nome: entry.cliente_nome

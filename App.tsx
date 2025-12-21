@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate, Outlet } from 'react-router-dom';
 import { Plus, UserPlus, Package, Archive, ShoppingCart, Users, PieChart, Truck } from 'lucide-react';
@@ -21,52 +22,37 @@ import { ManagementReportPage } from './components/ManagementReportPage';
 import { ClientHistoryPage } from './components/ClientHistoryPage';
 import { SupplierList } from './components/SupplierList';
 
-// Função para obter o tema inicial
 const getInitialTheme = (): boolean => {
-  // Se estiver no navegador
   if (typeof window !== 'undefined') {
-    // Tenta recuperar do localStorage
     const savedTheme = localStorage.getItem('darkMode');
-    if (savedTheme !== null) {
-      return savedTheme === 'true';
-    }
-    
-    // Se não tiver no localStorage, verifica a preferência do sistema
+    if (savedTheme !== null) return savedTheme === 'true';
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
-  
-  // Valor padrão para SSR
   return false;
 };
 
-// Custom Luxury Logo Component - "D" in Rouge Script
 const BrandLogo = () => (
   <div className="flex items-center justify-center w-11 h-11 rounded-lg bg-zinc-900 dark:bg-zinc-100 shadow-md transition-colors duration-300">
     <span className="font-rouge text-4xl text-white dark:text-zinc-900 pt-1 select-none">D</span>
   </div>
 );
 
-// Wrapper para Rotas Exclusivas de Gerente
 const ManagerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { userRole } = useAuth();
-  if (userRole !== 'manager') {
-    return <Navigate to="/home" replace />;
-  }
+  if (userRole !== 'manager') return <Navigate to="/home" replace />;
   return <>{children}</>;
 };
 
-// Layout Component for Authenticated Pages
 const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { userRole } = useAuth(); 
+  const { userRole, userName } = useAuth(); 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => getInitialTheme());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const isManager = userRole === 'manager';
 
-  // Data States
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -75,35 +61,14 @@ const AppLayout: React.FC = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [topBrand, setTopBrand] = useState<string>('-');
 
-  // Theme Logic
   useEffect(() => {
-    console.log('Tema atualizado:', isDarkMode ? 'escuro' : 'claro');
-    
-    // Aplicar/remover a classe dark no html
-    if (isDarkMode) {
-      console.log('Aplicando classe dark ao documento');
-      document.documentElement.classList.add('dark');
-    } else {
-      console.log('Removendo classe dark do documento');
-      document.documentElement.classList.remove('dark');
-    }
-    
-    // Salvar preferência no localStorage
-    if (typeof window !== 'undefined') {
-      console.log('Salvando preferência no localStorage:', isDarkMode);
-      localStorage.setItem('darkMode', String(isDarkMode));
-    }
+    if (isDarkMode) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+    if (typeof window !== 'undefined') localStorage.setItem('darkMode', String(isDarkMode));
   }, [isDarkMode]);
 
-  const toggleTheme = () => {
-    console.log('Alternando tema...');
-    setIsDarkMode(prev => {
-      console.log('Estado anterior do tema:', prev ? 'escuro' : 'claro');
-      return !prev;
-    });
-  };
+  const toggleTheme = () => setIsDarkMode(prev => !prev);
 
-  // Data Fetching
   const fetchDashboardData = useCallback(async () => {
     try {
       const [sales, chart, clientData, productData, stockData, supplierData, brand] = await Promise.all([
@@ -133,13 +98,11 @@ const AppLayout: React.FC = () => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Função para navegar e atualizar simultaneamente
   const navigateWithRefresh = (path: string) => {
     navigate(path);
     fetchDashboardData();
   };
 
-  // Derived Calculations
   const totalPeriodSales = chartData.reduce((acc, curr) => acc + curr.total, 0);
   const todaySales = chartData.length > 0 ? chartData[chartData.length - 1].total : 0;
   const dailyAverage = totalPeriodSales / 7;
@@ -154,7 +117,6 @@ const AppLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col transition-colors duration-300">
-      {/* Header */}
       <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-30 transition-colors duration-300 shadow-sm">
         <div className="w-full max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div 
@@ -174,8 +136,6 @@ const AppLayout: React.FC = () => {
       </header>
 
       <main className="flex-1 w-full max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        
-        {/* Navigation Action Bar */}
         <div className={`grid grid-cols-2 sm:grid-cols-3 ${isManager ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-4`}>
            <Button 
             variant="success"
@@ -279,7 +239,9 @@ const AppLayout: React.FC = () => {
             <Route path="/products" element={<ProductList products={products} onUpdate={fetchDashboardData} />} />
             <Route path="/stock" element={<StockList entries={stockEntries} products={products} onUpdate={fetchDashboardData} />} />
 
-            <Route path="/sales" element={<ManagerRoute><SalesPage onUpdate={fetchDashboardData} /></ManagerRoute>} />
+            {/* Vendedores agora também podem ver o relatório de vendas (SalesPage) */}
+            <Route path="/sales" element={<SalesPage onUpdate={fetchDashboardData} />} />
+            
             <Route path="/team" element={<ManagerRoute><TeamList /></ManagerRoute>} />
             <Route path="/settings" element={<ManagerRoute><SettingsPage /></ManagerRoute>} />
             <Route path="/reports" element={<ManagerRoute><ManagementReportPage /></ManagerRoute>} />
@@ -293,7 +255,7 @@ const AppLayout: React.FC = () => {
           <div className="flex items-center gap-4">
             <span className="hover:text-zinc-900 dark:hover:text-white cursor-pointer transition-colors">Termos de Uso</span>
             <span className="hover:text-zinc-900 dark:hover:text-white cursor-pointer transition-colors">Suporte</span>
-            <span className="text-xs bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded text-zinc-400 dark:text-zinc-500">v1.3.0</span>
+            <span className="text-xs bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded text-zinc-400 dark:text-zinc-500">v1.3.1</span>
           </div>
         </div>
       </footer>
@@ -313,7 +275,6 @@ const App = () => {
        <Routes>
          <Route path="/login" element={<LoginPage />} />
          <Route path="/register" element={<RegisterPage />} />
-
          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={null} />

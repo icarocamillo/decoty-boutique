@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, User, CreditCard, Tag, Package, Receipt, Link, AlertTriangle, Mail, ShieldCheck, PieChart, Activity, Phone, Smartphone, Search, Loader2, Check, Gift, Undo2, Wallet, Hourglass } from 'lucide-react';
-import { Sale, Client, SaleItem } from '../types';
+import { Sale, Client, SaleItem, UserProfile } from '../types';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
 import { mockService } from '../services/mockService';
@@ -28,11 +28,9 @@ interface ReturnItemsModalProps {
 const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sale, client, onConfirm, isLoading }) => {
     const [selectedVirtualIds, setSelectedVirtualIds] = useState<Set<string>>(new Set());
 
-    // Auxiliar para "desenrolar" itens com quantidade > 1 (suporte a dados legados ou agrupados)
     const unrolledItems = useMemo(() => {
         const list: (SaleItem & { virtualId: string })[] = [];
         sale.items?.forEach(item => {
-            // Se for status returned, ele já conta como ocupado no Ledger visual
             for (let i = 0; i < item.quantidade; i++) {
                 list.push({
                     ...item,
@@ -46,7 +44,6 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
         return list;
     }, [sale.items]);
 
-    // Filtra apenas itens que ainda NÃO foram devolvidos
     const availableItems = useMemo(() => 
         unrolledItems.filter(item => item.status !== 'returned') || [], 
     [unrolledItems]);
@@ -149,17 +146,13 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   const { user: currentUser } = useAuth(); 
   const [isCancelling, setIsCancelling] = useState(false);
   const [clientDetails, setClientDetails] = useState<Client | null>(null);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   
-  // States para vínculo de cliente
   const [isLinkingMode, setIsLinkingMode] = useState(false);
   const [linkSearchTerm, setLinkSearchTerm] = useState('');
   const [clientsList, setClientsList] = useState<Client[]>([]);
   const [isLinkingLoading, setIsLinkingLoading] = useState(false);
-  
-  // Estado local da venda para refletir atualizações
   const [currentSale, setCurrentSale] = useState<Sale | null>(null);
-
-  // Novo: Controle do Modal de Devolução
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
 
   useEffect(() => {
@@ -169,17 +162,19 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   }, [sale, isOpen]);
 
   useEffect(() => {
-    if (isOpen && currentSale?.cliente_id) {
-        mockService.getClients().then(clients => {
-            const found = clients.find(c => c.id === currentSale.cliente_id);
-            setClientDetails(found || null);
-        });
+    if (isOpen) {
+        mockService.getUsers().then(setUsers);
+        if (currentSale?.cliente_id) {
+            mockService.getClients().then(clients => {
+                const found = clients.find(c => c.id === currentSale.cliente_id);
+                setClientDetails(found || null);
+            });
+        }
     } else {
         setClientDetails(null);
     }
   }, [isOpen, currentSale]);
 
-  // Auxiliar para "desenrolar" itens para exibição individual na tabela
   const unrolledItems = useMemo(() => {
     if (!currentSale?.items) return [];
     const list: (SaleItem & { virtualId: string })[] = [];
@@ -200,7 +195,6 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   if (!isOpen || !currentSale) return null;
 
   const { weekDay, dateTime } = formatDateStandard(currentSale.data_venda);
-
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
   const getInstallmentText = () => {
@@ -209,36 +203,23 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
     return `${parcelas}x de ${formatCurrency(valorParcela)}`;
   };
 
-  // Cálculos Financeiros Globais
-  const totalGross = currentSale.items?.reduce((acc, item) => acc + (item.quantidade * item.preco_unitario), 0) || 0;
-  
-  // Soma apenas subtotais de itens com status 'sold'
   const soldItemsSubtotal = currentSale.items?.filter(i => i.status === 'sold').reduce((acc, i) => acc + i.subtotal, 0) || 0;
-  
-  // Total atual abatendo itens devolvidos
   const currentTotalPaid = currentSale.status === 'cancelled' ? 0 : Math.max(0, soldItemsSubtotal - (currentSale.desconto_extra || 0) - (currentSale.uso_vale_presente || 0));
-
   const totalPaymentDiscount = currentSale.items?.filter(i => i.status === 'sold').reduce((acc, item) => acc + (item.desconto || 0), 0) || 0;
   const totalExtraDiscount = currentSale.desconto_extra || 0;
   const giftCardUsed = currentSale.uso_vale_presente || 0;
-
   const taxas = currentSale.taxas_aplicadas;
   const valorLiquidoReal = currentSale.valor_liquido_lojista || (currentTotalPaid - (taxas?.valor || 0));
-
   const isUnregistered = currentSale.cliente_nome === 'Cliente não cadastrado' || !currentSale.cliente_id;
-  
   const phoneToDisplay = clientDetails?.celular || clientDetails?.telefone_fixo || clientDetails?.telefone;
   const isWhatsApp = clientDetails?.is_whatsapp;
 
-  // Lógica para extrair Nome e E-mail do Vendedor da Venda
-  const sellerRaw = currentSale.vendedor || 'Usuário';
-  const hasSeparator = sellerRaw.includes(' - ');
-  const sellerName = hasSeparator ? sellerRaw.split(' - ')[0] : sellerRaw;
-  const sellerEmail = hasSeparator ? sellerRaw.split(' - ')[1] : '';
+  const sellerId = currentSale.responsavel || '';
+  const matchedUser = users.find(u => u.id === sellerId);
+  const displaySeller = matchedUser ? `${matchedUser.name} - ${matchedUser.email}` : 'Sistema';
 
-  const displayId = currentSale.sales_id ? `#${currentSale.sales_id}` : currentSale.id.replace('s', '#');
+  const displayId = currentSale.ui_id ? `#${currentSale.ui_id}` : currentSale.id.replace('s', '#');
 
-  // --- LÓGICA DE VÍNCULO DE CLIENTE ---
   const handleStartLinking = async () => {
       setIsLinkingMode(true);
       if (clientsList.length === 0) {
@@ -279,17 +260,22 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
       }
   };
 
-  // --- LÓGICA DE DEVOLUÇÃO ITEM A ITEM ---
   const handleConfirmReturn = async (selectedItems: SaleItem[]) => {
     setIsCancelling(true);
-    const userName = currentUser?.user_metadata?.name || 'Usuário';
+    // CORREÇÃO AQUI: Passamos o ID (UUID) do usuário logado, nunca o nome "Usuário"
+    const userId = currentUser?.id;
+    
+    if (!userId) {
+        alert("Erro: Sessão do usuário não identificada.");
+        setIsCancelling(false);
+        return;
+    }
+
     const totalRefund = selectedItems.reduce((acc, curr) => acc + curr.subtotal, 0);
     
     try {
-        await mockService.returnSaleItems(currentSale.id, selectedItems, currentSale.cliente_id, totalRefund, userName);
-
-        alert(`Devolução processada com sucesso! ${currentSale.cliente_id ? `R$ ${totalRefund.toFixed(2)} adicionados ao vale-presente do cliente.` : ''}`);
-        
+        await mockService.returnSaleItems(currentSale.id, selectedItems, currentSale.cliente_id, totalRefund, userId);
+        alert(`Devolução processada com sucesso! ${currentSale.cliente_id ? `R$ ${totalRefund.toFixed(2)} adicionados ao vale-presente.` : ''}`);
         if (onSaleCancelled) onSaleCancelled();
         onClose();
     } catch (error) {
@@ -304,7 +290,6 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
       <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-4xl overflow-hidden animate-fade-in-up border border-zinc-200 dark:border-zinc-800 flex flex-col max-h-[90vh]">
-        {/* Header - Fixed */}
         <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900 shrink-0">
           <div className="flex items-center gap-3">
             <div className="bg-zinc-100 dark:bg-zinc-800 p-2 rounded-lg text-zinc-600 dark:text-zinc-300">
@@ -313,7 +298,6 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
             <div>
               <h2 className="text-lg font-bold text-zinc-800 dark:text-white flex items-baseline gap-2 flex-wrap">
                 Detalhes da Venda {displayId}
-                <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 font-normal">({currentSale.id})</span>
               </h2>
               <div className="flex items-center gap-2 mt-1">
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -326,8 +310,6 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                     ) : (
                         <Badge variant="success" className="text-[10px] px-1.5 h-4">Concluída</Badge>
                     )}
-
-                    {/* STATUS DE PAGAMENTO GLOBAL */}
                     {currentSale.status !== 'cancelled' && (
                         currentSale.status_pagamento === 'pago' ? (
                             <Badge variant="success" className="text-[10px] px-1.5 h-4 gap-1">
@@ -335,7 +317,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                             </Badge>
                         ) : (
                             <Badge variant="warning" className="text-[10px] px-1.5 h-4 gap-1">
-                                <Hourglass size={8} /> Pagamento Pendente
+                                <Hourglass size={8} /> Pendente
                             </Badge>
                         )
                     )}
@@ -348,13 +330,8 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
           </button>
         </div>
 
-        {/* Body - Scrollable */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0 bg-white dark:bg-zinc-900">
-          
-          {/* Top Info Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Card 1: Informações do Cliente & Vendedor */}
             <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden flex flex-col h-full shadow-sm">
                 <div className="bg-zinc-50 dark:bg-zinc-900/50 px-4 py-3 border-b border-zinc-100 dark:border-zinc-700 flex justify-between items-center">
                    <h3 className="text-xs font-bold text-zinc-500 uppercase flex items-center gap-2">
@@ -423,7 +400,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                                    <X size={18} />
                                </Button>
                            </div>
-                           <div className="max-h-40 overflow-y-auto border border-zinc-100 dark:border-zinc-700 rounded-lg divide-y divide-zinc-100 dark:divide-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/50">
+                           <div className="max-h-40 overflow-y-auto border border-zinc-100 dark:border-zinc-700 rounded-lg divide-y divide-zinc-100 dark:divide-zinc-700 bg-zinc-50/50 dark:bg-bold-800/50">
                                 {isLinkingLoading ? (
                                     <div className="p-4 text-center text-zinc-500 flex items-center justify-center gap-2 text-xs">
                                         <Loader2 className="animate-spin" size={14} /> Vinculando...
@@ -461,17 +438,14 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                        </div>
                        <div className="flex-1 min-w-0 flex flex-col justify-center">
                           <p className="text-[10px] text-zinc-400 uppercase font-semibold tracking-wide">Vendedor Responsável</p>
-                          <div className="flex items-center gap-1">
-                             <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate" title={`${sellerName}${sellerEmail ? ` - ${sellerEmail}` : ''}`}>
-                                {sellerName} {sellerEmail && <span className="text-zinc-400 font-normal">- {sellerEmail}</span>}
-                             </p>
-                          </div>
+                          <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                            {displaySeller}
+                          </p>
                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Card 2: Payment Info */}
             <div className="flex flex-col gap-4">
               <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-lg border border-zinc-100 dark:border-zinc-800 h-full flex flex-col justify-between">
                 <div>
@@ -523,7 +497,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
               {taxas && taxas.valor > 0 && (
                 <div className="bg-red-50/50 dark:bg-red-900/10 p-3 rounded-lg border border-red-100 dark:border-red-900/30">
                    <h3 className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase mb-2 flex items-center gap-1">
-                      <PieChart size={12} /> Custos da Operação (Maquininha)
+                      <PieChart size={12} /> Custos da Operação
                    </h3>
                    <div className="flex justify-between text-xs mb-1">
                       <span className="text-zinc-600 dark:text-zinc-400">Taxa Aplicada ({taxas.porcentagem}%)</span>
@@ -542,7 +516,6 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3 flex items-center gap-2">
               <Package size={16} className="text-zinc-500" /> Itens Adquiridos
             </h3>
-            
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden flex flex-col">
               <div className="max-h-[300px] overflow-y-auto">
                 <table className="w-full text-sm text-left">
@@ -559,73 +532,40 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {unrolledItems.length > 0 ? (
-                      unrolledItems.map((item) => {
-                        const discountVal = item.desconto || 0;
-                        const percent = item.preco_unitario > 0 ? (discountVal / item.preco_unitario) * 100 : 0;
-                        const isReturned = item.status === 'returned';
+                    {unrolledItems.map((item) => {
+                      const discountVal = item.desconto || 0;
+                      const percent = item.preco_unitario > 0 ? (discountVal / item.preco_unitario) * 100 : 0;
+                      const isReturned = item.status === 'returned';
 
-                        return (
-                          <tr key={item.virtualId} className={`hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale bg-zinc-50/50 dark:bg-zinc-800/30' : ''}`}>
-                            <td className="px-4 py-3">
-                              <div className="font-medium text-zinc-900 dark:text-white">{item.nome_produto}</div>
-                              <div className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                <Tag size={10} />
-                                <span>{item.marca}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <Badge variant="secondary">{item.tamanho}</Badge>
-                            </td>
-                            <td className="px-4 py-3 text-center font-mono">
-                              {item.quantidade}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                               {isReturned ? (
-                                   <Badge variant="destructive" className="text-[10px] px-2 h-5">Devolvido</Badge>
-                               ) : (
-                                   <Badge variant="success" className="text-[10px] px-2 h-5">Vendido</Badge>
-                               )}
-                            </td>
-                            {/* COLUNA DE PAGAMENTO POR ITEM */}
-                            <td className="px-4 py-3 text-center">
-                               {!isReturned && currentSale.status !== 'cancelled' && (
-                                   item.status_pagamento === 'pago' ? (
-                                       <Badge variant="success" className="text-[9px] px-1.5 h-4 gap-1">
-                                           <Check size={8} /> Pago
-                                       </Badge>
-                                   ) : (
-                                       <Badge variant="warning" className="text-[9px] px-1.5 h-4 gap-1">
-                                           <Hourglass size={8} /> Pendente
-                                       </Badge>
-                                   )
-                               )}
-                            </td>
-                            <td className="px-4 py-3 text-right text-zinc-600 dark:text-zinc-400">
-                              {formatCurrency(item.preco_unitario)}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              {percent > 0.5 ? (
-                                <Badge variant="success" className="text-[10px] px-1.5 h-5">
-                                  {Math.round(percent)}% OFF
-                                </Badge>
-                              ) : (
-                                <span className="text-zinc-300 dark:text-zinc-700">-</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-right font-medium text-zinc-900 dark:text-white">
-                              {formatCurrency(item.subtotal)}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    ) : (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-8 text-center text-zinc-400">
-                          Detalhes dos itens não disponíveis.
-                        </td>
-                      </tr>
-                    )}
+                      return (
+                        <tr key={item.virtualId} className={`hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale bg-zinc-50/50 dark:bg-zinc-800/30' : ''}`}>
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-zinc-900 dark:text-white">{item.nome_produto}</div>
+                            <div className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                              <Tag size={10} />
+                              <span>{item.marca}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Badge variant="secondary">{item.tamanho}</Badge>
+                          </td>
+                          <td className="px-4 py-3 text-center font-mono">{item.quantidade}</td>
+                          <td className="px-4 py-3 text-center">
+                             {isReturned ? <Badge variant="destructive" className="text-[10px] px-2 h-5">Devolvido</Badge> : <Badge variant="success" className="text-[10px] px-2 h-5">Vendido</Badge>}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                             {!isReturned && currentSale.status !== 'cancelled' && (
+                                 item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[9px] h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[9px] h-4 gap-1"><Hourglass size={8} /> Pendente</Badge>
+                             )}
+                          </td>
+                          <td className="px-4 py-3 text-right text-zinc-600 dark:text-zinc-400">{formatCurrency(item.preco_unitario)}</td>
+                          <td className="px-4 py-3 text-center">
+                            {percent > 0.5 ? <Badge variant="success" className="text-[10px] px-1.5 h-5">{Math.round(percent)}% OFF</Badge> : <span className="text-zinc-300 dark:text-zinc-700">-</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-zinc-900 dark:text-white">{formatCurrency(item.subtotal)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -636,35 +576,16 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
         <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800 flex justify-between shrink-0">
           <div>
             {currentSale.status !== 'cancelled' && (
-              <Button 
-                type="button"
-                variant="destructive" 
-                onClick={() => setIsReturnModalOpen(true)}
-                disabled={isCancelling}
-                className="gap-2"
-              >
+              <Button type="button" variant="destructive" onClick={() => setIsReturnModalOpen(true)} disabled={isCancelling} className="gap-2">
                 <Undo2 size={16} /> Devolver Itens
               </Button>
             )}
           </div>
-          <Button 
-            onClick={onClose}
-            variant="primary"
-          >
-            Fechar
-          </Button>
+          <Button onClick={onClose} variant="primary">Fechar</Button>
         </div>
       </div>
 
-      {/* MODAL DEDICADO DE DEVOLUÇÃO */}
-      <ReturnItemsModal 
-        isOpen={isReturnModalOpen}
-        onClose={() => setIsReturnModalOpen(false)}
-        sale={currentSale}
-        client={clientDetails}
-        onConfirm={handleConfirmReturn}
-        isLoading={isCancelling}
-      />
+      <ReturnItemsModal isOpen={isReturnModalOpen} onClose={() => setIsReturnModalOpen(false)} sale={currentSale} client={clientDetails} onConfirm={handleConfirmReturn} isLoading={isCancelling} />
     </div>
   );
 };

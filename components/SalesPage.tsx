@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Sale, ChartDataPoint } from '../types';
 import { mockService } from '../services/mockService';
@@ -78,7 +79,7 @@ export const SalesPage: React.FC<SalesPageProps> = ({ onUpdate }) => {
       result = result.filter(s => 
         (s.cliente_nome?.toLowerCase() || '').includes(lowerTerm) ||
         (s.id.toLowerCase().includes(lowerTerm)) ||
-        (s.sales_id?.toString().includes(lowerTerm)) ||
+        (s.ui_id?.toString().includes(lowerTerm)) ||
         (s.produtos_resumo?.toLowerCase() || '').includes(lowerTerm)
       );
     }
@@ -102,8 +103,8 @@ export const SalesPage: React.FC<SalesPageProps> = ({ onUpdate }) => {
         if (aVal === undefined || bVal === undefined) return 0;
         
         if (sortConfig.key === 'id') {
-          const numA = a.sales_id ?? parseInt((a.id as string).replace(/\D/g, ''), 10);
-          const numB = b.sales_id ?? parseInt((b.id as string).replace(/\D/g, ''), 10);
+          const numA = a.ui_id ?? parseInt((a.id as string).replace(/\D/g, ''), 10);
+          const numB = b.ui_id ?? parseInt((b.id as string).replace(/\D/g, ''), 10);
           
           if (!isNaN(numA) && !isNaN(numB)) {
              return sortConfig.direction === 'asc' ? numA - numB : numB - numA;
@@ -171,7 +172,7 @@ export const SalesPage: React.FC<SalesPageProps> = ({ onUpdate }) => {
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   const cleanId = (sale: Sale) => {
-    if (sale.sales_id) return `#${sale.sales_id}`;
+    if (sale.ui_id) return `#${sale.ui_id}`;
     return sale.id.replace(/^s/, '#');
   };
   

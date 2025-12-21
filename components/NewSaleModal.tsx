@@ -8,6 +8,7 @@ import { Badge } from './ui/Badge';
 import { useNavigate } from 'react-router-dom';
 import { ClientFormModal } from './ClientFormModal';
 import { useAuth } from '../contexts/AuthContext';
+import { formatProductId } from '../utils';
 
 interface NewSaleModalProps {
   isOpen: boolean;
@@ -19,7 +20,7 @@ const PAYMENT_METHODS = ['Pix', 'Cartão de Crédito', 'Cartão de Débito', 'Di
 
 export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onSaleComplete }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useAuth(); // Usamos o objeto user para pegar o ID
   
   const [step, setStep] = useState<'client' | 'products' | 'payment'>('client');
   const [products, setProducts] = useState<Product[]>([]);
@@ -190,11 +191,14 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
     else if (selectedPaymentMethod === 'Cartão de Crédito') feePercent = installments === 1 ? currentFees.credit_spot : currentFees.credit_installment;
     const feeValue = finalTotal * (feePercent / 100);
 
+    // MUDANÇA CRÍTICA: Enviamos o ID (UUID) para satisfazer a chave estrangeira no banco
+    const sellerId = user?.id || '';
+
     setIsSubmitting(true);
     const success = await mockService.createSale(
        cart, { name: clientName, id: selectedClient?.id, cpf: selectedClient?.cpf }, 
        selectedPaymentMethod, installments, extraDiscount, { porcentagem: feePercent, valor: feeValue },
-       `${user?.user_metadata?.name || 'Usuário'} - ${user?.email || ''}`, giftCardUsedAmount
+       sellerId, giftCardUsedAmount
     );
     setIsSubmitting(false);
 
@@ -203,18 +207,20 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
       onSaleComplete();
       onClose();
     } else {
-      alert("Erro ao finalizar a venda.");
+      alert("Erro ao finalizar a venda. Verifique se o seu perfil de usuário está ativo.");
     }
   };
 
   const filteredProducts = useMemo(() => {
-    return products.filter(p => 
-      p.quantidade_estoque > 0 && 
-      (p.nome.toLowerCase().includes(productSearchTerm.toLowerCase()) || 
-       p.cor.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-       p.id_decoty.toLowerCase().includes(productSearchTerm.toLowerCase())) &&
-      (!selectedBrand || p.marca === selectedBrand)
-    ).sort((a, b) => b.quantidade_estoque - a.quantidade_estoque);
+    return products.filter(p => {
+      const vid = formatProductId(p).toLowerCase();
+      const term = productSearchTerm.toLowerCase();
+      return p.quantidade_estoque > 0 && 
+      (p.nome.toLowerCase().includes(term) || 
+       p.cor.toLowerCase().includes(term) ||
+       vid.includes(term)) &&
+      (!selectedBrand || p.marca === selectedBrand);
+    }).sort((a, b) => b.quantidade_estoque - a.quantidade_estoque);
   }, [products, productSearchTerm, selectedBrand]);
 
   const getPaymentDiscountValue = (method: string) => {
@@ -276,7 +282,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
                 <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex gap-4 bg-zinc-50 dark:bg-zinc-900/50">
                   <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-                    <input type="text" placeholder="Buscar produtos..." className="w-full pl-10 pr-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500" value={productSearchTerm} onChange={(e) => setProductSearchTerm(e.target.value)} />
+                    <input type="text" placeholder="Buscar produtos (Nome ou ID)..." className="w-full pl-10 pr-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500" value={productSearchTerm} onChange={(e) => setProductSearchTerm(e.target.value)} />
                   </div>
                   <div className="relative">
                     <select value={selectedBrand} onChange={(e) => setSelectedBrand(e.target.value)} className="appearance-none pl-3 pr-8 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500">
@@ -290,7 +296,10 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
                   {filteredProducts.map(p => (
                     <div key={p.id} onClick={() => addToCart(p)} className="flex items-center justify-between p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-emerald-400 dark:hover:border-emerald-600 cursor-pointer shadow-sm transition-all group">
                       <div className="min-w-0">
-                        <p className="font-bold text-sm text-zinc-800 dark:text-zinc-100 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{p.nome}</p>
+                        <div className="flex items-center gap-2">
+                           <span className="text-[10px] font-bold font-mono text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1 rounded">{formatProductId(p)}</span>
+                           <p className="font-bold text-sm text-zinc-800 dark:text-zinc-100 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{p.nome}</p>
+                        </div>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">{p.marca} • {p.tamanho} • {p.cor}</p>
                       </div>
                       <div className="flex items-center gap-4 shrink-0">

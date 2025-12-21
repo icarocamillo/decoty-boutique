@@ -1,11 +1,11 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Client, Sale, StockEntry } from '../types';
+import { Client, Sale, StockEntry, UserProfile } from '../types';
 import { mockService } from '../services/mockService';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { ArrowLeft, ShoppingBag, Calendar, CreditCard, User, Mail, Phone, Shirt, Loader2, Undo2, ArrowUpCircle, ArrowDownCircle, History, Gift, Plus, BookOpen, Wallet } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Calendar, CreditCard, User, Mail, Phone, Shirt, Loader2, Undo2, History, Gift, Plus, BookOpen, Wallet } from 'lucide-react';
 import { RecentSales } from './RecentSales';
 import { Badge } from './ui/Badge';
 import { formatDateStandard } from '../utils';
@@ -23,7 +23,8 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
   const { user } = useAuth();
   const [client, setClient] = useState<Client | null>(null);
   const [sales, setSales] = useState<Sale[]>([]);
-  const [provadorHistory, setProvadorHistory] = useState<StockEntry[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [provadorHistory, setProvadorHistory] = useState<(StockEntry & { displayId: string })[]>([]);
   const [fullStockHistory, setFullStockHistory] = useState<StockEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -31,73 +32,73 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
   const [isCrediarioModalOpen, setIsCrediarioModalOpen] = useState(false);
 
-  const recentlyReturnedIdsRef = useRef<Set<string>>(new Set());
-
   const loadData = async () => {
     if (!clientId) return;
     try {
-      const [clients, allSales, clientStock] = await Promise.all([
+      const [clientsData, allSales, clientStock, usersData] = await Promise.all([
         mockService.getClients(),
         mockService.getClientSales(clientId),
-        mockService.getClientStockHistory(clientId)
+        mockService.getClientStockHistory(clientId),
+        mockService.getUsers()
       ]);
 
-      const foundClient = clients.find(c => c.id === clientId);
+      const foundClient = clientsData.find(c => c.id === clientId);
       setClient(foundClient || null);
       setSales(allSales);
+      setUsers(usersData);
 
-      const sortedEntries = [...clientStock].sort((a, b) => 
+      // 1. Organizar histórico completo (do mais novo para o mais antigo)
+      const sortedHistory = [...clientStock].sort((a, b) => 
+        new Date(b.data_entrada).getTime() - new Date(a.data_entrada).getTime()
+      );
+      setFullStockHistory(sortedHistory);
+
+      // --- LÓGICA DE PENDÊNCIAS 1 A 1 (UNROLLING) ---
+      
+      // Criamos listas de unidades individuais (Peça por Peça)
+      // Ordenamos do mais antigo para o mais novo para processar o matching
+      const cronoHistory = [...clientStock].sort((a, b) => 
         new Date(a.data_entrada).getTime() - new Date(b.data_entrada).getTime()
       );
 
-      setFullStockHistory([...sortedEntries].reverse());
+      const outgoingUnits: (StockEntry & { displayId: string; productKey: string; matched?: boolean })[] = [];
+      const incomingUnits: { productKey: string }[] = [];
 
-      const returnsPool: Record<string, number> = {};
-
-      sortedEntries.forEach(entry => {
-         const isReturn = entry.quantidade > 0 && (
-            entry.motivo.includes('Retorno Provador') || 
-            entry.motivo.includes('Devolução')
-         );
-
-         if (isReturn) {
-             const key = entry.produto_id || entry.produto_nome;
-             returnsPool[key] = (returnsPool[key] || 0) + entry.quantidade;
-         }
-      });
-
-      const pendingItems: StockEntry[] = [];
-
-      sortedEntries.forEach(entry => {
-          const isOut = entry.quantidade < 0 && (
-             entry.motivo.includes('Provador') || 
-             (entry.motivo.includes('Saída Manual') && !entry.motivo.includes('Venda'))
-          );
-
-          if (isOut) {
-              if (entry.motivo.includes('(Devolvido)') || recentlyReturnedIdsRef.current.has(entry.id)) {
-                  return;
-              }
-
-              const key = entry.produto_id || entry.produto_nome;
-              const qtyOut = Math.abs(entry.quantidade);
-              
-              const creditAvailable = returnsPool[key] || 0;
-
-              if (creditAvailable >= qtyOut) {
-                  returnsPool[key] -= qtyOut;
-              } else {
-                  const remaining = qtyOut - creditAvailable;
-                  returnsPool[key] = 0;
-                  pendingItems.push({
+      cronoHistory.forEach(entry => {
+          const productKey = entry.produto_id || entry.produto_nome;
+          const qty = Math.abs(entry.quantidade);
+          
+          // Se for uma SAÍDA (Provador ou Manual que não seja Venda)
+          if (entry.quantidade < 0 && (entry.motivo.includes('Provador') || (entry.motivo.includes('Saída Manual') && !entry.motivo.includes('Venda')))) {
+              for (let i = 0; i < qty; i++) {
+                  outgoingUnits.push({
                       ...entry,
-                      quantidade: -remaining
+                      displayId: `${entry.id}-${i}`,
+                      productKey,
+                      quantidade: -1 // Normalizamos para 1 unidade na exibição
                   });
+              }
+          } 
+          // Se for uma ENTRADA (Retorno ou Devolução)
+          else if (entry.quantidade > 0 && (entry.motivo.includes('Retorno Provador') || entry.motivo.includes('Devolução'))) {
+              for (let i = 0; i < qty; i++) {
+                  incomingUnits.push({ productKey });
               }
           }
       });
-      
-      setProvadorHistory(pendingItems.reverse());
+
+      // Matching: Para cada unidade que entrou, "anulamos" a saída mais antiga desse produto
+      incomingUnits.forEach(inc => {
+          const matchIdx = outgoingUnits.findIndex(out => out.productKey === inc.productKey && !out.matched);
+          if (matchIdx !== -1) {
+              outgoingUnits[matchIdx].matched = true;
+          }
+      });
+
+      // O que sobrar (não matched) é o que está com o cliente
+      // Invertemos para mostrar os mais recentes no topo
+      const pending = outgoingUnits.filter(u => !u.matched).reverse();
+      setProvadorHistory(pending);
 
     } catch (error) {
       console.error("Erro ao carregar histórico do cliente", error);
@@ -110,21 +111,31 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
     loadData();
   }, [clientId]);
 
+  const resolveUserName = (userId: string) => {
+    const profile = users.find(u => u.id === userId);
+    if (profile) return profile.name;
+    // Se não achar perfil e for UUID longo, retorna "Usuário"
+    if (userId?.length > 30) return 'Usuário';
+    return userId || 'Sistema';
+  };
+
   const handleReturnProvador = async (e: React.MouseEvent, entry: StockEntry) => {
     if (e && e.stopPropagation) e.stopPropagation();
     
+    // Usamos o displayId para controle visual de loading local se necessário,
+    // mas para o serviço enviamos o objeto de entrada original normalizado para 1 unidade.
     setProcessingId(entry.id);
-    const userName = user?.user_metadata?.name || 'Usuário';
+    const userId = user?.id || '';
 
-    recentlyReturnedIdsRef.current.add(entry.id);
+    // Criamos uma entrada fake de 1 unidade para o serviço de retorno
+    const singleUnitReturn = { ...entry, quantidade: -1 };
 
     try {
-        await mockService.returnProvadorItem(entry, userName);
+        await mockService.returnProvadorItem(singleUnitReturn, userId);
         if (onUpdate) onUpdate();
         loadData(); 
     } catch (error: any) {
         alert("Erro ao devolver item.");
-        recentlyReturnedIdsRef.current.delete(entry.id);
     } finally {
         setProcessingId(null);
     }
@@ -150,7 +161,6 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
 
   const totalSpent = sales.reduce((acc, curr) => acc + (curr.status !== 'cancelled' ? curr.valor_total : 0), 0);
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-
   const totalPurchases = sales.filter(s => s.status !== 'cancelled').length;
   const lastPurchaseDate = sales.length > 0 ? new Date(sales[0].data_venda).toLocaleDateString('pt-BR') : '-';
 
@@ -166,6 +176,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
         </div>
       </div>
 
+      {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-1 border-l-4 border-l-blue-500">
           <div className="p-4 space-y-4">
@@ -270,6 +281,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
         </Card>
       </div>
 
+      {/* Itens em Provador (Granular 1 a 1) */}
       {provadorHistory.length > 0 && (
           <Card 
             title={
@@ -277,7 +289,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                     <Shirt size={20} /> Em Provador (Pendente)
                 </div>
             }
-            description="Peças retiradas que ainda não foram devolvidas"
+            description="Visualização individual de cada peça retirada que ainda não retornou"
             className="border-l-4 border-l-purple-500"
           >
              <div className="overflow-x-auto max-h-[400px]">
@@ -286,16 +298,18 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                         <tr>
                             <th className="px-6 py-3 font-medium">Data Retirada</th>
                             <th className="px-6 py-3 font-medium">Produto</th>
-                            <th className="px-6 py-3 font-medium text-center">Qtd Pendente</th>
+                            <th className="px-6 py-3 font-medium text-center">Unidade</th>
                             <th className="px-6 py-3 font-medium">Responsável</th>
                             <th className="px-6 py-3 font-medium text-center">Ações</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                        {provadorHistory.map((entry) => {
-                            const { weekDay, dateTime } = formatDateStandard(entry.data_entrada);
+                        {provadorHistory.map((unit) => {
+                            const { weekDay, dateTime } = formatDateStandard(unit.data_entrada);
+                            const responsibleName = resolveUserName(unit.responsavel);
+                            
                             return (
-                                <tr key={entry.id} className="hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition-colors">
+                                <tr key={unit.displayId} className="hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition-colors">
                                     <td className="px-6 py-3 whitespace-nowrap text-zinc-600 dark:text-zinc-400 text-xs">
                                         <div className="flex flex-col">
                                             <span className="font-bold">{weekDay}</span>
@@ -303,23 +317,28 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                                         </div>
                                     </td>
                                     <td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">
-                                        {entry.produto_nome}
+                                        {unit.produto_nome}
                                     </td>
-                                    <td className="px-6 py-3 text-center text-red-600 font-bold">
-                                        {Math.abs(entry.quantidade)}
+                                    <td className="px-6 py-3 text-center">
+                                        <Badge variant="outline" className="text-purple-600 border-purple-200">1 peça</Badge>
                                     </td>
                                     <td className="px-6 py-3 text-zinc-500 dark:text-zinc-400 text-xs">
-                                        {entry.responsavel.split('@')[0]}
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-6 h-6 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-bold border border-zinc-200 dark:border-zinc-700">
+                                                {responsibleName.substring(0, 2).toUpperCase()}
+                                            </div>
+                                            <span className="font-medium">{responsibleName}</span>
+                                        </div>
                                     </td>
                                     <td className="px-6 py-3 text-center">
                                       <Button 
                                           size="sm"
                                           variant="outline"
                                           className="h-8 text-xs border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-purple-700 dark:text-purple-300 gap-1"
-                                          onClick={(e) => handleReturnProvador(e, entry)}
-                                          disabled={processingId === entry.id}
+                                          onClick={(e) => handleReturnProvador(e, unit)}
+                                          disabled={processingId === unit.id}
                                       >
-                                          {processingId === entry.id ? "..." : <><Undo2 size={12} /> Devolver</>}
+                                          {processingId === unit.id ? <Loader2 size={12} className="animate-spin" /> : <><Undo2 size={12} /> Devolver</>}
                                       </Button>
                                     </td>
                                 </tr>
@@ -331,31 +350,35 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
           </Card>
       )}
 
+      {/* Histórico completo de Movimentações */}
       <Card 
         title={
             <div className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
-                <History size={20} /> Histórico de Movimentações
+                <History size={20} /> Histórico Geral de Estoque
             </div>
         }
-        description="Todas as entradas e saídas de estoque registradas para este cliente"
+        description="Logs de todas as entradas e saídas registradas para este cliente"
       >
-         <div className="overflow-x-auto max-h-[300px]">
+         <div className="overflow-x-auto max-h-[350px]">
             {fullStockHistory.length === 0 ? (
-                <div className="p-6 text-center text-zinc-500">Nenhuma movimentação registrada.</div>
+                <div className="p-6 text-center text-zinc-500 italic">Nenhuma movimentação de estoque registrada.</div>
             ) : (
                 <table className="w-full text-sm text-left">
                     <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800 sticky top-0 backdrop-blur-sm z-10">
                         <tr>
-                            <th className="px-6 py-3 font-medium">Data</th>
+                            <th className="px-6 py-3 font-medium">Data / Hora</th>
                             <th className="px-6 py-3 font-medium">Produto</th>
                             <th className="px-6 py-3 font-medium text-center">Qtd</th>
                             <th className="px-6 py-3 font-medium">Motivo</th>
+                            <th className="px-6 py-3 font-medium">Responsável</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                         {fullStockHistory.map((entry) => {
                             const { dateTime } = formatDateStandard(entry.data_entrada);
                             const isEntry = entry.quantidade > 0;
+                            const responsibleName = resolveUserName(entry.responsavel);
+                            
                             return (
                                 <tr key={entry.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors">
                                     <td className="px-6 py-3 text-zinc-600 dark:text-zinc-400 whitespace-nowrap text-xs">
@@ -376,6 +399,9 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                                     <td className="px-6 py-3 text-xs text-zinc-500">
                                         {entry.motivo}
                                     </td>
+                                    <td className="px-6 py-3 text-xs text-zinc-500 italic">
+                                        {responsibleName}
+                                    </td>
                                 </tr>
                             );
                         })}
@@ -385,12 +411,11 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
          </div>
       </Card>
 
-      <Card title="Transações Realizadas">
+      <Card title="Vendas Realizadas (Financeiro)">
          <RecentSales sales={sales} onUpdate={loadData} />
       </Card>
 
       <GiftCardAdjustmentModal isOpen={isGiftModalOpen} onClose={() => setIsGiftModalOpen(false)} onSuccess={loadData} clientId={client.id} clientName={client.nome} currentBalance={client.saldo_vale_presente || 0} />
-      {/* Agora passamos a prop 'sales' para o modal de crediário */}
       <CrediarioPaymentModal isOpen={isCrediarioModalOpen} onClose={() => setIsCrediarioModalOpen(false)} onSuccess={loadData} client={client} sales={sales} />
     </div>
   );

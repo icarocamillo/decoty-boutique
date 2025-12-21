@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,14 +12,12 @@ export const LoginPage: React.FC = () => {
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false); // State for password visibility
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Estado para controlar a visibilidade do badge de produção
   const [showProdBadge, setShowProdBadge] = useState(true);
 
-  // Efeito para ocultar o badge de produção após 5 segundos
   useEffect(() => {
     if (isSupabaseConfigured()) {
       const timer = setTimeout(() => {
@@ -33,12 +32,15 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    const { error } = await signIn(email, password);
+    const { error: loginError } = await signIn(email, password);
 
-    if (error) {
-      setError(error.message || 'Erro ao realizar login.');
+    if (loginError) {
+      // Exibe a mensagem exata retornada pelo AuthContext (incluindo o bloqueio de conta)
+      setError(loginError.message || 'Erro ao realizar login.');
       setLoading(false);
     } else {
+      // O AuthContext garante que o estado de sessão só é setado se estiver ativo.
+      // A navegação aqui só ocorre se o signIn não retornou erro.
       navigate('/home');
     }
   };
@@ -75,9 +77,9 @@ export const LoginPage: React.FC = () => {
           )}
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-lg flex items-start gap-2 text-red-600 dark:text-red-400 text-sm">
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-lg flex items-start gap-2 text-red-600 dark:text-red-400 text-sm ring-1 ring-red-500">
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
-              <span>{error}</span>
+              <span className="leading-snug font-medium">{error}</span>
             </div>
           )}
 

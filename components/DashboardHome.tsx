@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { DollarSign, BarChart, TrendingUp, Tag, FileBarChart } from 'lucide-react';
 import { Card } from './ui/Card';
@@ -119,7 +120,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
         </Card>
 
         {/* Recent Sales Section */}
-        <Card title="Últimas Vendas" description="Transações mais recentes">
+        <Card title="Últimas Vendas" description="Transações mais recentes de toda a loja">
           <RecentSales sales={recentSales} onUpdate={onRefresh} />
         </Card>
       </div>

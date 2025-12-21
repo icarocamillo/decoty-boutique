@@ -3,7 +3,7 @@ export type ProductSize = 'P' | 'M' | 'G' | 'GG' | 'G1' | '40' | '42' | '44' | '
 
 export interface Product {
   id: string;
-  id_decoty: string;
+  ui_id: number; // Identificador numérico sequencial
   sku: string;
   ean: string;
   nome: string;
@@ -35,7 +35,7 @@ export interface SaleItem {
 
 export interface Sale {
   id: string;
-  sales_id?: number;
+  ui_id?: number; // Identificador numérico sequencial (anteriormente sales_id)
   data_venda: string;
   valor_total: number;
   items?: SaleItem[]; 
@@ -49,7 +49,7 @@ export interface Sale {
   parcelas?: number;
   desconto_extra?: number;
   uso_vale_presente?: number; 
-  vendedor?: string;
+  responsavel?: string; // Alterado de vendedor para responsavel
   status: 'completed' | 'cancelled';
   taxas_aplicadas?: {
     porcentagem: number;

@@ -12,7 +12,7 @@ interface UserMenuProps {
 export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { user, userRole, signOut } = useAuth();
+  const { user, userRole, userName, signOut } = useAuth();
   const navigate = useNavigate();
 
   // Close on click outside
@@ -32,7 +32,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
   };
 
   const roleLabel = userRole === 'manager' ? 'Gerente' : 'Vendedor';
-  const userName = user?.user_metadata?.name || 'Usuário';
+  const displayUserName = userName || 'Usuário';
   const isManager = userRole === 'manager';
 
   return (
@@ -42,17 +42,12 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
         className="flex items-center gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 p-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-100 dark:focus:ring-zinc-700 group"
       >
         <div className="hidden sm:flex flex-col items-end justify-center text-right mr-0.5">
-          {/* Nome com destaque principal */}
           <span className="text-sm font-bold text-zinc-800 dark:text-white leading-tight mb-0.5">
-            {userName}
+            {displayUserName}
           </span>
-          
-          {/* Perfil de Acesso */}
           <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300 leading-tight">
             {roleLabel}
           </span>
-
-          {/* E-mail mais discreto e truncado */}
           <span className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-tight truncate max-w-[150px]">
             {user?.email}
           </span>
@@ -68,7 +63,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
       {isOpen && (
         <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-zinc-100 dark:border-zinc-800 py-2 z-50 animate-fade-in-up origin-top-right">
           <div className="px-4 py-3 border-b border-zinc-50 dark:border-zinc-800 sm:hidden">
-            <p className="text-sm font-bold text-zinc-900 dark:text-white">{userName}</p>
+            <p className="text-sm font-bold text-zinc-900 dark:text-white">{displayUserName}</p>
             <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">{roleLabel}</p>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">{user?.email}</p>
           </div>
@@ -81,7 +76,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
             
             <button 
               onClick={(e) => {
-                e.stopPropagation(); // Impede a propagação do evento
+                e.stopPropagation();
                 toggleTheme();
               }}
               className="w-full text-left px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
@@ -90,7 +85,6 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
               <span>{isDarkMode ? 'Modo Claro' : 'Modo Escuro'}</span>
             </button>
 
-            {/* Gerenciar Usuários - APENAS GERENTE */}
             {isManager && (
               <button 
                 onClick={() => {
@@ -104,7 +98,6 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
               </button>
             )}
 
-            {/* Configurações - APENAS GERENTE */}
             {isManager && (
               <button 
                 onClick={() => {

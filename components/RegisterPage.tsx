@@ -29,36 +29,62 @@ export const RegisterPage: React.FC = () => {
     setLoading(true);
     setError(null);
 
+    // Validação básica de senha local
     if (formData.password.length < 6) {
-        setError("A senha deve ter no mínimo 6 caracteres.");
+        setError("A senha pessoal deve ter no mínimo 6 caracteres.");
+        setLoading(false);
+        return;
+    }
+
+    // Validação da palavra-chave de segurança
+    const keyword = formData.storeCode.trim();
+    if (!keyword) {
+        setError("Digite a palavra-chave da loja para autorizar o cadastro.");
         setLoading(false);
         return;
     }
 
     try {
+      // 1. Busca a hash autorizada do banco (chave='store_access_hash' na coluna 'value')
       const storedHash = await mockService.getStoreAccessHash();
-      // Uso da função segura (Async)
-      const inputHash = await generateHash(formData.storeCode);
       
-      if (inputHash !== storedHash) {
-        setError("Código de acesso da loja inválido. Solicite ao administrador.");
+      if (!storedHash) {
+          console.error("Segurança: Falha ao recuperar 'store_access_hash' do banco de dados.");
+          setError("O sistema de segurança não pôde ser verificado. No Supabase, execute o seguinte comando no SQL Editor: \n\nCREATE POLICY \"Allow public access\" ON store_config FOR SELECT USING (true);");
+          setLoading(false);
+          return;
+      }
+
+      // 2. Transforma o que o usuário digitou em SHA-256
+      const inputHash = await generateHash(keyword);
+      
+      // 3. Normalização ABSOLUTA: remove espaços, aspas e caracteres não-hexadecimais
+      const normalizedInput = inputHash.replace(/[^a-f0-9]/gi, '').toLowerCase();
+      const normalizedStored = storedHash.replace(/[^a-f0-9]/gi, '').toLowerCase();
+      
+      console.debug("Comparando Hashes:", { input: normalizedInput.substring(0, 8), stored: normalizedStored.substring(0, 8) });
+
+      if (normalizedInput !== normalizedStored) {
+        console.warn("Segurança: Tentativa de cadastro negada - Palavra-chave incorreta.");
+        setError("Palavra-chave da loja inválida. Solicite a chave correta ao gerente responsável.");
         setLoading(false);
         return;
       }
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Erro ao validar credenciais.");
+      console.error("Erro crítico na validação de segurança:", err);
+      setError("Erro de conexão com o banco de dados. Verifique sua rede.");
       setLoading(false);
       return;
     }
 
-    const { error } = await signUp(formData.email, formData.password, formData.name, formData.role);
+    // Se a palavra-chave estiver correta, prossegue com a criação da conta via Supabase Auth
+    const { error: signUpError } = await signUp(formData.email, formData.password, formData.name, formData.role);
 
-    if (error) {
-      setError(error.message);
+    if (signUpError) {
+      setError(signUpError.message);
       setLoading(false);
     } else {
-      alert("Cadastro realizado com sucesso! Faça login para continuar.");
+      alert("Cadastro realizado com sucesso! Faça login para acessar o sistema.");
       navigate('/login');
     }
   };
@@ -80,7 +106,7 @@ export const RegisterPage: React.FC = () => {
           {error && (
             <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-lg flex items-start gap-2 text-red-600 dark:text-red-400 text-sm">
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
-              <span>{error}</span>
+              <span className="leading-tight whitespace-pre-wrap">{error}</span>
             </div>
           )}
 
@@ -103,7 +129,7 @@ export const RegisterPage: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">E-mail</label>
+              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">E-mail Corporativo</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
                 <input 
@@ -119,7 +145,7 @@ export const RegisterPage: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-               <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Senha Pessoal</label>
+               <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Senha Pessoal de Acesso</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
                 <input 
@@ -129,7 +155,7 @@ export const RegisterPage: React.FC = () => {
                   value={formData.password}
                   onChange={handleChange}
                   className="w-full pl-10 pr-10 py-3 border border-zinc-200 dark:border-zinc-700 rounded-xl bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white outline-none transition-all"
-                  placeholder="Crie sua senha de acesso"
+                  placeholder="••••••••"
                 />
                 <button
                   type="button"
@@ -161,7 +187,7 @@ export const RegisterPage: React.FC = () => {
 
             <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 mt-4">
                 <label className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-1">
-                  <ShieldCheck size={14} /> Segurança
+                  <ShieldCheck size={14} /> Palavra-chave da Loja
                 </label>
                 <div className="relative">
                   <input 
@@ -171,7 +197,7 @@ export const RegisterPage: React.FC = () => {
                     value={formData.storeCode}
                     onChange={handleChange}
                     className="w-full px-3 py-2 pr-10 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white outline-none transition-all text-sm"
-                    placeholder="Código de Acesso da Loja"
+                    placeholder="Código de autorização"
                   />
                   <button
                     type="button"
@@ -182,7 +208,7 @@ export const RegisterPage: React.FC = () => {
                     {showStoreCode ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                <p className="text-[10px] text-zinc-400 mt-1">Necessário para autorizar novos cadastros.</p>
+                <p className="text-[10px] text-zinc-400 mt-1">Obrigatório para validar sua entrada na equipe.</p>
              </div>
 
             <Button 
@@ -190,12 +216,12 @@ export const RegisterPage: React.FC = () => {
               className="w-full h-12 text-base font-semibold mt-4" 
               disabled={loading}
             >
-              {loading ? <Loader2 className="animate-spin" /> : 'Criar Conta'}
+              {loading ? <Loader2 className="animate-spin" /> : 'Finalizar Cadastro'}
             </Button>
           </form>
 
           <div className="mt-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
-            Já tem uma conta?{' '}
+            Já possui uma conta?{' '}
             <span onClick={() => navigate('/login')} className="font-semibold text-zinc-900 dark:text-white hover:underline cursor-pointer">
               Fazer Login
             </span>

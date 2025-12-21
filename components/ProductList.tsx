@@ -9,6 +9,7 @@ import { ProductFormModal } from './ProductFormModal';
 import { SIZES_LIST } from '../constants';
 import { Pagination } from './ui/Pagination';
 import { mockService } from '../services/mockService';
+import { formatProductId } from '../utils';
 
 interface ProductListProps {
   products: Product[];
@@ -69,7 +70,7 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) 
   const columnMenuRef = useRef<HTMLDivElement>(null);
   
   const [visibleColumns, setVisibleColumns] = useState({
-    id_decoty: true,
+    visual_id: true,
     nome: true,
     sku: false,
     ean: false,
@@ -107,11 +108,14 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) 
 
   const filteredProducts = useMemo(() => {
     let result = products.filter(p => {
+      const visualId = formatProductId(p);
+      const searchLower = searchTerm.toLowerCase();
+
       // Text Search
       const matchesSearch = 
-        p.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        p.id_decoty.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.sku.toLowerCase().includes(searchTerm.toLowerCase());
+        p.nome.toLowerCase().includes(searchLower) || 
+        visualId.toLowerCase().includes(searchLower) ||
+        p.sku.toLowerCase().includes(searchLower);
       
       // Filter Matches
       const matchesBrand = selectedBrand ? p.marca === selectedBrand : true;
@@ -125,19 +129,16 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) 
     // Sorting
     if (sortConfig) {
       result.sort((a, b) => {
-        const aVal = a[sortConfig.key];
-        const bVal = b[sortConfig.key];
+        let aVal: any = a[sortConfig.key];
+        let bVal: any = b[sortConfig.key];
 
         if (aVal === undefined || bVal === undefined) return 0;
 
-        // Custom sort for numeric ID represented as string
-        if (sortConfig.key === 'id') {
-           const numA = parseInt((aVal as string).replace(/\D/g, ''), 10);
-           const numB = parseInt((bVal as string).replace(/\D/g, ''), 10);
-           
-           if (!isNaN(numA) && !isNaN(numB)) {
-              return sortConfig.direction === 'asc' ? numA - numB : numB - numA;
-           }
+        // Sort customizado para ID visual (usa ui_id como base)
+        if (sortConfig.key === 'ui_id') {
+           const idA = a.ui_id || 0;
+           const idB = b.ui_id || 0;
+           return sortConfig.direction === 'asc' ? idA - idB : idB - idA;
         }
 
         if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -282,7 +283,7 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) 
                   </div>
                   <div className="p-2 space-y-1 max-h-64 overflow-y-auto">
                     {[
-                      { key: 'id_decoty', label: 'ID Decoty' },
+                      { key: 'visual_id', label: 'ID do Produto' },
                       { key: 'nome', label: 'Produto' },
                       { key: 'sku', label: 'SKU' },
                       { key: 'ean', label: 'EAN' },
@@ -312,9 +313,9 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) 
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800">
               <tr>
-                {visibleColumns.id_decoty && (
-                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap" onClick={() => handleSort('id_decoty')}>
-                    <div className="flex items-center">ID Decoty <SortIcon columnKey="id_decoty" /></div>
+                {visibleColumns.visual_id && (
+                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap" onClick={() => handleSort('ui_id')}>
+                    <div className="flex items-center">ID Decoty <SortIcon columnKey="ui_id" /></div>
                   </th>
                 )}
                 {visibleColumns.nome && (
@@ -374,10 +375,10 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) 
                     onClick={() => handleEditClick(product)}
                     className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors group cursor-pointer"
                   >
-                    {/* ID */}
-                    {visibleColumns.id_decoty && (
-                      <td className="px-4 py-2 text-zinc-500 dark:text-zinc-500 font-mono text-xs whitespace-nowrap">
-                        {product.id_decoty}
+                    {/* ID Formatado: ui_id-MARCA (Caixa Alta) */}
+                    {visibleColumns.visual_id && (
+                      <td className="px-4 py-2 text-zinc-900 dark:text-zinc-100 font-bold font-mono text-xs whitespace-nowrap">
+                        {formatProductId(product)}
                       </td>
                     )}
                     
