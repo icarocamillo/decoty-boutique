@@ -83,6 +83,9 @@ const prepareClientPayload = (client: any) => {
   return payload;
 };
 
+// Helper interno para arredondamento monetário preciso
+const roundMoney = (val: number) => Math.round((val + Number.EPSILON) * 100) / 100;
+
 export const mockService = {
   getClients: async (): Promise<Client[]> => {
     if (isSupabaseConfigured()) {
@@ -134,13 +137,13 @@ export const mockService = {
     if (isSupabaseConfigured()) {
         const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', clientId).single();
         const currentDebt = Number(c?.saldo_devedor_crediario || 0);
-        const { error } = await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, currentDebt - amountToSubtract) }).eq('id', clientId);
+        const { error } = await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, roundMoney(currentDebt - amountToSubtract)) }).eq('id', clientId);
         return !error;
     }
     const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
     const idx = clients.findIndex(c => c.id === clientId);
     if (idx !== -1) {
-        clients[idx].saldo_devedor_crediario = Math.max(0, (clients[idx].saldo_devedor_crediario || 0) - amountToSubtract);
+        clients[idx].saldo_devedor_crediario = Math.max(0, roundMoney((clients[idx].saldo_devedor_crediario || 0) - amountToSubtract));
         setLocalData(LS_KEYS.CLIENTS, clients);
         return true;
     }
@@ -287,7 +290,7 @@ export const mockService = {
             if (isCrediario && client.id) {
                 const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', client.id).single();
                 const currentDebt = Number(c?.saldo_devedor_crediario || 0);
-                await supabase.from('clients').update({ saldo_devedor_crediario: currentDebt + totalValue }).eq('id', client.id);
+                await supabase.from('clients').update({ saldo_devedor_crediario: roundMoney(currentDebt + totalValue) }).eq('id', client.id);
             }
 
             const itemsData = cart.flatMap(item => {
@@ -334,7 +337,7 @@ export const mockService = {
             if (giftCardUsed > 0 && client.id) {
                  const { data: c } = await supabase.from('clients').select('saldo_vale_presente').eq('id', client.id).single();
                  if (c) {
-                     const newBalance = (c.saldo_vale_presente || 0) - giftCardUsed;
+                     const newBalance = roundMoney((c.saldo_vale_presente || 0) - giftCardUsed);
                      await supabase.from('clients').update({ saldo_vale_presente: newBalance }).eq('id', client.id);
                  }
             }
@@ -375,7 +378,7 @@ export const mockService = {
         const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
         const idx = clients.findIndex(c => c.id === client.id);
         if (idx !== -1) {
-            clients[idx].saldo_devedor_crediario = (clients[idx].saldo_devedor_crediario || 0) + totalValue;
+            clients[idx].saldo_devedor_crediario = roundMoney((clients[idx].saldo_devedor_crediario || 0) + totalValue);
             setLocalData(LS_KEYS.CLIENTS, clients);
         }
     }
@@ -402,7 +405,7 @@ export const mockService = {
         const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
         const cIdx = clients.findIndex(c => c.id === client.id);
         if (cIdx !== -1) {
-            clients[cIdx].saldo_vale_presente = (clients[cIdx].saldo_vale_presente || 0) - giftCardUsed;
+            clients[cIdx].saldo_vale_presente = roundMoney((clients[cIdx].saldo_vale_presente || 0) - giftCardUsed);
             setLocalData(LS_KEYS.CLIENTS, clients);
         }
     }
@@ -454,7 +457,7 @@ export const mockService = {
             .reduce((acc, s) => {
                 const soldItemsSubtotal = s.items?.filter(i => i.status === 'sold').reduce((sum, item) => sum + item.subtotal, 0) || 0;
                 if (soldItemsSubtotal === 0) return acc;
-                const saleNetValue = Math.max(0, soldItemsSubtotal - (s.desconto_extra || 0) - (s.uso_vale_presente || 0));
+                const saleNetValue = Math.max(0, roundMoney(soldItemsSubtotal - (s.desconto_extra || 0) - (s.uso_vale_presente || 0)));
                 return acc + saleNetValue;
             }, 0);
 
@@ -550,7 +553,7 @@ export const mockService = {
               produto_id: productId,
               produto_nome: `${product.nome} - ${product.marca}`,
               quantidade: diff,
-              responsavel: userId,
+              responsavel: userId, 
               motivo: reason,
               cliente_id: clientInfo?.id,
               cliente_nome: clientInfo?.name
@@ -593,7 +596,7 @@ export const mockService = {
   },
 
   getPaymentDiscounts: async (): Promise<PaymentDiscounts> => {
-      const defaults = { credit_spot: 0, debit: 0, pix: 0 };
+      const defaults = { credit_spot: 0, depth: 0, pix: 0 };
       if (isSupabaseConfigured()) {
           const { data } = await supabase.from('store_config').select('value').eq('key', 'payment_discounts').maybeSingle();
           return data ? JSON.parse(data.value) : defaults;
@@ -700,7 +703,7 @@ export const mockService = {
 
           if (sale?.metodo_pagamento === 'Crediário' && sale.cliente_id) {
               const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', sale.cliente_id).single();
-              await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, (c?.saldo_devedor_crediario || 0) - sale.valor_total) }).eq('id', sale.cliente_id);
+              await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, roundMoney(Number(c?.saldo_devedor_crediario || 0) - sale.valor_total)) }).eq('id', sale.cliente_id);
           }
 
           await supabase.from('sale_items').update({ status: 'returned' }).eq('venda_id', saleId);
@@ -735,7 +738,7 @@ export const mockService = {
               const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
               const cIdx = clients.findIndex(c => c.id === sale.cliente_id);
               if (cIdx !== -1) {
-                  clients[cIdx].saldo_devedor_crediario = Math.max(0, (clients[cIdx].saldo_devedor_crediario || 0) - sale.valor_total);
+                  clients[cIdx].saldo_devedor_crediario = Math.max(0, roundMoney((clients[cIdx].saldo_devedor_crediario || 0) - sale.valor_total));
                   setLocalData(LS_KEYS.CLIENTS, clients);
               }
           }
@@ -765,9 +768,22 @@ export const mockService = {
 
   returnSaleItems: async (saleId: string, items: SaleItem[], clientId: string | undefined, userId: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        const { data: saleData } = await supabase.from('sales').select('sales_id, ui_id, cliente_nome, metodo_pagamento').eq('id', saleId).single();
+        // Buscamos a venda e TODOS os itens da venda no banco para garantir que o 'item_count' reflita a realidade original
+        const { data: saleData } = await supabase.from('sales').select('sales_id, ui_id, cliente_nome, metodo_pagamento, desconto_extra, item_count').eq('id', saleId).single();
+        const { data: allSaleItems } = await supabase.from('sale_items').select('id').eq('venda_id', saleId);
+        
         const saleDisplayId = saleData?.sales_id || saleData?.ui_id || saleId;
         const clientName = saleData?.cliente_nome;
+        
+        // CALCULO DO RATEIO: Priorizamos o count do banco, mas fazemos fallback para a contagem real dos registros vinculados
+        const dbItemCount = Number(saleData?.item_count || 0);
+        const actualItemCount = allSaleItems?.length || 0;
+        const totalItemsInSale = dbItemCount > 0 ? dbItemCount : (actualItemCount > 0 ? actualItemCount : 1);
+        
+        const totalExtraDiscount = Number(saleData?.desconto_extra || 0);
+        
+        // Valor que deve ser subtraído de CADA unidade devolvida
+        const extraDiscountPerUnit = totalExtraDiscount / totalItemsInSale;
 
         let giftCardSum = 0;
         let debtReductionSum = 0;
@@ -775,11 +791,8 @@ export const mockService = {
         for (const item of items) {
            const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
            if (prod) {
-               // Atualiza estoque
                await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id);
-               // Atualiza status do item da venda
                await supabase.from('sale_items').update({ status: 'returned' }).eq('id', item.id);
-               // Log de estoque
                await mockService.logStockEntry({
                    produto_id: item.produto_id,
                    produto_nome: `${item.nome_produto} - ${item.marca}`,
@@ -790,33 +803,38 @@ export const mockService = {
                    cliente_nome: clientName
                });
 
-               // Lógica granular de crédito
+               // LÓGICA DE UNIDADE: (Subtotal unitário do item) - (Rateio do desconto da venda)
+               // Importante: No front os itens já vêm unrolados (qty=1), então o subtotal já é unitário.
+               const itemUnitSubtotal = Number(item.subtotal || 0);
+               const itemUnitQty = Number(item.quantidade || 1);
+               const unitNetRefund = roundMoney(Math.max(0, (itemUnitSubtotal / itemUnitQty) - extraDiscountPerUnit));
+
                if (item.status_pagamento === 'pago') {
-                   giftCardSum += item.subtotal;
+                   giftCardSum = roundMoney(giftCardSum + unitNetRefund);
                } else {
-                   debtReductionSum += item.subtotal;
+                   debtReductionSum = roundMoney(debtReductionSum + unitNetRefund);
                }
            }
         }
 
         if (clientId) {
-            // Aplica abatimento de dívida (independente do método, se estava pendente reduz o devedor)
             if (debtReductionSum > 0) {
                 const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', clientId).single();
+                const currentDebt = Number(c?.saldo_devedor_crediario || 0);
                 await supabase.from('clients').update({ 
-                    saldo_devedor_crediario: Math.max(0, Number(c?.saldo_devedor_crediario || 0) - debtReductionSum) 
+                    saldo_devedor_crediario: Math.max(0, roundMoney(currentDebt - debtReductionSum)) 
                 }).eq('id', clientId);
             }
-            
-            // Aplica crédito vale presente apenas para o que estava PAGO
             if (giftCardSum > 0) {
                 const { data: c } = await supabase.from('clients').select('saldo_vale_presente').eq('id', clientId).single();
+                const currentBalance = Number(c?.saldo_vale_presente || 0);
                 await supabase.from('clients').update({ 
-                    saldo_vale_presente: Number(c?.saldo_vale_presente || 0) + giftCardSum 
+                    saldo_vale_presente: roundMoney(currentBalance + giftCardSum) 
                 }).eq('id', clientId);
             }
         }
 
+        // Se não sobrar nenhum item 'sold' na venda, marca a venda como cancelada
         const { data: activeItems = [] } = await supabase.from('sale_items').select('id').eq('venda_id', saleId).eq('status', 'sold');
         if (!activeItems || activeItems.length === 0) {
             await supabase.from('sales').update({ status: 'cancelled' }).eq('id', saleId);
@@ -830,6 +848,9 @@ export const mockService = {
     if (saleIdx === -1) return false;
     const sale = sales[saleIdx];
     const saleDisplayId = sale.ui_id || sale.id;
+
+    const totalItemsInSale = Number(sale.item_count || (sale.items?.length) || 1);
+    const extraDiscountPerUnit = Number(sale.desconto_extra || 0) / totalItemsInSale;
 
     const allProducts = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
     let giftCardSum = 0;
@@ -854,10 +875,12 @@ export const mockService = {
                 cliente_nome: sale.cliente_nome
             });
 
+            const unitNetRefund = roundMoney(Math.max(0, (Number(itemToReturn.subtotal) / Number(itemToReturn.quantidade)) - extraDiscountPerUnit));
+
             if (itemToReturn.status_pagamento === 'pago') {
-                giftCardSum += itemToReturn.subtotal;
+                giftCardSum = roundMoney(giftCardSum + unitNetRefund);
             } else {
-                debtReductionSum += itemToReturn.subtotal;
+                debtReductionSum = roundMoney(debtReductionSum + unitNetRefund);
             }
         }
     }
@@ -869,10 +892,10 @@ export const mockService = {
         const cIdx = allClients.findIndex(c => c.id === clientId);
         if (cIdx !== -1) {
             if (debtReductionSum > 0) {
-                allClients[cIdx].saldo_devedor_crediario = Math.max(0, (allClients[cIdx].saldo_devedor_crediario || 0) - debtReductionSum);
+                allClients[cIdx].saldo_devedor_crediario = Math.max(0, roundMoney((Number(allClients[cIdx].saldo_devedor_crediario) || 0) - debtReductionSum));
             }
             if (giftCardSum > 0) {
-                allClients[cIdx].saldo_vale_presente = (allClients[cIdx].saldo_vale_presente || 0) + giftCardSum;
+                allClients[cIdx].saldo_vale_presente = roundMoney((Number(allClients[cIdx].saldo_vale_presente) || 0) + giftCardSum);
             }
             setLocalData(LS_KEYS.CLIENTS, allClients);
         }
@@ -959,13 +982,13 @@ export const mockService = {
     if (isSupabaseConfigured()) {
        const { data: clientData, error: fetchError } = await supabase.from('clients').select('saldo_vale_presente').eq('id', clientId).single();
        if (fetchError) return false;
-       const { error: updateError } = await supabase.from('clients').update({ saldo_vale_presente: Number(clientData.saldo_vale_presente || 0) + amount }).eq('id', clientId);
+       const { error: updateError } = await supabase.from('clients').update({ saldo_vale_presente: roundMoney(Number(clientData.saldo_vale_presente || 0) + amount) }).eq('id', clientId);
        return !updateError;
     }
     const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
     const index = clients.findIndex(c => c.id === clientId);
     if (index !== -1) {
-       clients[index].saldo_vale_presente = (clients[index].saldo_vale_presente || 0) + amount;
+       clients[index].saldo_vale_presente = roundMoney((clients[index].saldo_vale_presente || 0) + amount);
        setLocalData(LS_KEYS.CLIENTS, clients);
        return true;
     }

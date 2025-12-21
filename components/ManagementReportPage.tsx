@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -85,9 +86,7 @@ export const ManagementReportPage: React.FC = () => {
       }
     };
     fetchData();
-  }, [startDate, endDate]); // Recarrega quando as datas mudam
-
-  // --- CÁLCULOS E PROCESSAMENTO DE DADOS ---
+  }, [startDate, endDate]);
 
   // Helper para arredondamento monetário preciso (2 casas decimais)
   const roundCurrency = (value: number) => {
@@ -97,28 +96,27 @@ export const ManagementReportPage: React.FC = () => {
   const kpis = useMemo(() => {
     if (loading) return null;
 
-    // 1. Total Bruto vs Líquido
+    // Totais Operacionais
     let totalGross = 0;
     let totalReturns = 0; 
     let totalCreditNextMonth = 0;
     let totalCancelledSalesCount = 0;
     let totalReturnedItemsCount = 0;
     
-    // Descontos
+    // Descontos e Taxas
     let totalDiscountOverall = 0;
     let totalDiscountExtra = 0;
     let totalGiftCardUsed = 0; 
-
-    // Taxas (Fees)
     let totalFees = 0;
+
+    // Variáveis para o Fluxo (Lucro Bruto Puro: Venda - Custo)
+    let totalVendaBrutaEfetiva = 0; // Preço de Etiqueta (sem taxas ou descontos)
+    let totalCustoVendas = 0; // CMV
 
     // Quantidades
     let totalItemsSold = 0;
 
-    // Custo dos Produtos Vendidos (CMV) para o fluxo
-    let totalCustoVendas = 0;
-
-    // Maps para Gráficos e Agrupamentos
+    // Maps para Gráficos
     const paymentMethodMap: Record<string, number> = {};
     const brandSalesMap: Record<string, number> = {}; 
     const brandRevenueMap: Record<string, number> = {}; 
@@ -134,17 +132,27 @@ export const ManagementReportPage: React.FC = () => {
       if (sale.items) {
         sale.items.forEach(item => {
            const isReturnedItem = item.status === 'returned';
-           const itemGross = item.quantidade * item.preco_unitario;
-           totalGross += roundCurrency(itemGross);
+           const itemGrossValue = item.quantidade * item.preco_unitario;
+           
+           // Valor Bruto de Etiqueta (Total acumulado para auditoria)
+           totalGross += roundCurrency(itemGrossValue);
            
            if (isReturnedItem) {
              totalReturns += roundCurrency(item.subtotal);
              totalReturnedItemsCount += item.quantidade;
            } else if (!isCancelled) {
+             // ITENS EFETIVAMENTE VENDIDOS
              totalItemsSold += item.quantidade;
+             
+             // 1. Cálculo de Fluxo Puro (Ganho vs Custo)
+             // Consideramos apenas o PREÇO DE VENDA UNITÁRIO vs CUSTO UNITÁRIO
+             totalVendaBrutaEfetiva += roundCurrency(itemGrossValue);
+             
              const custoSnapshot = item.custo_unitario || 0;
              const itemCostTotal = item.quantidade * custoSnapshot;
              totalCustoVendas += roundCurrency(itemCostTotal);
+
+             // Dados de Marca
              brandSalesMap[item.marca] = (brandSalesMap[item.marca] || 0) + item.quantidade;
              brandRevenueMap[item.marca] = (brandRevenueMap[item.marca] || 0) + item.subtotal;
            }
@@ -152,6 +160,7 @@ export const ManagementReportPage: React.FC = () => {
       }
 
       if (!isCancelled) {
+        // Lógica Financeira Real (Líquida)
         let saleRevenue = sale.valor_liquido_lojista;
         if (saleRevenue === undefined || saleRevenue === null) {
             const appliedFee = sale.taxas_aplicadas?.valor || 0;
@@ -202,11 +211,9 @@ export const ManagementReportPage: React.FC = () => {
       totalStockValue += val;
     });
 
-    const totalNetCalculated = roundCurrency(totalGross - totalReturns - totalDiscountOverall - totalFees);
-
     return {
       totalGross: roundCurrency(totalGross),
-      totalNet: totalNetCalculated,
+      totalNet: roundCurrency(totalGross - totalReturns - totalDiscountOverall - totalFees),
       totalReturns: roundCurrency(totalReturns),
       totalDiscountOverall: roundCurrency(totalDiscountOverall),
       discountsByMethod,
@@ -220,6 +227,7 @@ export const ManagementReportPage: React.FC = () => {
       totalReturnedItemsCount,
       totalItemsSold,
       totalCustoVendas: roundCurrency(totalCustoVendas),
+      totalVendaBrutaEfetiva: roundCurrency(totalVendaBrutaEfetiva),
       paymentData: Object.keys(paymentMethodMap).map(k => ({ name: k, value: paymentMethodMap[k] })),
       brandSalesData: Object.keys(brandSalesMap).map(k => ({ name: k, qtd: brandSalesMap[k], revenue: brandRevenueMap[k] })),
       stockCostByBrandData: Object.entries(stockCostByBrandMap).map(([name, value]) => ({ name, value })),
@@ -300,15 +308,15 @@ export const ManagementReportPage: React.FC = () => {
          <div className="h-64 flex items-center justify-center text-zinc-400">Carregando dados...</div>
       ) : (
       <>
-        {/* BLOCO 1: FINANCEIRO MACRO - GRID 3x2 */}
+        {/* BLOCO 1: FINANCEIRO MACRO */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           
-          {/* DOBRA 1: Fluxo (Lucro Bruto) */}
-          <Card className="border-l-4 border-l-blue-600 dark:border-l-blue-400">
+          {/* DOBRA 1: Fluxo (Lucro Bruto) - ATUALIZADO */}
+          <Card className="border-l-4 border-l-blue-400 dark:border-l-blue-400">
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                   <TrendingUp size={14} /> Fluxo (Lucro Bruto)
-                  <ReportTooltip text="Resultado da operação de vendas no período: Receita Real (Líquida de taxas) menos o Custo da Mercadoria Vendida (CMV)." />
+                  <ReportTooltip text="Visão Custo / Ganho: Diferença pura entre o Preço de Venda (Etiqueta) e o Preço de Custo (CMV) das peças efetivamente vendidas, ignorando taxas e descontos." />
                 </span>
                 <div className="mt-2">
                   <div className="flex justify-between text-xs mb-1">
@@ -316,14 +324,14 @@ export const ManagementReportPage: React.FC = () => {
                       <span>{formatCurrency(kpis.totalCustoVendas)}</span>
                   </div>
                   <div className="flex justify-between text-xs mb-1">
-                      <span className="text-zinc-400 dark:text-zinc-400">Receita Real:</span>
-                      <span>{formatCurrency(kpis.totalNet)}</span>
+                      <span className="text-zinc-400 dark:text-zinc-400">Venda Bruta (Efetiva):</span>
+                      <span>{formatCurrency(kpis.totalVendaBrutaEfetiva)}</span>
                   </div>
                   <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-2"></div>
                   <div className="flex justify-between text-base font-bold text-zinc-900 dark:text-white">
-                      <span>Total</span>
-                      <span className={kpis.totalNet - kpis.totalCustoVendas >= 0 ? 'text-blue-400' : 'text-red-600'}>
-                        {formatCurrency(roundCurrency(kpis.totalNet - kpis.totalCustoVendas))}
+                      <span>Total Ganho</span>
+                      <span className={kpis.totalVendaBrutaEfetiva - kpis.totalCustoVendas >= 0 ? 'text-blue-400' : 'text-red-600'}>
+                        {formatCurrency(roundCurrency(kpis.totalVendaBrutaEfetiva - kpis.totalCustoVendas))}
                       </span>
                   </div>
                 </div>
@@ -335,24 +343,20 @@ export const ManagementReportPage: React.FC = () => {
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                   <DollarSign size={14} /> Receita Real vs Potencial
-                  <ReportTooltip text="Detalhamento da perda de receita do valor bruto (etiqueta) até o valor líquido real." />
+                  <ReportTooltip text="Detalhamento da perda de receita do valor bruto (etiqueta) até o valor líquido real (após descontos e taxas)." />
                 </span>
                 <div className="mt-2 space-y-1">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-white dark:text-zinc">Total Bruto (Etiqueta):</span>
-                      <span className="font-medium text-white dark:text-zinc">{formatCurrency(kpis.totalGross)}</span>
+                      <span className="text-zinc-600 dark:text-zinc-300 font-medium">Venda Bruta (Etiqueta):</span>
+                      <span className="font-bold text-zinc-900 dark:text-white">{formatCurrency(kpis.totalVendaBrutaEfetiva)}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] text-zinc-500">
-                      <span>Devoluções:</span>
-                      <span>{formatCurrency(kpis.totalReturns)}</span>
+                      <span>Descontos Totais:</span>
+                      <span className="text-zinc-600">-{formatCurrency(kpis.totalDiscountOverall)}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] text-zinc-500">
-                      <span>Descontos no Pagamento:</span>
-                      <span>{formatCurrency(kpis.totalDiscountOverall)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[10px] text-zinc-500">
-                      <span>Taxas de Maquininha:</span>
-                      <span>{formatCurrency(kpis.totalFees)}</span>
+                      <span>Taxas Maquininha:</span>
+                      <span className="text-zinc-500">-{formatCurrency(kpis.totalFees)}</span>
                     </div>
                     <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1"></div>
                     <div className="flex justify-between items-center">

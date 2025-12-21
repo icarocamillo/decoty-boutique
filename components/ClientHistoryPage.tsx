@@ -257,7 +257,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                     onClick={() => setIsGiftModalOpen(true)}
                     className="w-full mt-2 text-[10px] font-bold bg-amber-100 dark:bg-amber-800/30 text-amber-700 dark:text-amber-300 rounded py-1 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors flex items-center justify-center gap-1"
                  >
-                    <Plus size={10} /> Gerar Saldo
+                    <Plus size={10} /> Gerenciar Saldo
                  </button>
               </div>
 

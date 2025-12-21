@@ -29,21 +29,34 @@ interface ReturnItemsModalProps {
 const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sale, client, onConfirm, isLoading }) => {
     const [selectedVirtualIds, setSelectedVirtualIds] = useState<Set<string>>(new Set());
 
+    // LOGICA DE RATEIO: O desconto extra da venda deve ser dividido entre o total de itens originais
+    const extraDiscountPerUnit = useMemo(() => {
+        const totalItems = sale.item_count || 1;
+        const totalExtraDiscount = sale.desconto_extra || 0;
+        return totalExtraDiscount / totalItems;
+    }, [sale]);
+
     const unrolledItems = useMemo(() => {
-        const list: (SaleItem & { virtualId: string })[] = [];
+        const list: (SaleItem & { virtualId: string; valorLiquidoEstorno: number })[] = [];
         sale.items?.forEach(item => {
             for (let i = 0; i < item.quantidade; i++) {
+                // Valor unitário do item (já com desconto de método de pagamento se houver)
+                const unitSubtotal = item.subtotal / item.quantidade;
+                // Subtrai a parte proporcional do desconto extra da venda
+                const netRefundValue = Math.max(0, unitSubtotal - extraDiscountPerUnit);
+
                 list.push({
                     ...item,
                     quantidade: 1,
-                    subtotal: item.subtotal / item.quantidade,
+                    subtotal: unitSubtotal, 
+                    valorLiquidoEstorno: netRefundValue,
                     desconto: (item.desconto || 0) / item.quantidade,
                     virtualId: `${item.id}-${i}`
                 });
             }
         });
         return list;
-    }, [sale.items]);
+    }, [sale.items, extraDiscountPerUnit]);
 
     const availableItems = useMemo(() => 
         unrolledItems.filter(item => item.status !== 'returned') || [], 
@@ -58,14 +71,14 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
 
     const selectedItems = availableItems.filter(i => selectedVirtualIds.has(i.virtualId));
     
-    // Cálculo segregado por status de pagamento
+    // Cálculo segregado por status de pagamento usando o VALOR LÍQUIDO (com rateio de desconto extra)
     const totalPaidToRefund = selectedItems
         .filter(i => i.status_pagamento === 'pago')
-        .reduce((acc, curr) => acc + curr.subtotal, 0);
+        .reduce((acc, curr) => acc + curr.valorLiquidoEstorno, 0);
     
     const totalPendingToAbate = selectedItems
         .filter(i => i.status_pagamento !== 'pago')
-        .reduce((acc, curr) => acc + curr.subtotal, 0);
+        .reduce((acc, curr) => acc + curr.valorLiquidoEstorno, 0);
 
     const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -125,7 +138,12 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
                                                 </div>
                                             </div>
                                         </div>
-                                        <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">{formatCurrency(item.subtotal)}</span>
+                                        <div className="text-right">
+                                            <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 block">{formatCurrency(item.valorLiquidoEstorno)}</span>
+                                            {sale.desconto_extra ? (
+                                                <span className="text-[9px] text-zinc-400 line-through">orig: {formatCurrency(item.subtotal)}</span>
+                                            ) : null}
+                                        </div>
                                     </label>
                                 ))}
                             </div>
@@ -304,7 +322,6 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
     }
 
     try {
-        // A lógica de soma segregada agora é feita dentro do mockService para maior segurança
         await mockService.returnSaleItems(currentSale.id, selectedItems, currentSale.cliente_id, userId);
         
         alert("Devolução processada com sucesso!");
