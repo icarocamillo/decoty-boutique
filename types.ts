@@ -30,12 +30,13 @@ export interface SaleItem {
   desconto?: number;
   subtotal: number;
   status: 'sold' | 'returned'; 
-  status_pagamento?: 'pago' | 'pendente'; // NOVO
+  status_pagamento?: 'pago' | 'pendente';
+  valor_estorno_unitario?: number; // Valor líquido calculado com rateio para estorno
 }
 
 export interface Sale {
   id: string;
-  ui_id?: number; // Identificador numérico sequencial (anteriormente sales_id)
+  ui_id?: number; 
   data_venda: string;
   valor_total: number;
   items?: SaleItem[]; 
@@ -45,11 +46,11 @@ export interface Sale {
   cliente_cpf?: string;
   produtos_resumo?: string;
   metodo_pagamento?: string;
-  status_pagamento?: 'pago' | 'pendente'; // NOVO
+  status_pagamento?: 'pago' | 'pendente';
   parcelas?: number;
   desconto_extra?: number;
   uso_vale_presente?: number; 
-  responsavel?: string; // Alterado de vendedor para responsavel
+  responsavel?: string; 
   status: 'completed' | 'cancelled';
   taxas_aplicadas?: {
     porcentagem: number;

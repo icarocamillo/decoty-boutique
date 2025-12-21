@@ -50,6 +50,7 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
                     quantidade: 1,
                     subtotal: unitSubtotal, 
                     valorLiquidoEstorno: netRefundValue,
+                    valor_estorno_unitario: netRefundValue, // ATRIBUIÇÃO PARA O PAYLOAD DE SERVICE
                     desconto: (item.desconto || 0) / item.quantidade,
                     virtualId: `${item.id}-${i}`
                 });

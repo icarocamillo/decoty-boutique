@@ -768,23 +768,10 @@ export const mockService = {
 
   returnSaleItems: async (saleId: string, items: SaleItem[], clientId: string | undefined, userId: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        // Buscamos a venda e TODOS os itens da venda no banco para garantir que o 'item_count' reflita a realidade original
         const { data: saleData } = await supabase.from('sales').select('sales_id, ui_id, cliente_nome, metodo_pagamento, desconto_extra, item_count').eq('id', saleId).single();
-        const { data: allSaleItems } = await supabase.from('sale_items').select('id').eq('venda_id', saleId);
-        
         const saleDisplayId = saleData?.sales_id || saleData?.ui_id || saleId;
         const clientName = saleData?.cliente_nome;
         
-        // CALCULO DO RATEIO: Priorizamos o count do banco, mas fazemos fallback para a contagem real dos registros vinculados
-        const dbItemCount = Number(saleData?.item_count || 0);
-        const actualItemCount = allSaleItems?.length || 0;
-        const totalItemsInSale = dbItemCount > 0 ? dbItemCount : (actualItemCount > 0 ? actualItemCount : 1);
-        
-        const totalExtraDiscount = Number(saleData?.desconto_extra || 0);
-        
-        // Valor que deve ser subtraído de CADA unidade devolvida
-        const extraDiscountPerUnit = totalExtraDiscount / totalItemsInSale;
-
         let giftCardSum = 0;
         let debtReductionSum = 0;
 
@@ -803,11 +790,10 @@ export const mockService = {
                    cliente_nome: clientName
                });
 
-               // LÓGICA DE UNIDADE: (Subtotal unitário do item) - (Rateio do desconto da venda)
-               // Importante: No front os itens já vêm unrolados (qty=1), então o subtotal já é unitário.
-               const itemUnitSubtotal = Number(item.subtotal || 0);
-               const itemUnitQty = Number(item.quantidade || 1);
-               const unitNetRefund = roundMoney(Math.max(0, (itemUnitSubtotal / itemUnitQty) - extraDiscountPerUnit));
+               // LÓGICA DE UNIDADE: Priorizamos o valor calculado pelo FRONT que o usuário viu na tela
+               const unitNetRefund = item.valor_estorno_unitario !== undefined 
+                    ? Number(item.valor_estorno_unitario) 
+                    : roundMoney(Math.max(0, (Number(item.subtotal || 0) / Number(item.quantidade || 1))));
 
                if (item.status_pagamento === 'pago') {
                    giftCardSum = roundMoney(giftCardSum + unitNetRefund);
@@ -834,7 +820,6 @@ export const mockService = {
             }
         }
 
-        // Se não sobrar nenhum item 'sold' na venda, marca a venda como cancelada
         const { data: activeItems = [] } = await supabase.from('sale_items').select('id').eq('venda_id', saleId).eq('status', 'sold');
         if (!activeItems || activeItems.length === 0) {
             await supabase.from('sales').update({ status: 'cancelled' }).eq('id', saleId);
@@ -848,9 +833,6 @@ export const mockService = {
     if (saleIdx === -1) return false;
     const sale = sales[saleIdx];
     const saleDisplayId = sale.ui_id || sale.id;
-
-    const totalItemsInSale = Number(sale.item_count || (sale.items?.length) || 1);
-    const extraDiscountPerUnit = Number(sale.desconto_extra || 0) / totalItemsInSale;
 
     const allProducts = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
     let giftCardSum = 0;
@@ -875,7 +857,10 @@ export const mockService = {
                 cliente_nome: sale.cliente_nome
             });
 
-            const unitNetRefund = roundMoney(Math.max(0, (Number(itemToReturn.subtotal) / Number(itemToReturn.quantidade)) - extraDiscountPerUnit));
+            // LÓGICA DE UNIDADE MOCK: Priorizamos o valor calculado pelo FRONT
+            const unitNetRefund = itemToReturn.valor_estorno_unitario !== undefined 
+                ? Number(itemToReturn.valor_estorno_unitario)
+                : roundMoney(Math.max(0, (Number(itemToReturn.subtotal) / Number(itemToReturn.quantidade || 1))));
 
             if (itemToReturn.status_pagamento === 'pago') {
                 giftCardSum = roundMoney(giftCardSum + unitNetRefund);
@@ -968,7 +953,7 @@ export const mockService = {
               produto_id: entry.produto_id,
               produto_nome: entry.produto_nome,
               quantidade: Math.abs(entry.quantidade),
-              responsavel: userId,
+              responsavel: userId, 
               motivo: 'Retorno Provador',
               cliente_id: entry.cliente_id,
               cliente_nome: entry.cliente_nome
