@@ -119,6 +119,30 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
     return userId || 'Sistema';
   };
 
+  // Mapeamento de UUID da venda para UI_ID para exibição no histórico
+  const salesMapping = useMemo(() => {
+    const mapping: Record<string, number> = {};
+    sales.forEach(s => {
+      if (s.ui_id) mapping[s.id] = s.ui_id;
+    });
+    return mapping;
+  }, [sales]);
+
+  const formatMotivo = (motivo: string) => {
+    if (!motivo) return '';
+    // Regex para encontrar padrões de ID como #s-12345 ou #uuid
+    const idMatch = motivo.match(/#([\w-]+)/);
+    if (!idMatch) return motivo;
+    
+    const extractedId = idMatch[1];
+    // Se o ID extraído estiver no mapeamento de UI_IDs da loja
+    if (salesMapping[extractedId]) {
+      return motivo.replace(`#${extractedId}`, `#${salesMapping[extractedId]}`);
+    }
+    
+    return motivo;
+  };
+
   const handleReturnProvador = async (e: React.MouseEvent, entry: StockEntry) => {
     if (e && e.stopPropagation) e.stopPropagation();
     
@@ -397,7 +421,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                                         </div>
                                     </td>
                                     <td className="px-6 py-3 text-xs text-zinc-500">
-                                        {entry.motivo}
+                                        {formatMotivo(entry.motivo)}
                                     </td>
                                     <td className="px-6 py-3 text-xs text-zinc-500 italic">
                                         {responsibleName}
