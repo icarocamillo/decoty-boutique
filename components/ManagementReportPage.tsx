@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { 
   TrendingUp, DollarSign, Tag, 
-  Calendar, ShoppingBag, HelpCircle, Filter, CreditCard, Undo2, Archive, CheckCircle2, AlertTriangle
+  Calendar, ShoppingBag, HelpCircle, Filter, CreditCard, Undo2, Archive, CheckCircle2, AlertTriangle, Gift
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { mockService } from '../services/mockService';
@@ -406,7 +406,7 @@ export const ManagementReportPage: React.FC = () => {
           </Card>
 
           {/* DOBRA 4: Total Descontos */}
-          <Card className="border-l-4 border-l-amber-500 dark:border-l-amber-500">
+          <Card className="border-l-4 border-l-zinc-400 dark:border-l-zinc-600">
               <div className="flex flex-col gap-1 h-full justify-between">
                 <div>
                   <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1 mb-2">
@@ -469,7 +469,23 @@ export const ManagementReportPage: React.FC = () => {
               </div>
           </Card>
 
-          {/* DOBRA 6: A Receber (Próx.) */}
+          {/* DOBRA 6: Total Vale Presente */}
+          <Card className="border-l-4 border-l-amber-600 dark:border-l-amber-500">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
+                  <Gift size={14} /> Total Vale Presente
+                  <ReportTooltip text="Soma dos valores de vales presente utilizados como forma de pagamento. Este valor entra na Receita Real por já ter sido pago anteriormente pelo cliente." />
+                </span>
+                <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-500 mt-2">
+                  {formatCurrency(kpis.totalGiftCardUsed)}
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                   Receita realizada via crédito antecipado.
+                </p>
+              </div>
+          </Card>
+
+          {/* DOBRA 7: A Receber (Próx.) */}
           <Card className="border-l-4 border-l-purple-500 dark:border-l-purple-500">
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
