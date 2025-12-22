@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Sale } from '../types';
-import { ShoppingBag, User, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, Calendar, Clock } from 'lucide-react';
+import { ShoppingBag, User, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, Calendar, Clock, Package } from 'lucide-react';
 import { SaleDetailsModal } from './SaleDetailsModal';
 import { Badge } from './ui/Badge';
 import { formatDateStandard } from '../utils';
@@ -114,19 +114,26 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
               }`}
             >
               <div className="flex justify-between items-start">
-                <div className="flex flex-col">
+                <div className="flex flex-col min-w-0 flex-1 pr-2">
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Venda #{cleanId(sale)}</span>
                   <div className="flex items-center gap-2 mt-1">
-                    <User size={14} className="text-emerald-600" />
-                    <span className="font-bold text-zinc-900 dark:text-zinc-100 truncate max-w-[150px]">
+                    <User size={14} className="text-emerald-600 shrink-0" />
+                    <span className="font-bold text-zinc-900 dark:text-zinc-100 truncate">
                       {sale.cliente_nome || 'Consumidor'}
                     </span>
                   </div>
+                  {/* MOBILE: Resumo de Produtos */}
+                  <div className="mt-2 flex items-start gap-1.5 bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800/50">
+                    <Package size={12} className="text-zinc-400 mt-0.5 shrink-0" />
+                    <p className="text-[10px] text-zinc-600 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                      {sale.produtos_resumo || 'Nenhum item registrado'}
+                    </p>
+                  </div>
                 </div>
                 {isCancelled ? (
-                  <Badge variant="destructive" className="text-[10px]">Cancelada</Badge>
+                  <Badge variant="destructive" className="text-[10px] shrink-0">Cancelada</Badge>
                 ) : (
-                  <Badge variant="success" className="text-[10px]">Concluída</Badge>
+                  <Badge variant="success" className="text-[10px] shrink-0">Concluída</Badge>
                 )}
               </div>
 
@@ -167,6 +174,10 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
               <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('cliente_nome')}>
                 <div className="flex items-center">Cliente <SortIcon columnKey="cliente_nome" /></div>
               </th>
+              {/* DESKTOP: Coluna de Produtos */}
+              <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('produtos_resumo')}>
+                <div className="flex items-center">Produtos <SortIcon columnKey="produtos_resumo" /></div>
+              </th>
               <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('data_venda')}>
                 <div className="flex items-center">Data <SortIcon columnKey="data_venda" /></div>
               </th>
@@ -202,6 +213,15 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
                       <User size={14} className="text-zinc-400 group-hover:text-emerald-600 transition-colors" />
                       <span className="truncate max-w-[120px] font-bold group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors" title={sale.cliente_nome}>
                         {sale.cliente_nome || 'Não informado'}
+                      </span>
+                    </div>
+                  </td>
+                  {/* DESKTOP: Celula de Produtos */}
+                  <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                    <div className="flex items-center gap-2 max-w-[200px] overflow-hidden">
+                      <Package size={14} className="text-zinc-300 shrink-0" />
+                      <span className="truncate text-xs" title={sale.produtos_resumo}>
+                        {sale.produtos_resumo || '-'}
                       </span>
                     </div>
                   </td>

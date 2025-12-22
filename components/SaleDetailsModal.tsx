@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 /* Added BookOpen to the list of imports from lucide-react */
-import { X, User, CreditCard, Tag, Package, Receipt, Link, AlertTriangle, Mail, ShieldCheck, PieChart, Activity, Phone, Smartphone, Search, Loader2, Check, Gift, Undo2, Wallet, Hourglass, BookOpen } from 'lucide-react';
+import { X, User, CreditCard, Tag, Package, Receipt, Link, AlertTriangle, Mail, ShieldCheck, PieChart, Activity, Phone, Smartphone, Search, Loader2, Check, Gift, Undo2, Wallet, Hourglass, BookOpen, ShoppingBag } from 'lucide-react';
 import { Sale, Client, SaleItem, UserProfile } from '../types';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
@@ -566,7 +566,63 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3 flex items-center gap-2">
               <Package size={16} className="text-zinc-500" /> Itens Adquiridos
             </h3>
-            <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden flex flex-col">
+            
+            {/* MOBILE VIEW: Card List */}
+            <div className="flex flex-col gap-3 sm:hidden">
+              {unrolledItems.map((item) => {
+                const discountVal = item.desconto || 0;
+                const percent = item.preco_unitario > 0 ? (discountVal / item.preco_unitario) * 100 : 0;
+                const isReturned = item.status === 'returned';
+
+                return (
+                  <div key={item.virtualId} className={`p-4 rounded-xl border bg-zinc-50 dark:bg-zinc-800/30 flex flex-col gap-2 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale' : 'border-zinc-200 dark:border-zinc-700'}`}>
+                    <div className="flex justify-between items-start">
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-zinc-900 dark:text-white truncate">{item.nome_produto}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <Badge variant="outline" className="text-[10px] h-4 px-1">{item.tamanho}</Badge>
+                          <span className="text-[10px] text-zinc-500 uppercase font-bold flex items-center gap-1"><Tag size={10} /> {item.marca}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        {isReturned ? (
+                          <Badge variant="destructive" className="text-[9px] px-1.5 h-4">Devolvido</Badge>
+                        ) : (
+                          <Badge variant="success" className="text-[9px] px-1.5 h-4">Vendido</Badge>
+                        )}
+                        {!isReturned && currentSale.status !== 'cancelled' && (
+                          item.status_pagamento === 'pago' ? (
+                            <Badge variant="success" className="text-[9px] h-4 px-1 gap-1"><Check size={8} /> Pago</Badge>
+                          ) : (
+                            <Badge variant="warning" className="text-[9px] h-4 px-1 gap-1"><Hourglass size={8} /> Pendente</Badge>
+                          )
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-zinc-200/50 dark:border-zinc-700/50">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-tight">Valor Unitário</span>
+                        <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">{formatCurrency(item.preco_unitario)}</span>
+                      </div>
+                      {percent > 0.5 && (
+                        <div className="flex flex-col items-center">
+                          <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-tight">Desconto</span>
+                          <Badge variant="success" className="text-[9px] px-1 h-4">{Math.round(percent)}% OFF</Badge>
+                        </div>
+                      )}
+                      <div className="flex flex-col items-end">
+                        <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-tight">Subtotal</span>
+                        <span className="text-sm font-black text-zinc-900 dark:text-white">{formatCurrency(item.subtotal)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* DESKTOP VIEW: Standard Table */}
+            <div className="hidden sm:block border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
               <div className="max-h-[300px] overflow-y-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-zinc-50 dark:bg-zinc-800 text-xs text-zinc-500 dark:text-zinc-400 uppercase font-medium sticky top-0 z-10 shadow-sm">
