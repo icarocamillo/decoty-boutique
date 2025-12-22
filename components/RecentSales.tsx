@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Sale } from '../types';
-import { ShoppingBag, User, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { ShoppingBag, User, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, Calendar, Clock } from 'lucide-react';
 import { SaleDetailsModal } from './SaleDetailsModal';
 import { Badge } from './ui/Badge';
 import { formatDateStandard } from '../utils';
@@ -95,7 +95,69 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
 
   return (
     <>
-      <div className="overflow-x-auto">
+      {/* MOBILE VIEW: Card List */}
+      <div className="flex flex-col gap-3 sm:hidden px-1">
+        {sortedSales.map((sale) => {
+          const { weekDay, dateTime } = formatDateStandard(sale.data_venda);
+          const isCancelled = sale.status === 'cancelled';
+          const displayedItemCount = sale.items 
+            ? sale.items.filter(i => i.status === 'sold').reduce((acc, item) => acc + item.quantidade, 0) 
+            : (sale.item_count || 0);
+          const currentTotal = calculateCurrentTotal(sale);
+
+          return (
+            <button 
+              key={sale.id} 
+              onClick={() => setSelectedSale(sale)}
+              className={`text-left p-4 rounded-xl border bg-white dark:bg-zinc-900 shadow-sm active:scale-[0.98] transition-all flex flex-col gap-3 ${
+                isCancelled ? 'border-red-100 dark:border-red-900/30' : 'border-zinc-100 dark:border-zinc-800'
+              }`}
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Venda #{cleanId(sale)}</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <User size={14} className="text-emerald-600" />
+                    <span className="font-bold text-zinc-900 dark:text-zinc-100 truncate max-w-[150px]">
+                      {sale.cliente_nome || 'Consumidor'}
+                    </span>
+                  </div>
+                </div>
+                {isCancelled ? (
+                  <Badge variant="destructive" className="text-[10px]">Cancelada</Badge>
+                ) : (
+                  <Badge variant="success" className="text-[10px]">Concluída</Badge>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4 text-[11px] text-zinc-500 dark:text-zinc-400 border-y border-zinc-50 dark:border-zinc-800 py-2">
+                <div className="flex items-center gap-1">
+                  <Calendar size={12} />
+                  <span>{weekDay.split('-')[0]}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Clock size={12} />
+                  <span>{dateTime.split(' às ')[1]}</span>
+                </div>
+                <div className="flex items-center gap-1 ml-auto font-medium">
+                  <ShoppingBag size={12} />
+                  <span>{displayedItemCount} {displayedItemCount === 1 ? 'item' : 'itens'}</span>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center mt-1">
+                <span className={`text-lg font-black ${isCancelled ? 'text-zinc-400 line-through' : 'text-zinc-900 dark:text-white'}`}>
+                  {formatCurrency(currentTotal)}
+                </span>
+                <ChevronRight size={16} className="text-zinc-300" />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* DESKTOP VIEW: Standard Table */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800">
             <tr>
@@ -135,10 +197,10 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
                   <td className="px-4 py-3 font-medium text-zinc-900 dark:text-white">
                     {cleanId(sale)}
                   </td>
-                  <td className={`px-4 py-3 text-zinc-700 dark:text-zinc-300 ${isCancelled ? 'opacity-60' : ''}`}>
-                    <div className="flex items-center gap-2">
-                      <User size={14} className="text-zinc-400" />
-                      <span className="truncate max-w-[120px] font-bold" title={sale.cliente_nome}>
+                  <td className={`px-4 py-3 ${isCancelled ? 'opacity-60 text-zinc-500' : 'text-zinc-700 dark:text-zinc-300'}`}>
+                    <div className="flex items-center gap-2 group">
+                      <User size={14} className="text-zinc-400 group-hover:text-emerald-600 transition-colors" />
+                      <span className="truncate max-w-[120px] font-bold group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors" title={sale.cliente_nome}>
                         {sale.cliente_nome || 'Não informado'}
                       </span>
                     </div>
