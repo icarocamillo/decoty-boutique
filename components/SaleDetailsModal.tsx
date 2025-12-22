@@ -483,7 +483,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
 
                 <div className="bg-zinc-50/80 dark:bg-zinc-900/30 border-t border-zinc-100 dark:border-zinc-700 p-3">
                     <div className="flex items-center gap-3">
-                       <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-emerald-900/30 flex items-center justify-center text-blue-600 dark:text-emerald-400 shrink-0">
+                       <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                           <ShieldCheck size={14} />
                        </div>
                        <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -519,7 +519,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                         </div>
                     )}
                     {totalExtraDiscount > 0 && (
-                        <div className={`flex justify-between text-sm text-emerald-600 dark:text-emerald-400 ${currentSale.status === 'cancelled' ? 'line-through opacity-60' : ''}`}>
+                        <div className={`flex justify-between text-sm text-blue-600 dark:text-blue-400 ${currentSale.status === 'cancelled' ? 'line-through opacity-60' : ''}`}>
                         <span>Desconto Extra:</span>
                         <span>- {formatCurrency(totalExtraDiscount)}</span>
                         </div>
