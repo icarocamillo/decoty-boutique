@@ -115,7 +115,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
         });
       } else {
         setFormData({
-          nome: '', marca: '', categoria: '', tipo_material: '', cor: '', tamanho: '', preco_custo: '', preco_venda: '', quantidade_estoque: '', sku: '', ean: ''
+          nome: '', marca: '', categoria: '', tipo_material: '', cor: '', tamanho: '', preco_custo: '', preco_venda: '', quantidade_estoque: '0', sku: '', ean: ''
         });
       }
     }
@@ -222,6 +222,18 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
     }
   };
 
+  const handleAdjustInitialStock = (delta: number) => {
+    const current = parseInt(formData.quantidade_estoque) || 0;
+    const next = Math.max(0, current + delta);
+    setFormData(prev => ({ ...prev, quantidade_estoque: next.toString() }));
+  };
+
+  const handleAdjustStockDelta = (delta: number) => {
+    const current = parseInt(stockAdjustment) || 0;
+    const next = current + delta; // Aqui permitimos negativo para mostrar o alerta visual
+    setStockAdjustment(next.toString());
+  };
+
   const visualId = productToEdit ? formatProductId(productToEdit) : 'NOVO';
 
   if (!isOpen) return null;
@@ -320,14 +332,32 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
                           </div>
                           <div className="md:col-span-8 space-y-2">
                             <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 text-green-600 dark:text-green-400">Adicionar Estoque (+)</label>
-                            <div className="relative">
-                              <button type="button" onClick={() => setStockAdjustment(p => (parseInt(p)||0-1).toString())} className="absolute left-2 top-1/2 -translate-y-1/2 p-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 rounded"><Minus size={14} /></button>
-                              <input type="number" min="0" value={stockAdjustment} onChange={(e) => setStockAdjustment(e.target.value)} placeholder="0" className={`w-full px-10 py-2 border rounded-lg bg-green-50 dark:bg-green-900/20 text-zinc-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none text-center font-bold ${isReducingStock ? 'border-red-500 ring-1 bg-red-50' : 'border-green-200'}`} />
-                              <button type="button" onClick={() => setStockAdjustment(p => (parseInt(p)||0+1).toString())} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 bg-green-200 dark:bg-green-800 text-green-800 rounded"><Plus size={14} /></button>
+                            <div className="relative flex items-center">
+                              <button 
+                                type="button" 
+                                onClick={() => handleAdjustStockDelta(-1)} 
+                                className="absolute left-1.5 h-8 w-8 flex items-center justify-center bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors shadow-sm z-10"
+                              >
+                                <Minus size={14} strokeWidth={3} />
+                              </button>
+                              <input 
+                                type="number" 
+                                value={stockAdjustment} 
+                                onChange={(e) => setStockAdjustment(e.target.value)} 
+                                placeholder="0" 
+                                className={`w-full px-10 h-10 border rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none text-center font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isReducingStock ? 'border-red-500 ring-1 bg-red-50 dark:bg-red-900/10' : 'border-zinc-300 dark:border-zinc-700'}`} 
+                              />
+                              <button 
+                                type="button" 
+                                onClick={() => handleAdjustStockDelta(1)} 
+                                className="absolute right-1.5 h-8 w-8 flex items-center justify-center bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors shadow-sm z-10"
+                              >
+                                <Plus size={14} strokeWidth={3} />
+                              </button>
                               {isReducingStock && (
                                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-max max-w-[280px] mb-2 z-50 animate-fade-in">
-                                  <div className="bg-red-600 text-white text-xs p-3 rounded-lg shadow-xl border border-red-700 flex items-start gap-2 relative">
-                                      <AlertCircle size={16} className="shrink-0" />
+                                  <div className="bg-red-600 text-white text-[10px] p-2 rounded-lg shadow-xl border border-red-700 flex items-start gap-2 relative">
+                                      <AlertCircle size={14} className="shrink-0" />
                                       <span>Para reduzir estoque, use a função <strong>Baixa de Estoque</strong> na tela de Estoque.</span>
                                       <div className="absolute top-full left-1/2 -translate-x-1/2 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-red-600"></div>
                                   </div>
@@ -339,7 +369,24 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
                       ) : (
                         <div className="md:col-span-12 space-y-2">
                           <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Estoque Inicial</label>
-                          <input type="number" name="quantidade_estoque" min="0" value={formData.quantidade_estoque} onChange={handleChange} placeholder="0" className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none" />
+                          <div className="relative flex items-center">
+                            <input 
+                              type="number" 
+                              name="quantidade_estoque" 
+                              min="0" 
+                              value={formData.quantidade_estoque} 
+                              onChange={handleChange} 
+                              placeholder="0" 
+                              className="w-full pl-4 pr-10 h-10 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none text-center font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                            />
+                            <button 
+                              type="button" 
+                              onClick={() => handleAdjustInitialStock(1)} 
+                              className="absolute right-1.5 h-8 w-8 flex items-center justify-center bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors shadow-sm z-10"
+                            >
+                              <Plus size={14} strokeWidth={3} />
+                            </button>
+                          </div>
                         </div>
                       )}
                   </div>
