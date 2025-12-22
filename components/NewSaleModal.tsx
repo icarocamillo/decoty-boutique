@@ -442,7 +442,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
           {step === 'payment' && (
             <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden custom-scrollbar">
               <div className="flex-1 p-6 bg-zinc-50 dark:bg-zinc-950/30 lg:overflow-y-auto space-y-3 custom-scrollbar">
-                <h3 className="font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2 mb-4"><Package size={18} /> Resumo do Pedido</h3>
+                <h3 className="font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2 mb-4"><Package size={18} /> 3. Resumo do Pedido</h3>
                 {cart.map(item => (
                   <div key={item.produto_id} className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 flex justify-between items-start shadow-sm transition-all hover:shadow-md">
                     <div className="min-w-0 pr-2">
@@ -462,7 +462,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
                 ))}
               </div>
               <div className="w-full lg:w-[480px] bg-white dark:bg-zinc-900 p-6 lg:p-8 lg:overflow-y-auto space-y-6 border-l border-zinc-200 dark:border-zinc-800 custom-scrollbar shrink-0">
-                <h3 className="font-bold flex items-center gap-2 text-zinc-800 dark:text-zinc-100"><Wallet size={20} /> Forma de Pagamento</h3>
+                <h3 className="font-bold flex items-center gap-2 text-zinc-800 dark:text-zinc-100"><Wallet size={20} /> 4. Forma de Pagamento</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {PAYMENT_METHODS.map(method => {
                     const isDisabled = method === 'Crediário' && isUnregisteredClient;
