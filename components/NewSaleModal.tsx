@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Plus, Trash2, ShoppingCart, Search, Package, User, ArrowRight, Filter, Check, CreditCard, DollarSign, Wallet, AlertCircle, ArrowLeft, Ticket, UserPlus, Gift, Handshake, Info, Minus } from 'lucide-react';
+import { X, Plus, Trash2, ShoppingCart, Search, Package, User, ArrowRight, Filter, Check, CreditCard, DollarSign, Wallet, AlertCircle, ArrowLeft, Ticket, UserPlus, Gift, Handshake, Info, Minus, RefreshCw } from 'lucide-react';
 import { Product, CartItem, Client } from '../types';
 import { mockService, PaymentDiscounts, PaymentFees } from '../services/mockService';
 import { Button } from './ui/Button';
@@ -17,10 +17,11 @@ interface NewSaleModalProps {
 }
 
 const PAYMENT_METHODS = ['Pix', 'Cartão de Crédito', 'Cartão de Débito', 'Dinheiro', 'Crediário'];
+const CATEGORIES = ['Vestidos', 'Blusas', 'Camisas', 'Calças', 'Saias', 'Casacos', 'Jaquetas', 'Bermudas', 'Pulseira', 'Brinco', 'Colar'];
 
 export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onSaleComplete }) => {
   const navigate = useNavigate();
-  const { user } = useAuth(); // Usamos o objeto user para pegar o ID
+  const { user } = useAuth(); 
   
   const [step, setStep] = useState<'client' | 'products' | 'payment'>('client');
   const [products, setProducts] = useState<Product[]>([]);
@@ -31,11 +32,16 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
   const [feesConfig, setFeesConfig] = useState<PaymentFees | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Filters
   const [clientSearchTerm, setClientSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isUnregisteredClient, setIsUnregisteredClient] = useState(false);
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  
+  // Payment
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
   const [installments, setInstallments] = useState(1);
   const [extraDiscountStr, setExtraDiscountStr] = useState('');
@@ -83,6 +89,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
       setClientSearchTerm('');
       setProductSearchTerm('');
       setSelectedBrand('');
+      setSelectedCategory('');
       setSelectedClient(null);
       setIsUnregisteredClient(false);
       setSelectedPaymentMethod('');
@@ -134,11 +141,22 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
     });
   };
 
-  const updateQuantity = (productId: string, delta: number) => {
+  const updateQuantity = (productId: string, newQtyStr: string) => {
+    const newQty = parseInt(newQtyStr) || 0;
     setCart(prev => prev.map(item => {
       if (item.produto_id === productId) {
-        const newQty = item.quantidade + delta;
-        if (newQty > 0 && newQty <= item.estoque_maximo) return { ...item, quantidade: newQty, subtotal: newQty * item.preco_unitario, desconto: 0 };
+        const validatedQty = Math.max(0, Math.min(newQty, item.estoque_maximo));
+        return { ...item, quantidade: validatedQty, subtotal: validatedQty * item.preco_unitario, desconto: 0 };
+      }
+      return item;
+    }));
+  };
+
+  const adjustQuantity = (productId: string, delta: number) => {
+    setCart(prev => prev.map(item => {
+      if (item.produto_id === productId) {
+        const newQty = Math.max(0, Math.min(item.quantidade + delta, item.estoque_maximo));
+        return { ...item, quantidade: newQty, subtotal: newQty * item.preco_unitario, desconto: 0 };
       }
       return item;
     }));
@@ -191,7 +209,6 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
     else if (selectedPaymentMethod === 'Cartão de Crédito') feePercent = installments === 1 ? currentFees.credit_spot : currentFees.credit_installment;
     const feeValue = finalTotal * (feePercent / 100);
 
-    // MUDANÇA CRÍTICA: Enviamos o ID (UUID) para satisfazer a chave estrangeira no banco
     const sellerId = user?.id || '';
 
     setIsSubmitting(true);
@@ -212,6 +229,8 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
   };
 
   const filteredProducts = useMemo(() => {
+    if (!productSearchTerm && !selectedBrand && !selectedCategory) return [];
+    
     return products.filter(p => {
       const vid = formatProductId(p).toLowerCase();
       const term = productSearchTerm.toLowerCase();
@@ -219,9 +238,10 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
       (p.nome.toLowerCase().includes(term) || 
        p.cor.toLowerCase().includes(term) ||
        vid.includes(term)) &&
-      (!selectedBrand || p.marca === selectedBrand);
-    }).sort((a, b) => b.quantidade_estoque - a.quantidade_estoque);
-  }, [products, productSearchTerm, selectedBrand]);
+      (!selectedBrand || p.marca === selectedBrand) &&
+      (!selectedCategory || p.categoria === selectedCategory);
+    }).sort((a, b) => b.quantidade_estoque - a.quantidade_estoque).slice(0, 15);
+  }, [products, productSearchTerm, selectedBrand, selectedCategory]);
 
   const getPaymentDiscountValue = (method: string) => {
     if (!discountsConfig) return 0;
@@ -235,36 +255,41 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col overflow-hidden animate-fade-in-up border border-zinc-200 dark:border-zinc-800">
+      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-7xl h-[92vh] flex flex-col overflow-hidden animate-fade-in-up border border-zinc-200 dark:border-zinc-800">
+        
+        {/* Header */}
         <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900 shrink-0">
           <div className="flex items-center gap-3">
-            {step !== 'client' && <button onClick={() => setStep(step === 'payment' ? 'products' : 'client')} className="p-2 -ml-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full text-zinc-500"><ArrowLeft size={24} /></button>}
+            {step !== 'client' && <button onClick={() => setStep(step === 'payment' ? 'products' : 'client')} className="p-2 -ml-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full text-zinc-500 transition-colors"><ArrowLeft size={24} /></button>}
             <div className="bg-emerald-600 p-2 rounded-lg text-white"><ShoppingCart size={24} /></div>
             <div>
               <h2 className="text-xl font-bold text-zinc-800 dark:text-white">Nova Venda</h2>
               <p className="text-sm text-zinc-500">{step === 'client' ? 'Identificar Cliente' : step === 'products' ? `Cliente: ${selectedClient?.nome || 'Balcão'}` : 'Pagamento'}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full text-zinc-500"><X size={24} /></button>
+          <button onClick={onClose} className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full text-zinc-500 transition-colors">
+            <X size={24} />
+          </button>
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+          {/* STEP 1: CLIENT SELECTION */}
           {step === 'client' && (
-            <div className="flex-1 p-6 flex flex-col items-center gap-4 bg-zinc-50 dark:bg-zinc-950/50">
-              <div className="w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-4 shadow-sm">
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center gap-4 bg-zinc-50 dark:bg-zinc-950/50 custom-scrollbar">
+              <div className="w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-4 shadow-sm my-auto">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
                   <input type="text" placeholder="Buscar cliente..." className="w-full pl-12 pr-4 py-3 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500" value={clientSearchTerm} onChange={(e) => setClientSearchTerm(e.target.value)} disabled={isUnregisteredClient} />
                 </div>
                 {!isUnregisteredClient && (
-                  <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar">
+                  <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar pr-1">
                     {filteredClients.map(c => (
                       <div key={c.id} onClick={() => handleSelectClient(c)} className={`p-3 rounded-lg border cursor-pointer flex items-center justify-between transition-colors ${selectedClient?.id === c.id ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}>
                         <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><User size={16} className="text-zinc-500" /></div><span className="font-bold text-zinc-800 dark:text-zinc-200">{c.nome}</span></div>
                         {selectedClient?.id === c.id && <Check className="text-emerald-600" size={18} />}
                       </div>
                     ))}
-                    {filteredClients.length === 0 && <p className="text-center py-4 text-zinc-400 text-sm italic">Nenhum cliente encontrado.</p>}
+                    {filteredClients.length === 0 && clientSearchTerm && <p className="text-center py-4 text-zinc-400 text-sm italic">Nenhum cliente encontrado.</p>}
                   </div>
                 )}
                 <label className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg cursor-pointer border border-zinc-200 dark:border-zinc-700">
@@ -276,108 +301,188 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
             </div>
           )}
 
+          {/* STEP 2: PRODUCT SELECTION */}
           {step === 'products' && (
-            <div className="flex-1 flex overflow-hidden">
-              <div className="flex-1 flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex gap-4 bg-zinc-50 dark:bg-zinc-900/50">
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-                    <input type="text" placeholder="Buscar produtos (Nome ou ID)..." className="w-full pl-10 pr-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500" value={productSearchTerm} onChange={(e) => setProductSearchTerm(e.target.value)} />
-                  </div>
-                  <div className="relative">
-                    <select value={selectedBrand} onChange={(e) => setSelectedBrand(e.target.value)} className="appearance-none pl-3 pr-8 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500">
-                      <option value="">Todas Marcas</option>
-                      {brands.map(b => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                    <Filter className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={14} />
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-zinc-50 dark:bg-zinc-950/50 custom-scrollbar">
-                  {filteredProducts.map(p => (
-                    <div key={p.id} onClick={() => addToCart(p)} className="flex items-center justify-between p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-emerald-400 dark:hover:border-emerald-600 cursor-pointer shadow-sm transition-all group">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                           <span className="text-[10px] font-bold font-mono text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1 rounded">{formatProductId(p)}</span>
-                           <p className="font-bold text-sm text-zinc-800 dark:text-zinc-100 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{p.nome}</p>
-                        </div>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{p.marca} • {p.tamanho} • {p.cor}</p>
-                      </div>
-                      <div className="flex items-center gap-4 shrink-0">
-                        <Badge variant={p.quantidade_estoque <= 2 ? 'warning' : 'success'}>{p.quantidade_estoque} un</Badge>
-                        <span className="font-bold text-zinc-900 dark:text-zinc-100">{formatCurrency(p.preco_venda)}</span>
-                      </div>
+            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row bg-white dark:bg-zinc-900">
+              
+              {/* SIDEBAR: SEARCH AND FILTERS */}
+              <div className="w-full lg:w-1/3 border-r border-zinc-100 dark:border-zinc-800 p-6 flex flex-col gap-6 overflow-y-auto max-h-[40vh] lg:max-h-none custom-scrollbar shrink-0">
+                <div className="space-y-4">
+                  <label className="text-base font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                    <Search size={18} /> 1. Adicionar Produtos
+                  </label>
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                      <input 
+                        type="text" 
+                        placeholder="Nome ou ID visual..." 
+                        className="w-full pl-10 pr-4 py-3 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" 
+                        value={productSearchTerm} 
+                        onChange={(e) => setProductSearchTerm(e.target.value)} 
+                      />
                     </div>
-                  ))}
-                  {filteredProducts.length === 0 && <p className="text-center py-8 text-zinc-400 italic">Nenhum produto encontrado.</p>}
+                    <div className="grid grid-cols-1 gap-2">
+                       <select className="w-full py-2 px-3 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white outline-none" value={selectedBrand} onChange={(e) => setSelectedBrand(e.target.value)}>
+                         <option value="">Todas as Marcas</option>
+                         {brands.map(b => <option key={b} value={b}>{b}</option>)}
+                       </select>
+                       <select className="w-full py-2 px-3 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white outline-none" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+                         <option value="">Todas as Categorias</option>
+                         {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                       </select>
+                    </div>
+                  </div>
+                  
+                  {/* SEARCH RESULTS */}
+                  <div className="space-y-2 lg:max-h-[45vh] overflow-y-auto pr-1 custom-scrollbar">
+                    {filteredProducts.map(product => (
+                      <button 
+                        key={product.id} 
+                        className="w-full text-left p-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-800 rounded-lg flex items-center justify-between transition-colors group" 
+                        onClick={() => addToCart(product)}
+                      >
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm text-zinc-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400">{product.nome}</p>
+                          <p className="text-[10px] text-zinc-500 font-mono">{formatProductId(product)} • {product.tamanho} • {product.cor}</p>
+                        </div>
+                        <div className="flex flex-col items-end shrink-0 ml-2">
+                          <Badge variant={product.quantidade_estoque <= 2 ? 'warning' : 'success'} className="text-[10px] px-1.5 py-0">{product.quantidade_estoque} un</Badge>
+                          <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-1">{formatCurrency(product.preco_venda)}</span>
+                        </div>
+                      </button>
+                    ))}
+                    {productSearchTerm && filteredProducts.length === 0 && (
+                       <p className="text-center py-4 text-zinc-400 text-xs italic">Nenhum produto com estoque encontrado.</p>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="w-80 bg-zinc-100 dark:bg-zinc-950 flex flex-col border-l border-zinc-200 dark:border-zinc-800 shadow-xl">
-                <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 font-bold flex items-center gap-2 text-zinc-800 dark:text-zinc-200">
-                  <ShoppingCart size={18} /> Carrinho ({cart.length})
+
+              {/* MAIN CONTENT: EXPANDED CART LIST */}
+              <div className="flex-1 p-4 lg:p-6 flex flex-col min-h-0 bg-zinc-100 dark:bg-zinc-950 overflow-hidden">
+                <div className="flex justify-between items-center mb-4">
+                    <label className="text-lg font-bold text-zinc-800 dark:text-white flex items-center gap-2"><ShoppingCart size={22} /> 2. Itens no Carrinho ({cart.length})</label>
+                    {cart.length > 0 && <button onClick={() => setCart([])} className="text-xs font-medium text-zinc-400 hover:text-red-500 transition-colors">Limpar tudo</button>}
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                  {cart.map(item => (
-                    <div key={item.produto_id} className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-2 shadow-sm">
-                      <div className="flex justify-between gap-2">
-                        <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{item.nome}</p>
-                        <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 shrink-0">{formatCurrency(item.subtotal)}</p>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden bg-zinc-50 dark:bg-zinc-800">
-                          <button onClick={() => updateQuantity(item.produto_id, -1)} className="px-2 h-7 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300">-</button>
-                          <span className="w-8 text-center text-xs font-bold text-zinc-800 dark:text-zinc-200">{item.quantidade}</span>
-                          <button onClick={() => updateQuantity(item.produto_id, 1)} className="px-2 h-7 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300">+</button>
+                
+                <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                    {cart.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-zinc-400 opacity-40 py-10">
+                          <Package size={64} className="mb-4" />
+                          <p className="text-center font-medium">O carrinho está vazio.</p>
                         </div>
-                        <button onClick={() => setCart(cart.filter(i => i.produto_id !== item.produto_id))} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded-lg transition-colors"><Trash2 size={16} /></button>
-                      </div>
-                    </div>
-                  ))}
+                    ) : (
+                        cart.map((item) => (
+                            <div key={item.produto_id} className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-all flex flex-col sm:flex-row items-center gap-4 lg:gap-6 group animate-fade-in-up">
+                                <div className="flex-1 min-w-0 w-full">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h4 className="font-bold text-zinc-900 dark:text-white truncate">{item.nome}</h4>
+                                        <Badge variant="outline" className="text-[10px] h-5 px-1.5 dark:text-zinc-300 dark:border-zinc-700">{item.tamanho}</Badge>
+                                    </div>
+                                    <div className="flex wrap items-center gap-3 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                        <span className="bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded font-mono border border-zinc-200 dark:border-zinc-700">{item.marca}</span>
+                                        <span className={`font-bold ${item.estoque_maximo <= 2 ? 'text-amber-600' : 'text-zinc-400 dark:text-zinc-500'}`}>Disponível: {item.estoque_maximo} un</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4 shrink-0 bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-xl border border-zinc-200 dark:border-zinc-700 w-full sm:w-auto justify-between sm:justify-start">
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                          onClick={() => adjustQuantity(item.produto_id, -1)} 
+                                          className="h-8 w-8 flex items-center justify-center bg-white dark:bg-zinc-800 border border-red-200 dark:border-red-900/50 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm"
+                                        >
+                                          <Minus size={14} strokeWidth={3} />
+                                        </button>
+                                        <input 
+                                          type="number" 
+                                          className="w-16 h-10 text-center font-bold text-base bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-emerald-400 text-zinc-900 dark:text-white" 
+                                          value={item.quantidade} 
+                                          onChange={(e) => updateQuantity(item.produto_id, e.target.value)} 
+                                        />
+                                        <button 
+                                          onClick={() => adjustQuantity(item.produto_id, 1)} 
+                                          className="h-8 w-8 flex items-center justify-center bg-white dark:bg-zinc-800 border border-green-200 dark:border-green-900/50 rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors shadow-sm"
+                                        >
+                                          <Plus size={14} strokeWidth={3} />
+                                        </button>
+                                    </div>
+                                    <div className="text-right min-w-[90px]">
+                                        <p className="text-[9px] text-zinc-400 font-bold uppercase">Item Subtotal</p>
+                                        <p className="text-sm font-black text-zinc-900 dark:text-zinc-100">{formatCurrency(item.subtotal)}</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setCart(cart.filter(i => i.produto_id !== item.produto_id))} className="p-2 text-zinc-300 hover:text-red-500 transition-colors shrink-0">
+                                  <Trash2 size={18} />
+                                </button>
+                            </div>
+                        ))
+                    )}
                 </div>
-                <div className="p-6 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 space-y-4">
-                  <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400">
-                    <span>Total Parcial</span>
-                    <span className="text-2xl font-bold text-zinc-900 dark:text-white">{formatCurrency(finalTotal)}</span>
+
+                {/* BOTTOM SUMMARY BAR */}
+                <div className="mt-4 p-4 lg:p-6 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0">
+                  <div className="flex flex-col items-center sm:items-start">
+                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Total Parcial do Carrinho</span>
+                    <span className="text-2xl lg:text-3xl font-black text-zinc-900 dark:text-white">{formatCurrency(finalTotal)}</span>
                   </div>
-                  <Button variant="success" className="w-full h-12" onClick={() => setStep('payment')} disabled={cart.length === 0}>Avançar para pagamento</Button>
+                  <Button 
+                    variant="success" 
+                    className="w-full sm:w-auto px-10 h-12 lg:h-14 text-lg font-bold shadow-lg shadow-emerald-900/20 flex items-center gap-2 transition-all active:scale-95" 
+                    onClick={() => setStep('payment')} 
+                    disabled={cart.length === 0}
+                  >
+                    Prosseguir para Pagamento <ArrowRight size={20} />
+                  </Button>
                 </div>
               </div>
             </div>
           )}
 
+          {/* STEP 3: PAYMENT */}
           {step === 'payment' && (
-            <div className="flex-1 flex overflow-hidden">
-              <div className="flex-1 p-6 bg-zinc-50 dark:bg-zinc-950/30 overflow-y-auto space-y-3 custom-scrollbar">
-                <h3 className="font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2"><Package size={18} /> Resumo do Pedido</h3>
+            <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden custom-scrollbar">
+              <div className="flex-1 p-6 bg-zinc-50 dark:bg-zinc-950/30 lg:overflow-y-auto space-y-3 custom-scrollbar">
+                <h3 className="font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-2 mb-4"><Package size={18} /> Resumo do Pedido</h3>
                 {cart.map(item => (
                   <div key={item.produto_id} className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 flex justify-between items-start shadow-sm transition-all hover:shadow-md">
-                    <div>
-                      <p className="font-bold text-zinc-900 dark:text-zinc-100">{item.nome}</p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">{item.quantidade}x {formatCurrency(item.preco_unitario)}</p>
+                    <div className="min-w-0 pr-2">
+                      <p className="font-bold text-zinc-900 dark:text-zinc-100 truncate">{item.nome}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-zinc-500 uppercase font-bold">{item.marca}</span>
+                        <span className="text-zinc-300">•</span>
+                        <Badge variant="outline" className="text-[9px] h-4 px-1 dark:text-zinc-300 dark:border-zinc-700">{item.tamanho}</Badge>
+                      </div>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{item.quantidade}x {formatCurrency(item.preco_unitario)}</p>
                       {item.percentual_desconto && item.percentual_desconto > 0 ? (
                         <p className="text-[10px] text-green-600 dark:text-green-400 font-bold bg-green-50 dark:bg-green-900/20 w-fit px-1.5 rounded mt-1">Desconto Pagamento: -{Math.round(item.percentual_desconto)}%</p>
                       ) : null}
                     </div>
-                    <p className="font-bold text-zinc-900 dark:text-zinc-100">{formatCurrency(item.subtotal)}</p>
+                    <p className="font-bold text-zinc-900 dark:text-zinc-100 shrink-0">{formatCurrency(item.subtotal)}</p>
                   </div>
                 ))}
               </div>
-              <div className="w-96 bg-white dark:bg-zinc-900 p-8 overflow-y-auto space-y-6 border-l border-zinc-200 dark:border-zinc-800 custom-scrollbar">
+              <div className="w-full lg:w-[480px] bg-white dark:bg-zinc-900 p-6 lg:p-8 lg:overflow-y-auto space-y-6 border-l border-zinc-200 dark:border-zinc-800 custom-scrollbar shrink-0">
                 <h3 className="font-bold flex items-center gap-2 text-zinc-800 dark:text-zinc-100"><Wallet size={20} /> Forma de Pagamento</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {PAYMENT_METHODS.map(method => {
                     const isDisabled = method === 'Crediário' && isUnregisteredClient;
                     const discount = getPaymentDiscountValue(method);
+                    const isSelected = selectedPaymentMethod === method;
                     
                     return (
                       <button 
                         key={method} 
                         disabled={isDisabled}
                         onClick={() => { setSelectedPaymentMethod(method); setUseGiftCard(false); }} 
-                        className={`p-4 rounded-xl border text-sm font-medium flex flex-col items-center gap-2 transition-all relative ${isDisabled ? 'opacity-30 cursor-not-allowed grayscale' : selectedPaymentMethod === method ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400' : 'border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300'}`}>
-                        {method === 'Pix' && <span className="text-4xl">💠</span>}
-                        {method.includes('Cartão') && <CreditCard size={30} />}
-                        {method === 'Dinheiro' && <DollarSign size={30} />}
-                        {method === 'Crediário' && <Handshake size={30} />}
+                        className={`group p-4 rounded-xl border text-sm font-bold flex flex-col items-center gap-2 transition-all relative ${isDisabled ? 'opacity-30 cursor-not-allowed grayscale' : isSelected ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 scale-[1.02] shadow-sm' : 'border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300'}`}>
+                        
+                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center transition-colors ${isSelected ? 'bg-emerald-100 dark:bg-emerald-500/20' : 'bg-zinc-100 dark:bg-zinc-800 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-700'}`}>
+                          {method === 'Pix' && <span className="text-4xl leading-none">💠</span>}
+                          {method.includes('Cartão') && <CreditCard size={24} />}
+                          {method === 'Dinheiro' && <DollarSign size={24} />}
+                          {method === 'Crediário' && <Handshake size={24} />}
+                        </div>
+
                         <span>{method}</span>
                         {discount > 0 && !isDisabled && (
                           <span className="absolute -top-2 -right-1 bg-green-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold shadow-sm">-{discount}%</span>
@@ -396,9 +501,9 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
 
                 {selectedPaymentMethod === 'Cartão de Crédito' && (
                   <div className="space-y-2 animate-fade-in">
-                    <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase">Parcelamento</label>
-                    <select value={installments} onChange={(e) => setInstallments(Number(e.target.value))} className="w-full p-3 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500">
-                      {[1,2,3,4,5,6].map(i => (
+                    <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Parcelamento</label>
+                    <select value={installments} onChange={(e) => setInstallments(Number(e.target.value))} className="w-full p-3 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+                      {[1,2,3,4,5].map(i => (
                         <option key={i} value={i}>
                           {i}x de {formatCurrency(finalTotal / i)} sem juros
                         </option>
@@ -438,7 +543,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
                   {extraDiscount > 0 && <div className="flex justify-between text-blue-600 dark:text-blue-400"><span>Desconto Extra</span><span>- {formatCurrency(extraDiscount)}</span></div>}
                   {giftCardUsedAmount > 0 && <div className="flex justify-between text-amber-600 dark:text-amber-500"><span>Vale Presente</span><span>- {formatCurrency(giftCardUsedAmount)}</span></div>}
                   <div className="flex justify-between items-end pt-4 border-t border-zinc-100 dark:border-zinc-800"><span className="font-medium text-lg text-zinc-800 dark:text-zinc-200">Total Final</span><span className="text-3xl font-bold text-zinc-900 dark:text-white">{formatCurrency(finalTotal)}</span></div>
-                  <Button variant="success" className="w-full h-14 text-lg mt-6 shadow-lg shadow-emerald-900/20" onClick={handleCheckout} disabled={isSubmitting || !selectedPaymentMethod}>{isSubmitting ? 'Processando...' : 'Finalizar Venda'}</Button>
+                  <Button variant="success" className="w-full h-14 text-lg mt-6 shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition-all active:scale-95" onClick={handleCheckout} disabled={isSubmitting || !selectedPaymentMethod}>{isSubmitting ? <><RefreshCw className="animate-spin" size={20} /> Processando...</> : 'Finalizar Venda'}</Button>
                 </div>
               </div>
             </div>
