@@ -297,7 +297,7 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
             </div>
           </div>
 
-          <div className="flex-1 p-6 flex flex-col min-h-0 bg-zinc-50/50 dark:bg-black/10">
+          <div className="flex-1 p-6 flex flex-col min-h-0 bg-zinc-100 dark:bg-zinc-950">
             <div className="flex justify-between items-center mb-6">
                 <label className="text-lg font-bold text-zinc-800 dark:text-white flex items-center gap-2"><Package size={22} /> 3. Itens na Lista ({selectedItems.length})</label>
                 {selectedItems.length > 0 && <button onClick={() => setSelectedItems([])} className="text-xs font-medium text-zinc-400 hover:text-red-500">Limpar tudo</button>}
@@ -310,30 +310,45 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
                         const amount = parseInt(item.amount) || 0;
                         const isExceeding = amount > item.product.quantidade_estoque;
                         return (
-                            <div key={item.product.id} className={`bg-white dark:bg-zinc-900 p-4 rounded-xl border transition-all flex flex-col sm:flex-row items-center gap-6 group animate-fade-in-up ${isExceeding ? 'border-red-500 ring-1' : 'border-zinc-200'}`}>
+                            <div key={item.product.id} className={`bg-white dark:bg-zinc-900 p-4 rounded-xl border transition-all flex flex-col sm:flex-row items-center gap-6 group animate-fade-in-up ${isExceeding ? 'border-red-500 ring-1' : 'border-zinc-200 dark:border-zinc-800'}`}>
                                 <div className="flex-1 min-w-0 w-full">
                                     <div className="flex items-center gap-2 mb-1">
                                         <h4 className="font-bold text-zinc-900 dark:text-white truncate">{item.product.nome}</h4>
-                                        <Badge variant="outline" className="text-[10px] h-5 px-1.5">{item.product.tamanho}</Badge>
+                                        <Badge variant="outline" className="text-[10px] h-5 px-1.5 dark:text-zinc-300 dark:border-zinc-700">{item.product.tamanho}</Badge>
                                     </div>
-                                    <div className="flex wrap items-center gap-3 text-[11px] text-zinc-500">
-                                        <span className="bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded font-mono">{formatProductId(item.product)}</span>
-                                        <span>{item.product.marca}</span>
-                                        <span className={`font-bold ${item.product.quantidade_estoque <= 2 ? 'text-amber-600' : 'text-zinc-400'}`}>Disponível: {item.product.quantidade_estoque} un</span>
+                                    <div className="flex wrap items-center gap-3 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                        <span className="bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded font-mono border border-zinc-200 dark:border-zinc-700">{formatProductId(item.product)}</span>
+                                        <span className="font-medium">{item.product.marca}</span>
+                                        <span className={`font-bold ${item.product.quantidade_estoque <= 2 ? 'text-amber-600' : 'text-zinc-400 dark:text-zinc-500'}`}>Disponível: {item.product.quantidade_estoque} un</span>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4 shrink-0 bg-zinc-50 dark:bg-zinc-900 p-2 rounded-xl border">
+                                <div className="flex items-center gap-4 shrink-0 bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-xl border border-zinc-200 dark:border-zinc-700">
                                     <div className="flex items-center gap-2">
-                                        <button onClick={() => adjustItemAmount(item.product.id, -1)} className="h-8 w-8 flex items-center justify-center bg-white dark:bg-zinc-800 border rounded-lg"><Minus size={14} /></button>
-                                        <input type="number" className={`w-16 h-10 text-center font-bold text-base bg-white dark:bg-zinc-800 border rounded-lg outline-none ${isExceeding ? 'text-red-600' : 'text-zinc-900 dark:text-white'}`} value={item.amount} onChange={(e) => updateItemAmount(item.product.id, e.target.value)} />
-                                        <button onClick={() => adjustItemAmount(item.product.id, 1)} className="h-8 w-8 flex items-center justify-center bg-white dark:bg-zinc-800 border rounded-lg"><Plus size={14} /></button>
+                                        <button 
+                                          onClick={() => adjustItemAmount(item.product.id, -1)} 
+                                          className="h-8 w-8 flex items-center justify-center bg-white dark:bg-zinc-800 border border-red-200 dark:border-red-900/50 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm"
+                                        >
+                                          <Minus size={14} strokeWidth={3} />
+                                        </button>
+                                        <input 
+                                          type="number" 
+                                          className={`w-16 h-10 text-center font-bold text-base bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-zinc-400 ${isExceeding ? 'text-red-600 border-red-500' : 'text-zinc-900 dark:text-white'}`} 
+                                          value={item.amount} 
+                                          onChange={(e) => updateItemAmount(item.product.id, e.target.value)} 
+                                        />
+                                        <button 
+                                          onClick={() => adjustItemAmount(item.product.id, 1)} 
+                                          className="h-8 w-8 flex items-center justify-center bg-white dark:bg-zinc-800 border border-green-200 dark:border-green-900/50 rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors shadow-sm"
+                                        >
+                                          <Plus size={14} strokeWidth={3} />
+                                        </button>
                                     </div>
                                     <div className="text-center min-w-[70px]">
-                                        <p className="text-[9px] text-zinc-400 font-bold">Saldo Final</p>
+                                        <p className="text-[9px] text-zinc-400 font-bold uppercase">Saldo Final</p>
                                         <p className={`text-sm font-black ${isExceeding ? 'text-red-500' : 'text-zinc-600 dark:text-zinc-300'}`}>{item.product.quantidade_estoque - (parseInt(item.amount) || 0)}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => removeProductFromList(item.product.id)} className="p-2 text-zinc-300 hover:text-red-500"><Trash2 size={18} /></button>
+                                <button onClick={() => removeProductFromList(item.product.id)} className="p-2 text-zinc-300 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
                             </div>
                         );
                     })
@@ -342,8 +357,8 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
           </div>
         </div>
 
-        <div className="px-8 py-6 bg-zinc-50 dark:bg-zinc-900 border-t flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0">
-          <div className="flex items-center gap-3">{hasInvalidAmounts && <p className="text-xs font-bold text-red-500 flex items-center gap-1.5"><AlertCircle size={14} /> Corrija os erros acima</p>}</div>
+        <div className="px-8 py-6 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0">
+          <div className="flex items-center gap-3">{hasInvalidAmounts && <p className="text-xs font-bold text-red-500 flex items-center gap-1.5"><AlertCircle size={14} /> Corrija as quantidades (não podem exceder o estoque ou ser zero)</p>}</div>
           <div className="flex gap-4">
             <Button variant="ghost" onClick={onClose} disabled={isLoading} size="lg">Cancelar</Button>
             <Button onClick={handleSave} disabled={selectedItems.length === 0 || hasInvalidAmounts || isLoading || isClientInvalid || isClientNotAllowed} className={`min-w-[180px] h-14 flex items-center justify-center gap-2 shadow-lg ${hasInvalidAmounts || selectedItems.length === 0 ? 'bg-zinc-200' : 'bg-red-600 hover:bg-red-700 text-white'}`} size="lg">{isLoading ? <RefreshCw className="animate-spin" size={20} /> : <><Save size={20} /> Confirmar Baixa</>}</Button>
