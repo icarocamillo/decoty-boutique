@@ -426,7 +426,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                                 variant="outline" 
                                 size="sm" 
                                 onClick={handleStartLinking} 
-                                className="w-full text-xs h-8 border-dashed border-zinc-300 dark:border-zinc-600 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
+                                className="w-full text-xs h-8 border-dashed border-zinc-300 dark:border-zinc-600 text-zinc-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:border-emerald-200 dark:hover:border-emerald-800 transition-all"
                               >
                                 <Link size={12} className="mr-1.5" /> Vincular a um cadastro
                               </Button>
@@ -440,7 +440,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                                    <input 
                                        type="text" 
                                        placeholder="Buscar nome ou CPF..." 
-                                       className="w-full pl-9 pr-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                       className="w-full pl-9 pr-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                                        value={linkSearchTerm}
                                        onChange={(e) => setLinkSearchTerm(e.target.value)}
                                        autoFocus
@@ -450,7 +450,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                                    <X size={18} />
                                </Button>
                            </div>
-                           <div className="max-h-40 overflow-y-auto border border-zinc-100 dark:border-zinc-700 rounded-lg divide-y divide-zinc-100 dark:divide-zinc-700 bg-zinc-50/50 dark:bg-bold-800/50">
+                           <div className="max-h-40 overflow-y-auto border border-zinc-100 dark:border-zinc-700 rounded-lg divide-y divide-zinc-100 dark:divide-zinc-700 bg-white dark:bg-zinc-900">
                                 {isLinkingLoading ? (
                                     <div className="p-4 text-center text-zinc-500 flex items-center justify-center gap-2 text-xs">
                                         <Loader2 className="animate-spin" size={14} /> Vinculando...
@@ -460,20 +460,20 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                                         <button 
                                             key={c.id}
                                             onClick={() => handleSelectClientToLink(c)}
-                                            className="w-full text-left px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex items-center justify-between group"
+                                            className="w-full text-left px-3 py-3 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors flex items-center justify-between group"
                                         >
                                             <div className="min-w-0">
-                                                <p className="text-sm font-bold truncate text-zinc-800 dark:text-zinc-200 group-hover:text-blue-700 dark:hover:text-blue-300">{c.nome}</p>
-                                                <p className="text-xs text-zinc-500 truncate">{c.cpf || c.email || 'Sem dados extra'}</p>
+                                                <p className="text-sm font-bold truncate text-zinc-900 dark:text-zinc-100 group-hover:text-emerald-700 dark:hover:text-emerald-400">{c.nome}</p>
+                                                <p className="text-xs text-zinc-500 dark:text-zinc-500 truncate">{c.cpf || c.email || 'Sem dados extra'}</p>
                                             </div>
-                                            <Check size={14} className="opacity-0 group-hover:opacity-100 text-blue-600" />
+                                            <Check size={16} className="opacity-0 group-hover:opacity-100 text-emerald-600 dark:text-emerald-400 shrink-0" />
                                         </button>
                                     ))
                                 ) : (
                                     linkSearchTerm.length > 0 ? (
-                                        <div className="p-3 text-center text-xs text-zinc-400">Nenhum cliente encontrado.</div>
+                                        <div className="p-4 text-center text-xs text-zinc-400">Nenhum cliente encontrado.</div>
                                     ) : (
-                                        <div className="p-3 text-center text-xs text-zinc-400">Digite para buscar...</div>
+                                        <div className="p-4 text-center text-xs text-zinc-400">Digite para buscar...</div>
                                     )
                                 )}
                            </div>
@@ -483,7 +483,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
 
                 <div className="bg-zinc-50/80 dark:bg-zinc-900/30 border-t border-zinc-100 dark:border-zinc-700 p-3">
                     <div className="flex items-center gap-3">
-                       <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                       <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-emerald-900/30 flex items-center justify-center text-blue-600 dark:text-emerald-400 shrink-0">
                           <ShieldCheck size={14} />
                        </div>
                        <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -519,7 +519,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                         </div>
                     )}
                     {totalExtraDiscount > 0 && (
-                        <div className={`flex justify-between text-sm text-blue-600 dark:text-blue-400 ${currentSale.status === 'cancelled' ? 'line-through opacity-60' : ''}`}>
+                        <div className={`flex justify-between text-sm text-emerald-600 dark:text-emerald-400 ${currentSale.status === 'cancelled' ? 'line-through opacity-60' : ''}`}>
                         <span>Desconto Extra:</span>
                         <span>- {formatCurrency(totalExtraDiscount)}</span>
                         </div>
