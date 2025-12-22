@@ -284,7 +284,7 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
                             <div className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-zinc-900 border border-zinc-200 rounded-xl shadow-2xl z-50 overflow-hidden">
                                 {filteredClients.length > 0 ? (filteredClients.map(c => (
                                         <button key={c.id} className="w-full text-left px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-b last:border-0 flex items-center justify-between" onClick={() => { setSelectedClient(c); setShowClientSuggestions(false); }}>
-                                            <div className="min-w-0"><p className="font-bold text-sm truncate">{c.nome}</p></div>
+                                            <div className="min-w-0"><p className="font-bold text-sm truncate text-zinc-900 dark:text-white">{c.nome}</p></div>
                                             <Badge variant={c.pode_provador ? "success" : "destructive"} className="text-[9px] h-4">{c.pode_provador ? 'Autorizado' : 'Bloqueado'}</Badge>
                                         </button>
                                     ))) : <div className="p-3 text-center text-xs text-zinc-500">Nenhum cliente encontrado.</div>}
