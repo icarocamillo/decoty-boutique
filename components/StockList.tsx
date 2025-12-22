@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { StockEntry, Product, UserProfile, Sale } from '../types';
-import { ArrowDownCircle, ArrowUpCircle, Package, Archive, Search, Filter, User, Shirt, Undo2, Loader2 } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, Package, Archive, Search, Filter, User, Shirt, Undo2, Loader2, ChevronRight, Calendar, Clock } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
@@ -364,112 +364,217 @@ export const StockList: React.FC<StockListProps> = ({ entries, products, onUpdat
                <p>Sincronizando nomes e dados de vendas...</p>
             </div>
           ) : (
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800">
-                <tr>
-                  <th className="px-6 py-4 font-medium">Data / Hora</th>
-                  <th className="px-6 py-4 font-medium">ID Produto</th>
-                  <th className="px-6 py-4 font-medium">Produto</th>
-                  <th className="px-6 py-4 font-medium text-center">Tam.</th>
-                  <th className="px-6 py-4 font-medium text-center">Cor</th>
-                  <th className="px-6 py-4 font-medium text-center">Quantidade Movimentada</th>
-                  <th className="px-6 py-4 font-medium text-center">Quantidade Atual</th>
-                  <th className="px-6 py-4 font-medium">Responsável / Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <>
+              {/* MOBILE VIEW: Card List */}
+              <div className="flex flex-col gap-3 sm:hidden p-4 bg-zinc-50 dark:bg-zinc-950/50">
                 {currentEntries.map((entry) => {
                   const isPositive = entry.quantidade > 0;
                   const { weekDay, dateTime } = formatDateStandard(entry.data_entrada);
                   const product = getProductInfo(entry);
+                  const visualId = formatProductId(product);
                   const { top, bottom, isProvador, isReturn, isReturned } = formatResponsibleAndReason(entry);
-                  
+
                   return (
-                    <tr 
+                    <div 
                       key={entry.id} 
                       onClick={() => handleRowClick(entry)}
-                      className={`
-                        hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer 
-                        ${isProvador && !isReturn && !isReturned ? 'bg-purple-50/30 dark:bg-purple-900/10' : ''}
-                        ${isReturn ? 'bg-green-50/30 dark:bg-green-900/10' : ''}
-                      `}
-                      title="Clique para lançar baixa deste produto"
+                      className={`text-left p-4 rounded-xl border bg-white dark:bg-zinc-900 shadow-sm active:scale-[0.98] transition-all flex flex-col gap-3 cursor-pointer ${
+                        isReturn ? 'border-green-100 dark:border-green-900/30' :
+                        isProvador && !isReturn && !isReturned ? 'border-purple-100 dark:border-purple-900/30' :
+                        'border-zinc-100 dark:border-zinc-800'
+                      }`}
                     >
-                      <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
-                         <div className="flex flex-col text-xs">
-                            <span className="font-bold text-zinc-800 dark:text-zinc-200">{weekDay}</span>
-                            <span className="text-zinc-500 dark:text-zinc-500">{dateTime}</span>
-                          </div>
-                      </td>
-                      <td className="px-6 py-4 text-zinc-900 dark:text-zinc-100 font-bold font-mono text-xs whitespace-nowrap">
-                          {formatProductId(product)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-zinc-900 dark:text-white text-sm truncate max-w-[200px]">{product?.nome || entry.produto_nome}</span>
-                          <div className="flex gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                              <span>{product?.marca || '-'}</span>
+                      <div className="flex justify-between items-start">
+                        <div className="flex flex-col min-w-0 flex-1 pr-2">
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider font-mono">{visualId}</span>
+                          <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm mt-1 truncate">
+                            {product?.nome || entry.produto_nome}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] font-medium text-zinc-500 uppercase">{product?.marca || '-'}</span>
+                            <span className="text-zinc-300">•</span>
+                            <Badge variant="outline" className="text-[9px] h-4 px-1">{product?.tamanho || '-'}</Badge>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                         {product ? <Badge variant="outline">{product.tamanho}</Badge> : '-'}
-                      </td>
-                      <td className="px-6 py-4 text-center text-sm text-zinc-600 dark:text-zinc-400">
-                         {product?.cor || '-'}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-black ${
                           isPositive 
-                            ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' 
-                            : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'
+                            ? 'text-green-600 bg-green-50 dark:bg-green-900/20' 
+                            : 'text-red-600 bg-red-50 dark:bg-red-900/20'
                         }`}>
-                          {isPositive ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
-                          {isPositive ? '+' : ''}{entry.quantidade}
+                          {isPositive ? '+' : ''}{entry.quantidade} un
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-center text-zinc-700 dark:text-zinc-300 font-mono">
-                         <div className="inline-flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-md">
-                           <Package size={12} className="text-zinc-400" />
-                           {product ? product.quantidade_estoque : '-'}
-                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                           <div className="flex items-center gap-1.5">
-                              {isProvador && !isReturn && <Shirt size={14} className="text-purple-600 dark:text-purple-400" />}
-                              {isReturn && <Undo2 size={14} className="text-green-600 dark:text-green-400" />}
-                              <span className={`text-sm font-medium whitespace-nowrap ${
-                                  isReturn ? 'text-green-700 dark:text-green-300' :
-                                  isProvador ? 'text-purple-700 dark:text-purple-300' : 
-                                  'text-zinc-900 dark:text-white'
-                              }`}>
-                                  {top}
+                      </div>
+
+                      <div className="flex items-start gap-3 bg-zinc-50 dark:bg-zinc-800/50 p-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800/50">
+                        <div className={`mt-0.5 p-1.5 rounded-full ${
+                          isReturn ? 'bg-green-100 text-green-600' :
+                          isProvador ? 'bg-purple-100 text-purple-600' :
+                          'bg-zinc-200 text-zinc-500'
+                        }`}>
+                          {isReturn ? <Undo2 size={14} /> : isProvador ? <Shirt size={14} /> : <User size={14} />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-xs font-bold truncate ${
+                             isReturn ? 'text-green-700 dark:text-green-400' :
+                             isProvador ? 'text-purple-700 dark:text-purple-400' :
+                             'text-zinc-800 dark:text-zinc-200'
+                          }`}>{top}</p>
+                          <p className="text-[10px] text-zinc-500 truncate mt-0.5">
+                            {/* Link direto funcional no Mobile com stopPropagation */}
+                            {isProvador && entry.cliente_id && bottom.includes('Cliente') ? (
+                              <span 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/clients/${entry.cliente_id}/history`);
+                                }}
+                                className="underline decoration-dotted hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                              >
+                                {bottom}
                               </span>
-                           </div>
-                           <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-                              {isProvador && bottom.includes('Cliente') && <User size={10} />}
-                              {isProvador && entry.cliente_id && bottom.includes('Cliente') ? (
-                                  <span 
-                                      onClick={(e) => {
-                                          e.stopPropagation();
-                                          navigate(`/clients/${entry.cliente_id}/history`);
-                                      }}
-                                      className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer transition-colors"
-                                  >
-                                      {bottom}
-                                  </span>
-                              ) : (
-                                  bottom
-                              )}
-                           </span>
+                            ) : (
+                              bottom
+                            )}
+                          </p>
                         </div>
-                      </td>
-                    </tr>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-1 pt-2 border-t border-zinc-50 dark:border-zinc-800">
+                        <div className="flex flex-col gap-1 text-[10px] text-zinc-400">
+                          <div className="flex items-center gap-1">
+                            <Calendar size={10} className="shrink-0" />
+                            <span className="truncate">{weekDay.split('-')[0]}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock size={10} className="shrink-0" />
+                            <span>{dateTime.split(' às ')[1]}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                           <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">Estoque Final</span>
+                           <div className="bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-xs font-black text-zinc-800 dark:text-zinc-200 font-mono">
+                             {product ? product.quantidade_estoque : '-'}
+                           </div>
+                           <ChevronRight size={14} className="text-zinc-300 ml-0.5" />
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+                {currentEntries.length === 0 && (
+                   <div className="py-12 text-center text-zinc-400 text-sm bg-white dark:bg-zinc-900 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
+                      Nenhuma movimentação encontrada.
+                   </div>
+                )}
+              </div>
+
+              {/* DESKTOP VIEW: Standard Table */}
+              <table className="hidden sm:table w-full text-sm text-left">
+                <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800">
+                  <tr>
+                    <th className="px-6 py-4 font-medium">Data / Hora</th>
+                    <th className="px-6 py-4 font-medium">ID Produto</th>
+                    <th className="px-6 py-4 font-medium">Produto</th>
+                    <th className="px-6 py-4 font-medium text-center">Tam.</th>
+                    <th className="px-6 py-4 font-medium text-center">Cor</th>
+                    <th className="px-6 py-4 font-medium text-center">Quantidade Movimentada</th>
+                    <th className="px-6 py-4 font-medium text-center">Quantidade Atual</th>
+                    <th className="px-6 py-4 font-medium">Responsável / Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {currentEntries.map((entry) => {
+                    const isPositive = entry.quantidade > 0;
+                    const { weekDay, dateTime } = formatDateStandard(entry.data_entrada);
+                    const product = getProductInfo(entry);
+                    const { top, bottom, isProvador, isReturn, isReturned } = formatResponsibleAndReason(entry);
+                    
+                    return (
+                      <tr 
+                        key={entry.id} 
+                        onClick={() => handleRowClick(entry)}
+                        className={`
+                          hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer 
+                          ${isProvador && !isReturn && !isReturned ? 'bg-purple-50/30 dark:bg-purple-900/10' : ''}
+                          ${isReturn ? 'bg-green-50/30 dark:bg-green-900/10' : ''}
+                        `}
+                        title="Clique para lançar baixa deste produto"
+                      >
+                        <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
+                           <div className="flex flex-col text-xs">
+                              <span className="font-bold text-zinc-800 dark:text-zinc-200">{weekDay}</span>
+                              <span className="text-zinc-500 dark:text-zinc-500">{dateTime}</span>
+                            </div>
+                        </td>
+                        <td className="px-6 py-4 text-zinc-900 dark:text-zinc-100 font-bold font-mono text-xs whitespace-nowrap">
+                            {formatProductId(product)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-zinc-900 dark:text-white text-sm truncate max-w-[200px]">{product?.nome || entry.produto_nome}</span>
+                            <div className="flex gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                <span>{product?.marca || '-'}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                           {product ? <Badge variant="outline">{product.tamanho}</Badge> : '-'}
+                        </td>
+                        <td className="px-6 py-4 text-center text-sm text-zinc-600 dark:text-zinc-400">
+                           {product?.cor || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                            isPositive 
+                              ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' 
+                              : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'
+                          }`}>
+                            {isPositive ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
+                            {isPositive ? '+' : ''}{entry.quantidade}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center text-zinc-700 dark:text-zinc-300 font-mono">
+                           <div className="inline-flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-md">
+                             <Package size={12} className="text-zinc-400" />
+                             {product ? product.quantidade_estoque : '-'}
+                           </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                             <div className="flex items-center gap-1.5">
+                                {isProvador && !isReturn && <Shirt size={14} className="text-purple-600 dark:text-purple-400" />}
+                                {isReturn && <Undo2 size={14} className="text-green-600 dark:text-green-400" />}
+                                <span className={`text-sm font-medium whitespace-nowrap ${
+                                    isReturn ? 'text-green-700 dark:text-green-300' :
+                                    isProvador ? 'text-purple-700 dark:text-purple-300' : 
+                                    'text-zinc-900 dark:text-white'
+                                }`}>
+                                    {top}
+                                </span>
+                             </div>
+                             <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
+                                {isProvador && bottom.includes('Cliente') && <User size={10} />}
+                                {isProvador && entry.cliente_id && bottom.includes('Cliente') ? (
+                                    <span 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            navigate(`/clients/${entry.cliente_id}/history`);
+                                        }}
+                                        className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer transition-colors"
+                                    >
+                                        {bottom}
+                                    </span>
+                                ) : (
+                                    bottom
+                                )}
+                             </span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </>
           )}
         </div>
 

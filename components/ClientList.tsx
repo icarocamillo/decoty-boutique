@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Client } from '../types';
-import { User, Phone, Mail, UserPlus, Smartphone, MapPin, Megaphone, Search, Filter, CreditCard, Pencil, Shirt, Gift } from 'lucide-react';
+import { User, Phone, Mail, UserPlus, Smartphone, MapPin, Megaphone, Search, Filter, CreditCard, Pencil, Shirt, Gift, ChevronRight } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
@@ -113,7 +113,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
            <h2 className="text-2xl font-bold text-zinc-800 dark:text-white">Clientes Cadastrados</h2>
            <p className="text-zinc-500 dark:text-zinc-400">Gerencie sua base de contatos</p>
         </div>
-        <Button onClick={handleCreate} className="flex items-center gap-2">
+        <Button onClick={handleCreate} className="flex items-center gap-2 w-full sm:w-auto">
           <UserPlus size={18} /> Cadastrar Cliente
         </Button>
       </div>
@@ -180,7 +180,87 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
            </div>
         </div>
 
-        <div className="overflow-x-auto min-h-[400px]">
+        {/* MOBILE VIEW: Card List */}
+        <div className="flex flex-col gap-3 sm:hidden p-4 bg-zinc-50 dark:bg-zinc-950/50">
+          {currentClients.map((client) => {
+            const address = formatAddress(client);
+            return (
+              <div 
+                key={client.id}
+                onClick={() => handleHistorySelect(client.id)}
+                className="text-left p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm active:scale-[0.98] transition-all flex flex-col gap-3 cursor-pointer relative"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                     <div className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 flex items-center justify-center relative shrink-0">
+                        <User size={18} />
+                     </div>
+                     <div className="min-w-0">
+                        <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-base truncate leading-tight">
+                          {client.nome}
+                        </h3>
+                        {client.cpf && <span className="text-[10px] text-zinc-400 font-mono">{client.cpf}</span>}
+                     </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                     {client.receber_ofertas && <Badge className="text-[8px] h-4 bg-blue-500 text-white border-0">Ofertas</Badge>}
+                     {client.pode_provador && <Badge className="text-[8px] h-4 bg-purple-500 text-white border-0">Provador</Badge>}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 border-y border-zinc-50 dark:border-zinc-800/50 py-2">
+                   <div className="flex items-center gap-2">
+                      <Smartphone size={12} className="text-zinc-400" />
+                      <span>{client.celular || client.telefone_fixo || 'Sem telefone'}</span>
+                      {client.is_whatsapp && <Badge variant="success" className="text-[8px] h-3 px-1">Whats</Badge>}
+                   </div>
+                   {client.email && (
+                     <div className="flex items-center gap-2">
+                        <Mail size={12} className="text-zinc-400" />
+                        <span className="truncate">{client.email}</span>
+                     </div>
+                   )}
+                </div>
+
+                <div className="flex justify-between items-end">
+                   <div className="flex flex-col gap-1 min-w-0 flex-1 pr-4">
+                      {client.saldo_vale_presente && client.saldo_vale_presente > 0 ? (
+                        <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold mb-1">
+                           <Gift size={14} />
+                           <span className="text-xs">{formatCurrency(client.saldo_vale_presente)}</span>
+                        </div>
+                      ) : null}
+                      <div className="flex items-start gap-1.5">
+                         <MapPin size={12} className="text-zinc-400 mt-0.5 shrink-0" />
+                         <span className="text-[10px] text-zinc-400 line-clamp-1">{address}</span>
+                      </div>
+                   </div>
+                   
+                   <div className="flex items-center gap-2 shrink-0">
+                     <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-10 w-10 p-0 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                        onClick={(e) => { e.stopPropagation(); handleEdit(client); }}
+                        title="Editar Dados do Cliente"
+                      >
+                        <Pencil size={18} />
+                      </Button>
+                      <ChevronRight size={20} className="text-zinc-300 ml-1" />
+                   </div>
+                </div>
+              </div>
+            );
+          })}
+          {currentClients.length === 0 && (
+            <div className="py-12 text-center text-zinc-400 text-sm bg-white dark:bg-zinc-900 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
+               Nenhum cliente encontrado.
+            </div>
+          )}
+        </div>
+
+        {/* DESKTOP VIEW: Standard Table */}
+        <div className="hidden sm:block overflow-x-auto min-h-[400px]">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800">
                 <tr>
@@ -193,7 +273,6 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {currentClients.map((client) => {
-                  const { weekDay, dateTime } = formatDateStandard(client.data_cadastro);
                   return (
                     <tr 
                       key={client.id} 
