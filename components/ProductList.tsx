@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Product } from '../types';
-import { PackagePlus, Search, Edit, ArrowUp, ArrowDown, ArrowUpDown, Filter, Settings, Check } from 'lucide-react';
+import { PackagePlus, Search, Edit, ArrowUp, ArrowDown, ArrowUpDown, Filter, Settings, Check, Tag, Layers, ChevronRight } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
@@ -182,12 +182,12 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) 
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-1">
         <div>
            <h2 className="text-2xl font-bold text-zinc-800 dark:text-white">Produtos Cadastrados</h2>
            <p className="text-zinc-500 dark:text-zinc-400">Gerencie seu catálogo de roupas</p>
         </div>
-        <Button className="flex items-center gap-2" onClick={() => { setProductToEdit(null); setIsModalOpen(true); }}>
+        <Button className="flex items-center gap-2 w-full sm:w-auto" onClick={() => { setProductToEdit(null); setIsModalOpen(true); }}>
           <PackagePlus size={18} /> Cadastrar Produto
         </Button>
       </div>
@@ -266,7 +266,7 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) 
            </div>
 
            {/* Customization */}
-           <div className="relative" ref={columnMenuRef}>
+           <div className="relative hidden xl:block" ref={columnMenuRef}>
               <Button 
                 size="sm" 
                 variant="outline"
@@ -309,7 +309,71 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) 
            </div>
         </div>
 
-        <div className="overflow-x-auto min-h-[400px]">
+        {/* MOBILE VIEW: Card List */}
+        <div className="flex flex-col gap-3 sm:hidden p-4 bg-zinc-50 dark:bg-zinc-950/50">
+          {currentProducts.map((product) => {
+            const stock = getStockStatus(product.quantidade_estoque);
+            const visualId = formatProductId(product);
+
+            return (
+              <button 
+                key={product.id} 
+                onClick={() => handleEditClick(product)}
+                className="text-left p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm active:scale-[0.98] transition-all flex flex-col gap-3"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider font-mono">
+                      {visualId}
+                    </span>
+                    <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-base mt-1 truncate">
+                      {product.nome}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] font-medium text-zinc-500 uppercase">{product.marca}</span>
+                      <span className="text-zinc-300">•</span>
+                      <Badge variant="outline" className="text-[9px] h-4 px-1">{product.tamanho}</Badge>
+                    </div>
+                  </div>
+                  <Badge variant={stock.variant} className="text-[10px] shrink-0 font-bold">
+                    {stock.label}
+                  </Badge>
+                </div>
+
+                <div className="flex items-center gap-4 text-[11px] text-zinc-500 dark:text-zinc-400 border-y border-zinc-50 dark:border-zinc-800/50 py-2">
+                  <div className="flex items-center gap-1">
+                    <Tag size={12} className="text-zinc-400" />
+                    <span>{product.categoria}</span>
+                  </div>
+                  {product.cor && (
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full border border-zinc-200 dark:border-zinc-700" style={{ backgroundColor: '#cbd5e1' }} />
+                      <span>{product.cor}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-between items-center mt-1">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-zinc-400 uppercase font-bold tracking-tight">Preço Venda</span>
+                    <span className="text-lg font-black text-zinc-900 dark:text-white leading-none">
+                      {formatCurrency(product.preco_venda)}
+                    </span>
+                  </div>
+                  <ChevronRight size={18} className="text-zinc-300" />
+                </div>
+              </button>
+            );
+          })}
+          {currentProducts.length === 0 && (
+            <div className="py-12 text-center text-zinc-400 text-sm bg-white dark:bg-zinc-900 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
+               Nenhum produto encontrado.
+            </div>
+          )}
+        </div>
+
+        {/* DESKTOP VIEW: Standard Table */}
+        <div className="hidden sm:block overflow-x-auto min-h-[400px]">
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800">
               <tr>
