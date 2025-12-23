@@ -207,13 +207,8 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
         <Card className="md:col-span-1 border-l-4 border-l-blue-500">
           <div className="p-4 space-y-4">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-400 relative">
+              <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-400 shadow-inner">
                 <User size={24} />
-                {client.pode_provador && (
-                    <div className="absolute -bottom-1 -right-1 bg-purple-600 text-white rounded-full p-1 border border-white dark:border-zinc-800 shadow-sm" title="Permissão Provador Ativa">
-                        <Shirt size={10} />
-                    </div>
-                )}
               </div>
               <div>
                 <h3 className="font-bold text-lg text-zinc-900 dark:text-white">{client.nome}</h3>
@@ -222,7 +217,15 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
             </div>
             <div className="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
                {client.email && <div className="flex items-center gap-2"><Mail size={14} /> {client.email}</div>}
-               {(client.celular || client.telefone_fixo) && <div className="flex items-center gap-2"><Phone size={14} /> {client.celular || client.telefone_fixo}</div>}
+               {(client.celular || client.telefone_fixo) && (
+                 <div className="flex items-center gap-2 flex-wrap">
+                   <Phone size={14} /> 
+                   <span>{client.celular || client.telefone_fixo}</span>
+                   {client.is_whatsapp && (
+                     <Badge variant="success" className="text-[10px] h-4 px-1.5 border-0">Whats</Badge>
+                   )}
+                 </div>
+               )}
                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 mt-2 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-zinc-500 dark:text-zinc-400">Aceita Ofertas:</span>
