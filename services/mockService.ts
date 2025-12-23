@@ -1,4 +1,3 @@
-
 import { Client, Product, Sale, StockEntry, Supplier, PaymentDiscounts, PaymentFees, CartItem, UserProfile, SaleItem } from '../types';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { MOCK_CLIENTS, MOCK_PRODUCTS, MOCK_INITIAL_SALES, MOCK_STOCK_ENTRIES, MOCK_SUPPLIERS } from '../constants';
@@ -427,9 +426,8 @@ export const mockService = {
         return (data || []).map(s => ({ ...s, ui_id: s.sales_id || s.ui_id }));
     }
     const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
-    const sDate = new Date(start);
-    const eDate = new Date(end);
-    eDate.setHours(23, 59, 59);
+    const sDate = new Date(`${start}T00:00:00`);
+    const eDate = new Date(`${end}T23:59:59`);
     return sales.filter(s => {
         const d = new Date(s.data_venda);
         return d >= sDate && d <= eDate;
@@ -437,23 +435,40 @@ export const mockService = {
   },
 
   getDashboardChartData: async () => {
-    const today = new Date().toISOString().split('T')[0];
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-    const startStr = sevenDaysAgo.toISOString().split('T')[0];
-    
-    const sales = await mockService.getSalesByPeriod(startStr, today);
-    
-    const last7Days = Array.from({length: 7}, (_, i) => {
-        const d = new Date(sevenDaysAgo);
-        d.setDate(d.getDate() + i);
-        return d;
-    });
+    // Geramos os últimos 7 dias baseados na data LOCAL do dispositivo
+    const dates: Date[] = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0); // Início do dia local
+        d.setDate(d.getDate() - i);
+        dates.push(d);
+    }
 
-    return last7Days.map(date => {
-        const dateStr = date.toISOString().split('T')[0];
+    // Buscamos um range de vendas um pouco maior para compensar fuso horário (UTC vs Local)
+    const bufferStart = new Date(dates[0]);
+    bufferStart.setDate(bufferStart.getDate() - 1);
+    const bufferEnd = new Date(dates[6]);
+    bufferEnd.setDate(bufferEnd.getDate() + 1);
+
+    const startStr = bufferStart.toISOString().split('T')[0];
+    const endStr = bufferEnd.toISOString().split('T')[0];
+    
+    const sales = await mockService.getSalesByPeriod(startStr, endStr);
+    
+    return dates.map(date => {
         const dayTotal = sales
-            .filter(s => s.data_venda.startsWith(dateStr) && s.status !== 'cancelled' && s.metodo_pagamento !== 'Crediário')
+            .filter(s => {
+                // Comparamos os componentes locais da data da venda com a data do ponto no gráfico
+                const sDate = new Date(s.data_venda);
+                const isSameDay = 
+                    sDate.getDate() === date.getDate() &&
+                    sDate.getMonth() === date.getMonth() &&
+                    sDate.getFullYear() === date.getFullYear();
+
+                return isSameDay && 
+                       s.status !== 'cancelled' && 
+                       s.metodo_pagamento !== 'Crediário';
+            })
             .reduce((acc, s) => {
                 const soldItemsSubtotal = s.items?.filter(i => i.status === 'sold').reduce((sum, item) => sum + item.subtotal, 0) || 0;
                 if (soldItemsSubtotal === 0) return acc;
