@@ -483,7 +483,7 @@ export const ManagementReportPage: React.FC = () => {
           <Card className="border-l-4 border-l-amber-600 dark:border-l-amber-500">
               <div className="flex flex-col gap-1 h-full">
                 <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-                  <Gift size={14} /> Indicadores Vale Presente
+                  <Gift size={14} /> Vale Presente
                   <ReportTooltip text="Visão sobre créditos pré-pagos: 'Utilizado em Vendas' é a receita realizada no período selecionado. 'Saldo Disponível' é o montante total que os clientes possuem em suas contas no momento (Passivo)." />
                 </span>
                 
@@ -491,24 +491,22 @@ export const ManagementReportPage: React.FC = () => {
                   <div>
                     <div className="flex justify-between items-center text-[10px] font-bold text-zinc-400 uppercase tracking-tight">
                       <span>Utilizado em Vendas</span>
-                      <span className="text-zinc-600 dark:text-zinc-500">Receita Período</span>
                     </div>
-                    <h3 className="text-xl font-black text-zinc-800 dark:text-white leading-tight">
+                    <h3 className="text-xl text-zinc-800 dark:text-white leading-tight">
                       {formatCurrency(kpis.totalGiftCardUsed)}
                     </h3>
                   </div>
 
-                  <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
-                    <div className="flex justify-between items-center text-[10px] font-bold text-zinc-400 uppercase tracking-tight">
-                      <span>Saldo Disponível em Clientes</span>
-                      <span className="text-zinc-500">Saldo Atual</span>
+                    <div>
+                      <div className="flex justify-between items-center text-[10px] font-bold text-zinc-400 uppercase tracking-tight">
+                        <span>Saldo Disponível em Clientes</span>
+                      </div>
+                      <h3 className="text-xl text-zinc-800 dark:text-white leading-tight">
+                        {formatCurrency(kpis.totalClientBalance)}
+                      </h3>
                     </div>
-                    <p className="text-lg font-bold text-zinc-600 dark:text-zinc-300 leading-tight">
-                      {formatCurrency(kpis.totalClientBalance)}
-                    </p>
                   </div>
                 </div>
-              </div>
           </Card>
 
           {/* DOBRA 7: A Receber (Próx.) */}
