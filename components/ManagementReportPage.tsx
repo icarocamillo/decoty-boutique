@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { 
   TrendingUp, DollarSign, Tag, 
-  Calendar, ShoppingBag, HelpCircle, Filter, CreditCard, Undo2, Archive, CheckCircle2, AlertTriangle, Gift
+  Calendar, ShoppingBag, HelpCircle, Filter, CreditCard, Undo2, Archive, CheckCircle2, AlertTriangle, Gift, BookOpen
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { mockService } from '../services/mockService';
@@ -102,6 +102,7 @@ export const ManagementReportPage: React.FC = () => {
     // Totais Operacionais
     let totalReturns = 0; 
     let totalCreditNextMonth = 0;
+    let totalCrediarioPending = 0; // NOVO: Saldo Crediário Pendente
     let totalCancelledSalesCount = 0;
     let totalReturnedItemsCount = 0;
     
@@ -162,6 +163,7 @@ export const ManagementReportPage: React.FC = () => {
       if (sale.items) {
         sale.items.forEach(item => {
            const isReturnedItem = item.status === 'returned';
+           const isPendente = item.status_pagamento === 'pendente';
            
            if (isReturnedItem) {
              const itemNetRefund = roundCurrency(item.subtotal - (item.quantidade * extraDiscountPerUnit));
@@ -179,8 +181,17 @@ export const ManagementReportPage: React.FC = () => {
              // Dados de Marca
              brandSalesMap[item.marca] = (brandSalesMap[item.marca] || 0) + item.quantidade;
              brandRevenueMap[item.marca] = (brandRevenueMap[item.marca] || 0) + item.subtotal;
+
+             // --- CÁLCULO CREDIÁRIO PENDENTE (GRANULAR) ---
+             if (method === 'Crediário' && isPendente) {
+                const itemNetDebt = roundCurrency(item.subtotal - (item.quantidade * extraDiscountPerUnit));
+                totalCrediarioPending += itemNetDebt;
+             }
            }
         });
+      } else if (method === 'Crediário' && sale.status_pagamento === 'pendente') {
+        // Fallback caso a venda não tenha lista de itens detalhada (legado)
+        totalCrediarioPending += roundCurrency(sale.valor_total);
       }
 
       // Lógica Financeira Real (Líquida da Venda Inteira)
@@ -192,8 +203,7 @@ export const ManagementReportPage: React.FC = () => {
       
       const saleGiftCard = roundCurrency(sale.uso_vale_presente || 0);
       
-      // ALTERAÇÃO CRÍTICA: Vale Presente conta como Receita Real, pois o cliente já pagou por ele.
-      // Somamos o valor do vale presente de volta ao valor líquido (que o excluiu no banco/serviço).
+      // Vale Presente conta como Receita Real, pois o cliente já pagou por ele.
       const saleNetRevenueWithGift = roundCurrency(saleRevenue + saleGiftCard);
       totalRealRevenue += saleNetRevenueWithGift;
 
@@ -211,7 +221,7 @@ export const ManagementReportPage: React.FC = () => {
       totalDiscountExtra += saleExtraDiscount;
       totalGiftCardUsed += saleGiftCard;
       
-      // ALTERAÇÃO CRÍTICA: Descontos Totais NÃO incluem Vale Presente
+      // Descontos Totais NÃO incluem Vale Presente
       totalDiscountOverall += roundCurrency(saleItemsDiscount + saleExtraDiscount);
 
       if (saleItemsDiscount > 0) {
@@ -220,7 +230,6 @@ export const ManagementReportPage: React.FC = () => {
 
       // Previsão Próximo Mês
       if (method === 'Cartão de Crédito' && (sale.parcelas || 1) > 1) {
-          // A previsão considera apenas o que cairá do banco (exclui gift card)
           const installmentValue = saleRevenue / (sale.parcelas || 1);
           totalCreditNextMonth += roundCurrency(installmentValue);
       }
@@ -237,7 +246,7 @@ export const ManagementReportPage: React.FC = () => {
       totalStockValue += val;
     });
 
-    // NOVO: Cálculo de saldo total de Vale Presente em clientes
+    // Cálculo de saldo total de Vale Presente em clientes
     let totalClientBalance = 0;
     clients.forEach(c => {
       totalClientBalance += roundCurrency(c.saldo_vale_presente || 0);
@@ -254,6 +263,7 @@ export const ManagementReportPage: React.FC = () => {
       totalFees: roundCurrency(totalFees),
       feesByMethod,
       totalCreditNextMonth: roundCurrency(totalCreditNextMonth),
+      totalCrediarioPending: roundCurrency(totalCrediarioPending),
       totalSalesCount: sales.filter(s => s.status !== 'cancelled').length,
       totalCancelledSalesCount,
       totalReturnedItemsCount,
@@ -516,11 +526,27 @@ export const ManagementReportPage: React.FC = () => {
                   <Calendar size={14} /> A Receber (Próximo Mês)
                   <ReportTooltip text="Previsão de entrada de caixa no próximo mês referente a parcelas de cartão de crédito (Líquido de taxas)." />
                 </span>
-                <h3 className="text-xl font-bold text-white-800 dark:text-white-500 leading-tight">
+                <h3 className="text-xl font-bold text-purple-500 dark:text-purple-500 mt-2">
                   {formatCurrency(kpis.totalCreditNextMonth)}
                 </h3>
                 <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
                   Saldo líquido de parcelados.
+                </p>
+              </div>
+          </Card>
+
+          {/* DOBRA 8: A Receber (Crediário) */}
+          <Card className="border-l-4 border-l-purple-500 dark:border-l-purple-500">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
+                  <BookOpen size={14} /> A Receber (Crediário)
+                  <ReportTooltip text="Total de saldo de vendas em Crediário realizadas no período que ainda não foram quitadas (considerando o status de pagamento pendente de cada item)." />
+                </span>
+                <h3 className="text-xl font-bold text-purple-500 dark:text-purple-500 mt-2">
+                  {formatCurrency(kpis.totalCrediarioPending)}
+                </h3>
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
+                  Saldo pendente de quitação.
                 </p>
               </div>
           </Card>
