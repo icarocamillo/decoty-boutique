@@ -492,7 +492,7 @@ export const ManagementReportPage: React.FC = () => {
                     <div className="flex justify-between items-center text-[10px] font-bold text-zinc-400 uppercase tracking-tight">
                       <span>Utilizado em Vendas</span>
                     </div>
-                    <h3 className="text-xl text-zinc-800 dark:text-white leading-tight">
+                    <h3 className="text-xl font-bold text-amber-800 dark:text-amber-500 leading-tight">
                       {formatCurrency(kpis.totalGiftCardUsed)}
                     </h3>
                   </div>
@@ -501,7 +501,7 @@ export const ManagementReportPage: React.FC = () => {
                       <div className="flex justify-between items-center text-[10px] font-bold text-zinc-400 uppercase tracking-tight">
                         <span>Saldo Disponível em Clientes</span>
                       </div>
-                      <h3 className="text-xl text-zinc-800 dark:text-white leading-tight">
+                      <h3 className="text-xl font-bold text-amber-800 dark:text-amber-500 leading-tight">
                         {formatCurrency(kpis.totalClientBalance)}
                       </h3>
                     </div>
@@ -516,7 +516,7 @@ export const ManagementReportPage: React.FC = () => {
                   <Calendar size={14} /> A Receber (Próximo Mês)
                   <ReportTooltip text="Previsão de entrada de caixa no próximo mês referente a parcelas de cartão de crédito (Líquido de taxas)." />
                 </span>
-                <h3 className="text-xl font-bold text-zinc-900 dark:text-white mt-2">
+                <h3 className="text-xl font-bold text-white-800 dark:text-white-500 leading-tight">
                   {formatCurrency(kpis.totalCreditNextMonth)}
                 </h3>
                 <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
