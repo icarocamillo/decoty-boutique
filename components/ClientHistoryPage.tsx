@@ -1,10 +1,9 @@
-
 import { useParams, useNavigate } from 'react-router-dom';
-import { Client, Sale, StockEntry, UserProfile } from '../types';
+import { Client, Sale, StockEntry, UserProfile, Product } from '../types';
 import { mockService } from '../services/mockService';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { ArrowLeft, ShoppingBag, Calendar, CreditCard, User, Mail, Phone, Shirt, Loader2, Undo2, History, Gift, Plus, BookOpen, Wallet, Clock, Tag } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Calendar, CreditCard, User, Mail, Phone, Shirt, Loader2, Undo2, History, Gift, Plus, BookOpen, Wallet, Clock, Tag, ChevronRight } from 'lucide-react';
 import { RecentSales } from './RecentSales';
 import { Badge } from './ui/Badge';
 import { formatDateStandard } from '../utils';
@@ -24,6 +23,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
   const [client, setClient] = useState<Client | null>(null);
   const [sales, setSales] = useState<Sale[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [provadorHistory, setProvadorHistory] = useState<(StockEntry & { displayId: string })[]>([]);
   const [fullStockHistory, setFullStockHistory] = useState<StockEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,17 +35,19 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
   const loadData = async () => {
     if (!clientId) return;
     try {
-      const [clientsData, allSales, clientStock, usersData] = await Promise.all([
+      const [clientsData, allSales, clientStock, usersData, productsData] = await Promise.all([
         mockService.getClients(),
         mockService.getClientSales(clientId),
         mockService.getClientStockHistory(clientId),
-        mockService.getUsers()
+        mockService.getUsers(),
+        mockService.getProducts()
       ]);
 
       const foundClient = clientsData.find(c => c.id === clientId);
       setClient(foundClient || null);
       setSales(allSales);
       setUsers(usersData);
+      setProducts(productsData);
 
       // 1. Histórico Completo Ordenado para a tabela geral
       const sortedHistory = [...clientStock].sort((a, b) => 
@@ -67,7 +69,6 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
           const qty = Math.abs(entry.quantidade);
           
           // --- DETECÇÃO DE SAÍDA PARA PROVADOR ---
-          // Deve conter "provador" no motivo e a quantidade ser negativa.
           const isFittingRoomWithdrawal = motivoLower.includes('provador') && entry.quantidade < 0;
 
           if (isFittingRoomWithdrawal) {
@@ -82,7 +83,6 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
               }
           } 
           // --- DETECÇÃO DE RETORNO DE PROVADOR ---
-          // Deve conter "provador" no motivo e a quantidade ser positiva.
           else if (entry.quantidade > 0 && motivoLower.includes('provador')) {
               for (let i = 0; i < qty; i++) {
                   incomingUnits.push({ productKey });
@@ -90,8 +90,6 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
           }
       });
 
-      // Matching: Para cada unidade que voltou (marcada como provador), 
-      // marca a saída mais antiga equivalente como resolvida
       incomingUnits.forEach(inc => {
           const matchIdx = outgoingUnits.findIndex(out => out.productKey === inc.productKey && !out.matched);
           if (matchIdx !== -1) {
@@ -99,7 +97,6 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
           }
       });
 
-      // O que sobrou na lista de saídas sem par é o que está "na rua" com o cliente
       const pending = outgoingUnits.filter(u => !u.matched).reverse();
       setProvadorHistory(pending);
 
@@ -161,6 +158,14 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
     } finally {
         setProcessingId(null);
     }
+  };
+
+  const getProductDetails = (entry: StockEntry) => {
+    const product = products.find(p => p.id === entry.produto_id);
+    return {
+      tamanho: product?.tamanho || '-',
+      cor: product?.cor || '-'
+    };
   };
 
   if (loading) {
@@ -261,45 +266,95 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
             description="Peças retiradas para provar que ainda não foram retornadas ao estoque"
             className="border-l-4 border-l-purple-500 animate-fade-in"
           >
-             <div className="overflow-x-auto max-h-[400px]">
-                <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800 sticky top-0 backdrop-blur-sm z-10">
-                        <tr>
-                            <th className="px-6 py-3 font-medium">Data Retirada</th>
-                            <th className="px-6 py-3 font-medium">Produto</th>
-                            <th className="px-6 py-3 font-medium text-center">Unidade</th>
-                            <th className="px-6 py-3 font-medium">Responsável</th>
-                            <th className="px-6 py-3 font-medium text-center">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                        {provadorHistory.map((unit) => {
-                            const { weekDay, dateTime } = formatDateStandard(unit.data_entrada);
-                            const responsibleName = resolveUserName(unit.responsavel);
-                            const isProcessing = processingId === unit.displayId;
+             <div className="overflow-hidden">
+                {/* MOBILE VIEW: Card List */}
+                <div className="flex flex-col gap-3 sm:hidden pb-1">
+                  {provadorHistory.map((unit) => {
+                    const { weekDay, dateTime } = formatDateStandard(unit.data_entrada);
+                    const responsibleName = resolveUserName(unit.responsavel);
+                    const isProcessing = processingId === unit.displayId;
+                    const details = getProductDetails(unit);
 
-                            return (
-                                <tr key={unit.displayId} className="hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition-colors">
-                                    <td className="px-6 py-3 whitespace-nowrap text-zinc-600 dark:text-zinc-400 text-xs"><div className="flex flex-col"><span className="font-bold">{weekDay}</span><span>{dateTime}</span></div></td>
-                                    <td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">{unit.produto_nome}</td>
-                                    <td className="px-6 py-3 text-center"><Badge variant="outline" className="text-purple-600 border-purple-200">1 peça</Badge></td>
-                                    <td className="px-6 py-3 text-zinc-500 dark:text-zinc-400 text-xs"><div className="flex items-center gap-1.5"><div className="w-6 h-6 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-bold border border-zinc-200 dark:border-zinc-700">{responsibleName.substring(0, 2).toUpperCase()}</div><span className="font-medium">{responsibleName}</span></div></td>
-                                    <td className="px-6 py-3 text-center">
-                                      <Button 
-                                        size="sm" 
-                                        variant="outline" 
-                                        className="h-8 text-xs border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-purple-700 dark:text-purple-300 gap-1" 
-                                        onClick={(e) => handleReturnProvador(e, unit)} 
-                                        disabled={isProcessing}
-                                      >
-                                        {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <><Undo2 size={12} /> Devolver</>}
-                                      </Button>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+                    return (
+                      <div key={unit.displayId} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm flex flex-col gap-3 animate-fade-in-up">
+                        <div className="flex justify-between items-start">
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm truncate">{unit.produto_nome}</h4>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className="text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/10 text-[10px]">Tam: {details.tamanho}</Badge>
+                              <Badge variant="outline" className="text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/10 text-[10px]">Cor: {details.cor}</Badge>
+                            </div>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="success" 
+                            className="h-9 px-3 text-xs gap-1.5 shadow-md shadow-emerald-500/10 active:scale-95 transition-all" 
+                            onClick={(e) => handleReturnProvador(e, unit)} 
+                            disabled={isProcessing}
+                          >
+                            {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <><Undo2 size={14} /> Devolver</>}
+                          </Button>
+                        </div>
+                        
+                        <div className="flex items-center justify-between pt-3 border-t border-zinc-100 dark:border-zinc-800 mt-1">
+                           <div className="flex flex-col gap-1 text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
+                              <div className="flex items-center gap-1"><Calendar size={12} className="text-zinc-400 shrink-0" /><span>{weekDay}</span></div>
+                              <div className="flex items-center gap-1"><Clock size={12} className="text-zinc-400 shrink-0" /><span>{dateTime.split(' às ')[1]}</span></div>
+                           </div>
+                           <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-bold bg-zinc-50 dark:bg-zinc-800/50 px-2 py-1 rounded-lg border border-zinc-100 dark:border-zinc-800">
+                             <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center text-[8px] border border-purple-200 dark:border-purple-800">{responsibleName.substring(0, 2).toUpperCase()}</div>
+                             <span className="truncate max-w-[80px]">{responsibleName}</span>
+                           </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* DESKTOP VIEW: Table */}
+                <div className="hidden sm:block overflow-x-auto max-h-[400px]">
+                  <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800 sticky top-0 backdrop-blur-sm z-10">
+                          <tr>
+                              <th className="px-6 py-3 font-medium">Data Retirada</th>
+                              <th className="px-6 py-3 font-medium">Produto</th>
+                              <th className="px-6 py-3 font-medium text-center">Tamanho</th>
+                              <th className="px-6 py-3 font-medium text-center">Cor</th>
+                              <th className="px-6 py-3 font-medium">Responsável</th>
+                              <th className="px-6 py-3 font-medium text-center">Ações</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                          {provadorHistory.map((unit) => {
+                              const { weekDay, dateTime } = formatDateStandard(unit.data_entrada);
+                              const responsibleName = resolveUserName(unit.responsavel);
+                              const isProcessing = processingId === unit.displayId;
+                              const details = getProductDetails(unit);
+
+                              return (
+                                  <tr key={unit.displayId} className="hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition-colors">
+                                      <td className="px-6 py-3 whitespace-nowrap text-zinc-600 dark:text-zinc-400 text-xs"><div className="flex flex-col"><span className="font-bold">{weekDay}</span><span>{dateTime}</span></div></td>
+                                      <td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">{unit.produto_nome}</td>
+                                      <td className="px-6 py-3 text-center"><Badge variant="outline" className="text-zinc-600 dark:text-zinc-300">{details.tamanho}</Badge></td>
+                                      <td className="px-6 py-3 text-center text-zinc-600 dark:text-zinc-400 text-xs">{details.cor}</td>
+                                      <td className="px-6 py-3 text-zinc-500 dark:text-zinc-400 text-xs"><div className="flex items-center gap-1.5"><div className="w-6 h-6 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-bold border border-zinc-200 dark:border-zinc-700">{responsibleName.substring(0, 2).toUpperCase()}</div><span className="font-medium">{responsibleName}</span></div></td>
+                                      <td className="px-6 py-3 text-center">
+                                        <Button 
+                                          size="sm" 
+                                          variant="outline" 
+                                          className="h-8 text-xs border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-purple-700 dark:text-purple-300 gap-1" 
+                                          onClick={(e) => handleReturnProvador(e, unit)} 
+                                          disabled={isProcessing}
+                                        >
+                                          {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <><Undo2 size={12} /> Devolver</>}
+                                        </Button>
+                                      </td>
+                                  </tr>
+                              );
+                          })}
+                      </tbody>
+                  </table>
+                </div>
              </div>
           </Card>
       )}
