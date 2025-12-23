@@ -7,6 +7,7 @@ import { Button } from './ui/Button';
 import { mockService } from '../services/mockService';
 import { formatDateStandard } from '../utils';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface SaleDetailsModalProps {
   isOpen: boolean;
@@ -195,6 +196,7 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
 
 export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onClose, sale, onSaleCancelled }) => {
   const { user: currentUser } = useAuth(); 
+  const navigate = useNavigate();
   const [isCancelling, setIsCancelling] = useState(false);
   const [clientDetails, setClientDetails] = useState<Client | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -399,7 +401,15 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                                  <User size={24} />
                               </div>
                               <div className="min-w-0 flex-1">
-                                 <p className="text-lg font-bold text-zinc-900 dark:text-white leading-tight">
+                                 <p 
+                                    className={`text-lg font-bold text-zinc-900 dark:text-white leading-tight ${currentSale.cliente_id ? 'hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer underline decoration-dotted transition-colors' : ''}`}
+                                    onClick={() => {
+                                        if (currentSale.cliente_id) {
+                                            navigate(`/clients/${currentSale.cliente_id}/history`);
+                                            onClose();
+                                        }
+                                    }}
+                                 >
                                    {currentSale.cliente_nome || 'Cliente Balcão'}
                                  </p>
                                  <div className="flex flex-col gap-1.5 mt-2">
