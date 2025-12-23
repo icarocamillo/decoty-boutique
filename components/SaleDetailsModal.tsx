@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 /* Added BookOpen to the list of imports from lucide-react */
 import { X, User, CreditCard, Tag, Package, Receipt, Link, AlertTriangle, Mail, ShieldCheck, PieChart, Activity, Phone, Smartphone, Search, Loader2, Check, Gift, Undo2, Wallet, Hourglass, BookOpen, ShoppingBag } from 'lucide-react';
@@ -256,15 +255,18 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   };
 
   const soldItemsSubtotal = currentSale.items?.filter(i => i.status === 'sold').reduce((acc, i) => acc + i.subtotal, 0) || 0;
-  const currentTotalPaid = currentSale.status === 'cancelled' ? 0 : Math.max(0, soldItemsSubtotal - (currentSale.desconto_extra || 0) - (currentSale.uso_vale_presente || 0));
+  const currentTotalNet = currentSale.status === 'cancelled' ? 0 : Math.max(0, soldItemsSubtotal - (currentSale.desconto_extra || 0) - (currentSale.uso_vale_presente || 0));
   const totalPaymentDiscount = currentSale.items?.filter(i => i.status === 'sold').reduce((acc, item) => acc + (item.desconto || 0), 0) || 0;
   const totalExtraDiscount = currentSale.desconto_extra || 0;
   const giftCardUsed = currentSale.uso_vale_presente || 0;
   const taxas = currentSale.taxas_aplicadas;
-  const valorLiquidoReal = currentSale.valor_liquido_lojista || (currentTotalPaid - (taxas?.valor || 0));
+  const valorLiquidoReal = currentSale.valor_liquido_lojista || (currentTotalNet - (taxas?.valor || 0));
   const isUnregistered = currentSale.cliente_nome === 'Cliente não cadastrado' || !currentSale.cliente_id;
   const phoneToDisplay = clientDetails?.celular || clientDetails?.telefone_fixo || clientDetails?.telefone;
   const isWhatsApp = clientDetails?.is_whatsapp;
+
+  const isCrediario = currentSale.metodo_pagamento === 'Crediário';
+  const totalPaidInCrediario = currentSale.pagamentos_crediario?.reduce((acc, p) => acc + p.valor, 0) || 0;
 
   const sellerId = currentSale.responsavel || '';
   const matchedUser = users.find(u => u.id === sellerId);
@@ -532,15 +534,30 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                     )}
                     </div>
                 </div>
-                <div className="mt-4 pt-3 border-t border-zinc-200 dark:border-zinc-700 flex flex-col gap-1">
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold text-zinc-700 dark:text-zinc-300">Total Pago Atual:</span>
-                      <span className={`font-bold text-xl text-zinc-900 dark:text-white ${currentSale.status === 'cancelled' ? 'line-through decoration-red-500 decoration-2' : ''}`}>{formatCurrency(currentTotalPaid)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs text-zinc-500 dark:text-zinc-400">
-                      <span>Parcelamento:</span>
-                      <span>{getInstallmentText()}</span>
-                    </div>
+                <div className="mt-4 pt-3 border-t border-zinc-200 dark:border-zinc-700 flex flex-col gap-2">
+                    {isCrediario ? (
+                      <>
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-zinc-700 dark:text-zinc-300">Valor Total da venda:</span>
+                          <span className={`font-bold text-lg text-zinc-900 dark:text-white ${currentSale.status === 'cancelled' ? 'line-through opacity-60' : ''}`}>{formatCurrency(currentTotalNet)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-zinc-700 dark:text-zinc-300">Total Pago Atual:</span>
+                          <span className={`font-bold text-xl text-emerald-600 dark:text-emerald-500 ${currentSale.status === 'cancelled' ? 'line-through decoration-red-500 decoration-2' : ''}`}>{formatCurrency(totalPaidInCrediario)}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-zinc-700 dark:text-zinc-300">Total Pago:</span>
+                          <span className={`font-bold text-xl text-zinc-900 dark:text-white ${currentSale.status === 'cancelled' ? 'line-through decoration-red-500 decoration-2' : ''}`}>{formatCurrency(currentTotalNet)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs text-zinc-500 dark:text-zinc-400">
+                          <span>Parcelamento:</span>
+                          <span>{getInstallmentText()}</span>
+                        </div>
+                      </>
+                    )}
                 </div>
               </div>
 
