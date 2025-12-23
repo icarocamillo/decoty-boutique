@@ -4,6 +4,7 @@ import { ShoppingBag, User, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, Calen
 import { SaleDetailsModal } from './SaleDetailsModal';
 import { Badge } from './ui/Badge';
 import { formatDateStandard } from '../utils';
+import { useNavigate } from 'react-router-dom';
 
 interface RecentSalesProps {
   sales: Sale[];
@@ -13,6 +14,7 @@ interface RecentSalesProps {
 type SortKey = 'id' | 'cliente_nome' | 'produtos_resumo' | 'data_venda' | 'item_count' | 'valor_total' | 'status_pagamento';
 
 export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => {
+  const navigate = useNavigate();
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>({ key: 'data_venda', direction: 'desc' });
 
@@ -117,7 +119,15 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Venda #{cleanId(sale)}</span>
                   <div className="flex items-center gap-2 mt-1">
                     <User size={14} className="text-emerald-600 shrink-0" />
-                    <span className="font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                    <span 
+                      onClick={(e) => {
+                        if (sale.cliente_id) {
+                          e.stopPropagation();
+                          navigate(`/clients/${sale.cliente_id}/history`);
+                        }
+                      }}
+                      className={`font-bold text-zinc-900 dark:text-zinc-100 truncate ${sale.cliente_id ? 'hover:text-blue-600 hover:underline cursor-pointer' : ''}`}
+                    >
                       {sale.cliente_nome || 'Consumidor'}
                     </span>
                   </div>
@@ -225,9 +235,18 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
                     </div>
                   </td>
                   <td className={`px-4 py-3 ${isCancelled ? 'opacity-60 text-zinc-500' : 'text-zinc-700 dark:text-zinc-300'}`}>
-                    <div className="flex items-center gap-2 group">
-                      <User size={14} className="text-zinc-400 group-hover:text-emerald-600 transition-colors" />
-                      <span className="truncate max-w-[120px] font-bold group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors" title={sale.cliente_nome}>
+                    <div className="flex items-center gap-2 group/client">
+                      <User size={14} className="text-zinc-400 group-hover/client:text-emerald-600 transition-colors" />
+                      <span 
+                        onClick={(e) => {
+                          if (sale.cliente_id) {
+                            e.stopPropagation();
+                            navigate(`/clients/${sale.cliente_id}/history`);
+                          }
+                        }}
+                        className={`truncate max-w-[120px] font-bold transition-colors ${sale.cliente_id ? 'hover:text-blue-600 hover:underline cursor-pointer' : ''}`} 
+                        title={sale.cliente_nome}
+                      >
                         {sale.cliente_nome || 'Não informado'}
                       </span>
                     </div>
