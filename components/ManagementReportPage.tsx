@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { mockService } from '../services/mockService';
-import { Sale, Product, StockEntry } from '../types';
+import { Sale, Product, StockEntry, Client } from '../types';
 
 // Tooltip Component Interno
 const ReportTooltip: React.FC<{ text: string }> = ({ text }) => (
@@ -46,6 +46,7 @@ export const ManagementReportPage: React.FC = () => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Estado para controlar o tema atual para os gráficos
@@ -70,15 +71,17 @@ export const ManagementReportPage: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [salesData, productsData, stockData] = await Promise.all([
+        const [salesData, productsData, stockData, clientsData] = await Promise.all([
           // Busca baseada no filtro de data
           mockService.getSalesByPeriod(startDate, endDate), 
           mockService.getProducts(),
-          mockService.getStockEntries()
+          mockService.getStockEntries(),
+          mockService.getClients()
         ]);
         setSales(salesData);
         setProducts(productsData);
         setStockEntries(stockData);
+        setClients(clientsData);
       } catch (error) {
         console.error("Erro ao carregar dados do relatório", error);
       } finally {
@@ -234,6 +237,12 @@ export const ManagementReportPage: React.FC = () => {
       totalStockValue += val;
     });
 
+    // NOVO: Cálculo de saldo total de Vale Presente em clientes
+    let totalClientBalance = 0;
+    clients.forEach(c => {
+      totalClientBalance += roundCurrency(c.saldo_vale_presente || 0);
+    });
+
     return {
       totalNet: roundCurrency(totalRealRevenue),
       totalReturns: roundCurrency(totalReturns),
@@ -241,6 +250,7 @@ export const ManagementReportPage: React.FC = () => {
       discountsByMethod,
       totalDiscountExtra,
       totalGiftCardUsed: roundCurrency(totalGiftCardUsed),
+      totalClientBalance: roundCurrency(totalClientBalance),
       totalFees: roundCurrency(totalFees),
       feesByMethod,
       totalCreditNextMonth: roundCurrency(totalCreditNextMonth),
@@ -256,7 +266,7 @@ export const ManagementReportPage: React.FC = () => {
       totalStockValue: roundCurrency(totalStockValue)
     };
 
-  }, [sales, products, stockEntries, loading, startDate, endDate]);
+  }, [sales, products, stockEntries, clients, loading, startDate, endDate]);
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -469,19 +479,35 @@ export const ManagementReportPage: React.FC = () => {
               </div>
           </Card>
 
-          {/* DOBRA 6: Total Vale Presente */}
+          {/* DOBRA 6: Indicadores Vale Presente */}
           <Card className="border-l-4 border-l-amber-600 dark:border-l-amber-500">
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 h-full">
                 <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-                  <Gift size={14} /> Total Vale Presente
-                  <ReportTooltip text="Soma dos valores de vales presente utilizados como forma de pagamento. Este valor entra na Receita Real por já ter sido pago anteriormente pelo cliente." />
+                  <Gift size={14} /> Indicadores Vale Presente
+                  <ReportTooltip text="Visão sobre créditos pré-pagos: 'Utilizado em Vendas' é a receita realizada no período selecionado. 'Saldo Disponível' é o montante total que os clientes possuem em suas contas no momento (Passivo)." />
                 </span>
-                <h3 className="text-2xl font-bold text-amber-600 dark:text-amber-500 mt-2">
-                  {formatCurrency(kpis.totalGiftCardUsed)}
-                </h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                   Receita realizada via crédito antecipado.
-                </p>
+                
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <div className="flex justify-between items-center text-[10px] font-bold text-zinc-400 uppercase tracking-tight">
+                      <span>Utilizado em Vendas</span>
+                      <span className="text-zinc-600 dark:text-zinc-500">Receita Período</span>
+                    </div>
+                    <h3 className="text-xl font-black text-zinc-800 dark:text-white leading-tight">
+                      {formatCurrency(kpis.totalGiftCardUsed)}
+                    </h3>
+                  </div>
+
+                  <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                    <div className="flex justify-between items-center text-[10px] font-bold text-zinc-400 uppercase tracking-tight">
+                      <span>Saldo Disponível em Clientes</span>
+                      <span className="text-zinc-500">Saldo Atual</span>
+                    </div>
+                    <p className="text-lg font-bold text-zinc-600 dark:text-zinc-300 leading-tight">
+                      {formatCurrency(kpis.totalClientBalance)}
+                    </p>
+                  </div>
+                </div>
               </div>
           </Card>
 
