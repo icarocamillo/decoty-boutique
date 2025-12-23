@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Package, Check, Loader2, Tag, Layers, Droplet, Barcode, Hash, Info, DollarSign, ArrowRight, Plus, Minus, AlertCircle } from 'lucide-react';
 import { Button } from './ui/Button';
@@ -333,19 +332,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
                           <div className="md:col-span-8 space-y-2">
                             <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 text-green-600 dark:text-green-400">Adicionar Estoque (+)</label>
                             <div className="relative flex items-center">
-                              <button 
-                                type="button" 
-                                onClick={() => handleAdjustStockDelta(-1)} 
-                                className="absolute left-1.5 h-8 w-8 flex items-center justify-center bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors shadow-sm z-10"
-                              >
-                                <Minus size={14} strokeWidth={3} />
-                              </button>
                               <input 
                                 type="number" 
                                 value={stockAdjustment} 
                                 onChange={(e) => setStockAdjustment(e.target.value)} 
                                 placeholder="0" 
-                                className={`w-full px-10 h-10 border rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none text-center font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isReducingStock ? 'border-red-500 ring-1 bg-red-50 dark:bg-red-900/10' : 'border-zinc-300 dark:border-zinc-700'}`} 
+                                className={`w-full pl-4 pr-10 h-10 border rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none text-center font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isReducingStock ? 'border-red-500 ring-1 bg-red-50 dark:bg-red-900/10' : 'border-zinc-300 dark:border-zinc-700'}`} 
                               />
                               <button 
                                 type="button" 
