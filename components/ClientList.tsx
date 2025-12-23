@@ -1,7 +1,6 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Client } from '../types';
-import { User, Phone, Mail, UserPlus, Smartphone, MapPin, Megaphone, Search, Filter, CreditCard, Pencil, Shirt, Gift, ChevronRight } from 'lucide-react';
+import { User, Phone, Mail, UserPlus, Smartphone, MapPin, Megaphone, Search, Filter, CreditCard, Pencil, Shirt, Gift, ChevronRight, BookOpen } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
@@ -22,11 +21,13 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
 
-  // Filter States (Main Table)
+  // Filter States
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedUF, setSelectedUF] = useState('');
-  const [filterWhatsApp, setFilterWhatsApp] = useState('');
-  const [filterOffers, setFilterOffers] = useState('');
+  const [filterDebt, setFilterDebt] = useState('all'); // 'all' | 'positive'
+  const [filterBalance, setFilterBalance] = useState('all'); // 'all' | 'positive'
+  const [filterProvador, setFilterProvador] = useState('all'); // 'all' | 'true' | 'false'
+  const [filterWhatsApp, setFilterWhatsApp] = useState('all'); // 'all' | 'true' | 'false'
+  const [filterOffers, setFilterOffers] = useState('all'); // 'all' | 'true' | 'false'
 
   // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
@@ -35,25 +36,14 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedUF, filterWhatsApp, filterOffers, itemsPerPage]);
+  }, [searchTerm, filterDebt, filterBalance, filterProvador, filterWhatsApp, filterOffers, itemsPerPage]);
 
   const handleHistorySelect = (clientId: string) => {
     navigate(`/clients/${clientId}/history`);
   };
 
-  // --- LOGIC: Main Table Filtering ---
-
-  // Extract unique UFs for filter
-  const uniqueUFs = useMemo(() => {
-    const ufs = new Set<string>();
-    clients.forEach(c => {
-      if (c.endereco?.estado) ufs.add(c.endereco.estado);
-    });
-    return Array.from(ufs).sort();
-  }, [clients]);
-
   const filteredClients = useMemo(() => {
-    return clients.filter(client => {
+    let result = clients.filter(client => {
       // 1. Text Search (Name, Email or CPF)
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = 
@@ -61,24 +51,43 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
         (client.email && client.email.toLowerCase().includes(searchLower)) ||
         (client.cpf && client.cpf.includes(searchLower));
 
-      // 2. UF Filter
-      const matchesUF = selectedUF 
-        ? client.endereco?.estado === selectedUF 
+      // 2. Debt Filter (Crediário)
+      const matchesDebt = filterDebt === 'positive'
+        ? (client.saldo_devedor_crediario || 0) > 0
         : true;
 
-      // 3. WhatsApp Filter
-      const matchesWhats = filterWhatsApp 
+      // 3. Balance Filter (Vale Presente)
+      const matchesBalance = filterBalance === 'positive' 
+        ? (client.saldo_vale_presente || 0) > 0 
+        : true;
+
+      // 4. Provador Filter
+      const matchesProvador = filterProvador !== 'all'
+        ? (filterProvador === 'true' ? client.pode_provador : !client.pode_provador)
+        : true;
+
+      // 5. WhatsApp Filter
+      const matchesWhats = filterWhatsApp !== 'all'
         ? (filterWhatsApp === 'true' ? client.is_whatsapp : !client.is_whatsapp)
         : true;
 
-      // 4. Offers Filter
-      const matchesOffers = filterOffers
+      // 6. Offers Filter
+      const matchesOffers = filterOffers !== 'all'
         ? (filterOffers === 'true' ? client.receber_ofertas : !client.receber_ofertas)
         : true;
 
-      return matchesSearch && matchesUF && matchesWhats && matchesOffers;
+      return matchesSearch && matchesDebt && matchesBalance && matchesProvador && matchesWhats && matchesOffers;
     });
-  }, [clients, searchTerm, selectedUF, filterWhatsApp, filterOffers]);
+
+    // --- SORTING LOGIC ---
+    if (filterDebt === 'positive') {
+      result.sort((a, b) => (b.saldo_devedor_crediario || 0) - (a.saldo_devedor_crediario || 0));
+    } else if (filterBalance === 'positive') {
+      result.sort((a, b) => (b.saldo_vale_presente || 0) - (a.saldo_vale_presente || 0));
+    }
+
+    return result;
+  }, [clients, searchTerm, filterDebt, filterBalance, filterProvador, filterWhatsApp, filterOffers]);
 
   // Pagination Calculations
   const totalItems = filteredClients.length;
@@ -108,7 +117,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-1">
         <div>
            <h2 className="text-2xl font-bold text-zinc-800 dark:text-white">Clientes Cadastrados</h2>
            <p className="text-zinc-500 dark:text-zinc-400">Gerencie sua base de contatos</p>
@@ -119,11 +128,12 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
       </div>
 
       <Card className="overflow-hidden">
-        {/* Toolbar de Filtros */}
-        <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center">
-           <div className="flex flex-col md:flex-row gap-3 w-full xl:w-auto flex-wrap">
-             {/* Search */}
-             <div className="relative w-full md:w-60">
+        {/* Toolbar de Filtros Reestruturada */}
+        <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col gap-4">
+           <div className="flex flex-col xl:flex-row gap-3 w-full justify-between items-start xl:items-center">
+             
+             {/* Search Bar */}
+             <div className="relative w-full xl:w-72">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                 <input 
                   type="text" 
@@ -134,47 +144,75 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
                 />
               </div>
 
-              {/* Filters */}
-              <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                 {/* UF */}
-                 <div className="relative w-full sm:w-32">
+              {/* Grupos de Filtros */}
+              <div className="flex flex-wrap gap-2 w-full xl:w-auto">
+                 
+                 {/* 1. Crediário (Vermelho) */}
+                 <div className="relative min-w-[130px]">
                    <select 
-                     className="w-full appearance-none pl-3 pr-8 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none"
-                     value={selectedUF}
-                     onChange={(e) => setSelectedUF(e.target.value)}
+                     className="w-full appearance-none pl-3 pr-8 py-2 border border-red-200 dark:border-red-900/30 rounded-lg bg-red-50 dark:bg-red-900/10 text-xs font-bold text-red-700 dark:text-red-400 focus:ring-2 focus:ring-red-500 outline-none cursor-pointer transition-colors"
+                     value={filterDebt}
+                     onChange={(e) => { setFilterDebt(e.target.value); if(e.target.value === 'positive') setFilterBalance('all'); }}
                    >
-                     <option value="">Todos UFs</option>
-                     {uniqueUFs.map(uf => <option key={uf} value={uf}>{uf}</option>)}
+                     <option value="all" className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-normal">Dívida: Todos</option>
+                     <option value="positive" className="bg-white dark:bg-zinc-900 text-red-700 dark:text-red-400 font-bold">Com Crediário</option>
                    </select>
-                   <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                   <BookOpen size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-red-400 pointer-events-none" />
                  </div>
 
-                 {/* WhatsApp Filter */}
-                 <div className="relative w-full sm:w-36">
+                 {/* 2. Vale Presente (Âmbar) */}
+                 <div className="relative min-w-[130px]">
                    <select 
-                     className="w-full appearance-none pl-3 pr-8 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none"
+                     className="w-full appearance-none pl-3 pr-8 py-2 border border-amber-200 dark:border-amber-900/30 rounded-lg bg-amber-50 dark:bg-amber-900/10 text-xs font-bold text-amber-700 dark:text-amber-400 focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer transition-colors"
+                     value={filterBalance}
+                     onChange={(e) => { setFilterBalance(e.target.value); if(e.target.value === 'positive') setFilterDebt('all'); }}
+                   >
+                     <option value="all" className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-normal">Saldo: Todos</option>
+                     <option value="positive" className="bg-white dark:bg-zinc-900 text-amber-700 dark:text-amber-400 font-bold">Com Saldo Vale</option>
+                   </select>
+                   <Gift size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none" />
+                 </div>
+
+                 {/* 3. Provador (Roxo) */}
+                 <div className="relative min-w-[130px]">
+                   <select 
+                     className="w-full appearance-none pl-3 pr-8 py-2 border border-purple-200 dark:border-purple-900/30 rounded-lg bg-purple-50 dark:bg-purple-900/10 text-xs font-bold text-purple-700 dark:text-purple-400 focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer transition-colors"
+                     value={filterProvador}
+                     onChange={(e) => setFilterProvador(e.target.value)}
+                   >
+                     <option value="all" className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-normal">Provador: Todos</option>
+                     <option value="true" className="bg-white dark:bg-zinc-900 text-purple-700 dark:text-purple-400 font-bold">Autorizado</option>
+                     <option value="false" className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-normal">Bloqueado</option>
+                   </select>
+                   <Shirt size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 pointer-events-none" />
+                 </div>
+
+                 {/* 4. WhatsApp (Esmeralda) */}
+                 <div className="relative min-w-[130px]">
+                   <select 
+                     className="w-full appearance-none pl-3 pr-8 py-2 border border-emerald-200 dark:border-emerald-900/30 rounded-lg bg-emerald-50 dark:bg-emerald-900/10 text-xs font-bold text-emerald-700 dark:text-emerald-400 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer transition-colors"
                      value={filterWhatsApp}
                      onChange={(e) => setFilterWhatsApp(e.target.value)}
                    >
-                     <option value="">WhatsApp: Todos</option>
-                     <option value="true">Com WhatsApp</option>
-                     <option value="false">Sem WhatsApp</option>
+                     <option value="all" className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-normal">WhatsApp: Todos</option>
+                     <option value="true" className="bg-white dark:bg-zinc-900 text-emerald-700 dark:text-emerald-400 font-bold">Com WhatsApp</option>
+                     <option value="false" className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-normal">Sem WhatsApp</option>
                    </select>
-                   <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                   <Smartphone size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400 pointer-events-none" />
                  </div>
 
-                 {/* Ofertas Filter */}
-                 <div className="relative w-full sm:w-36">
+                 {/* 5. Ofertas (Azul) */}
+                 <div className="relative min-w-[130px]">
                    <select 
-                     className="w-full appearance-none pl-3 pr-8 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none"
+                     className="w-full appearance-none pl-3 pr-8 py-2 border border-blue-200 dark:border-blue-900/30 rounded-lg bg-blue-50 dark:bg-blue-900/10 text-xs font-bold text-blue-700 dark:text-blue-400 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer transition-colors"
                      value={filterOffers}
                      onChange={(e) => setFilterOffers(e.target.value)}
                    >
-                     <option value="">Ofertas: Todos</option>
-                     <option value="true">Aceita Ofertas</option>
-                     <option value="false">Não Aceita</option>
+                     <option value="all" className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-normal">Ofertas: Todas</option>
+                     <option value="true" className="bg-white dark:bg-zinc-900 text-blue-700 dark:text-blue-400 font-bold">Aceita</option>
+                     <option value="false" className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-normal">Não Aceita</option>
                    </select>
-                   <Filter size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                   <Megaphone size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none" />
                  </div>
               </div>
            </div>
@@ -224,12 +262,20 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
 
                 <div className="flex justify-between items-end">
                    <div className="flex flex-col gap-1 min-w-0 flex-1 pr-4">
-                      {client.saldo_vale_presente && client.saldo_vale_presente > 0 ? (
-                        <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold mb-1">
-                           <Gift size={14} />
-                           <span className="text-xs">{formatCurrency(client.saldo_vale_presente)}</span>
-                        </div>
-                      ) : null}
+                      <div className="flex flex-wrap gap-2 mb-1">
+                        {client.saldo_devedor_crediario && client.saldo_devedor_crediario > 0 ? (
+                          <div className="flex items-center gap-1 text-red-600 dark:text-red-400 font-bold">
+                            <BookOpen size={14} />
+                            <span className="text-xs">{formatCurrency(client.saldo_devedor_crediario)}</span>
+                          </div>
+                        ) : null}
+                        {client.saldo_vale_presente && client.saldo_vale_presente > 0 ? (
+                          <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-bold">
+                            <Gift size={14} />
+                            <span className="text-xs">{formatCurrency(client.saldo_vale_presente)}</span>
+                          </div>
+                        ) : null}
+                      </div>
                       <div className="flex items-start gap-1.5">
                          <MapPin size={12} className="text-zinc-400 mt-0.5 shrink-0" />
                          <span className="text-[10px] text-zinc-400 line-clamp-1">{address}</span>
@@ -266,7 +312,8 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
                 <tr>
                   <th className="px-6 py-4 font-medium">Nome / CPF</th>
                   <th className="px-6 py-4 font-medium">Contato</th>
-                  <th className="px-6 py-4 font-medium">Saldo (Vale)</th>
+                  <th className="px-6 py-4 font-medium">Crediário</th>
+                  <th className="px-6 py-4 font-medium">Vale Presente</th>
                   <th className="px-6 py-4 font-medium">Localização</th>
                   <th className="px-6 py-4 font-medium text-center">Editar</th>
                 </tr>
@@ -334,6 +381,18 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
                       </td>
                       <td className="px-6 py-4">
                          <div className="flex items-center gap-2">
+                            {client.saldo_devedor_crediario && client.saldo_devedor_crediario > 0 ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800">
+                                   <BookOpen size={12} />
+                                   {formatCurrency(client.saldo_devedor_crediario)}
+                                </span>
+                            ) : (
+                                <span className="text-zinc-400 text-xs">-</span>
+                            )}
+                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                         <div className="flex items-center gap-2">
                             {client.saldo_vale_presente && client.saldo_vale_presente > 0 ? (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
                                    <Gift size={12} />
@@ -369,7 +428,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
                 })}
                 {currentClients.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-500 dark:text-zinc-400">
+                    <td colSpan={6} className="px-6 py-12 text-center text-zinc-500 dark:text-zinc-400">
                       Nenhum cliente encontrado com os filtros atuais.
                     </td>
                   </tr>

@@ -34,6 +34,14 @@ export interface SaleItem {
   valor_estorno_unitario?: number; // Valor líquido calculado com rateio para estorno
 }
 
+export interface CrediarioPayment {
+  id: string;
+  data: string;
+  valor: number;
+  metodo: string;
+  responsavel_nome: string;
+}
+
 export interface Sale {
   id: string;
   ui_id?: number; 
@@ -57,6 +65,7 @@ export interface Sale {
     valor: number;
   }; 
   valor_liquido_lojista?: number;
+  pagamentos_crediario?: CrediarioPayment[]; // Histórico de pagamentos parciais
 }
 
 export interface CartItem {
