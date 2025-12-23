@@ -1,5 +1,4 @@
 
-import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Client, Sale, StockEntry, UserProfile } from '../types';
 import { mockService } from '../services/mockService';
@@ -12,6 +11,7 @@ import { formatDateStandard } from '../utils';
 import { useAuth } from '../contexts/AuthContext';
 import { GiftCardAdjustmentModal } from './GiftCardAdjustmentModal';
 import { CrediarioPaymentModal } from './CrediarioPaymentModal';
+import React, { useEffect, useState, useMemo } from 'react';
 
 interface ClientHistoryPageProps {
   onUpdate?: () => void;
@@ -47,16 +47,13 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
       setSales(allSales);
       setUsers(usersData);
 
-      // 1. Organizar histórico completo (do mais novo para o mais antigo)
+      // 1. Histórico Completo Ordenado para a tabela geral
       const sortedHistory = [...clientStock].sort((a, b) => 
         new Date(b.data_entrada).getTime() - new Date(a.data_entrada).getTime()
       );
       setFullStockHistory(sortedHistory);
 
-      // --- LÓGICA DE PENDÊNCIAS 1 A 1 (UNROLLING) ---
-      
-      // Criamos listas de unidades individuais (Peça por Peça)
-      // Ordenamos do mais antigo para o mais novo para processar o matching
+      // 2. Lógica de Pendências de Provador (Pareamento Cirúrgico)
       const cronoHistory = [...clientStock].sort((a, b) => 
         new Date(a.data_entrada).getTime() - new Date(b.data_entrada).getTime()
       );
@@ -65,29 +62,36 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
       const incomingUnits: { productKey: string }[] = [];
 
       cronoHistory.forEach(entry => {
+          const motivoLower = (entry.motivo || '').toLowerCase();
           const productKey = entry.produto_id || entry.produto_nome;
           const qty = Math.abs(entry.quantidade);
           
-          // Se for uma SAÍDA (Provador ou Manual que não seja Venda)
-          if (entry.quantidade < 0 && (entry.motivo.includes('Provador') || (entry.motivo.includes('Saída Manual') && !entry.motivo.includes('Venda')))) {
+          // --- DETECÇÃO DE SAÍDA PARA PROVADOR ---
+          // Deve conter "provador" no motivo e a quantidade ser negativa.
+          const isFittingRoomWithdrawal = motivoLower.includes('provador') && entry.quantidade < 0;
+
+          if (isFittingRoomWithdrawal) {
               for (let i = 0; i < qty; i++) {
                   outgoingUnits.push({
                       ...entry,
                       displayId: `${entry.id}-${i}`,
                       productKey,
-                      quantidade: -1 // Normalizamos para 1 unidade na exibição
+                      quantidade: -1,
+                      matched: false
                   });
               }
           } 
-          // Se for uma ENTRADA (Retorno ou Devolução)
-          else if (entry.quantidade > 0 && (entry.motivo.includes('Retorno Provador') || entry.motivo.includes('Devolução'))) {
+          // --- DETECÇÃO DE RETORNO DE PROVADOR ---
+          // Deve conter "provador" no motivo e a quantidade ser positiva.
+          else if (entry.quantidade > 0 && motivoLower.includes('provador')) {
               for (let i = 0; i < qty; i++) {
                   incomingUnits.push({ productKey });
               }
           }
       });
 
-      // Matching: Para cada unidade que entrou, "anulamos" a saída mais antiga desse produto
+      // Matching: Para cada unidade que voltou (marcada como provador), 
+      // marca a saída mais antiga equivalente como resolvida
       incomingUnits.forEach(inc => {
           const matchIdx = outgoingUnits.findIndex(out => out.productKey === inc.productKey && !out.matched);
           if (matchIdx !== -1) {
@@ -95,8 +99,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
           }
       });
 
-      // O que sobrar (não matched) é o que está com o cliente
-      // Invertemos para mostrar os mais recentes no topo
+      // O que sobrou na lista de saídas sem par é o que está "na rua" com o cliente
       const pending = outgoingUnits.filter(u => !u.matched).reverse();
       setProvadorHistory(pending);
 
@@ -114,12 +117,10 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
   const resolveUserName = (userId: string) => {
     const profile = users.find(u => u.id === userId);
     if (profile) return profile.name;
-    // Se não achar perfil e for UUID longo, retorna "Usuário"
     if (userId?.length > 30) return 'Usuário';
     return userId || 'Sistema';
   };
 
-  // Mapeamento de UUID da venda para UI_ID para exibição no histórico
   const salesMapping = useMemo(() => {
     const mapping: Record<string, number> = {};
     sales.forEach(s => {
@@ -130,36 +131,33 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
 
   const formatMotivo = (motivo: string) => {
     if (!motivo) return '';
-    // Regex para encontrar padrões de ID como #s-12345 ou #uuid
     const idMatch = motivo.match(/#([\w-]+)/);
     if (!idMatch) return motivo;
-    
     const extractedId = idMatch[1];
-    // Se o ID extraído estiver no mapeamento de UI_IDs da loja
     if (salesMapping[extractedId]) {
       return motivo.replace(`#${extractedId}`, `#${salesMapping[extractedId]}`);
     }
-    
     return motivo;
   };
 
-  const handleReturnProvador = async (e: React.MouseEvent, entry: StockEntry) => {
+  const handleReturnProvador = async (e: React.MouseEvent, entry: StockEntry & { displayId: string }) => {
     if (e && e.stopPropagation) e.stopPropagation();
     
-    // Usamos o displayId para controle visual de loading local se necessário,
-    // mas para o serviço enviamos o objeto de entrada original normalizado para 1 unidade.
-    setProcessingId(entry.id);
+    setProcessingId(entry.displayId);
     const userId = user?.id || '';
-
-    // Criamos uma entrada fake de 1 unidade para o serviço de retorno
-    const singleUnitReturn = { ...entry, quantidade: -1 };
-
+    
     try {
-        await mockService.returnProvadorItem(singleUnitReturn, userId);
-        if (onUpdate) onUpdate();
-        loadData(); 
+        const success = await mockService.returnProvadorItem(entry, userId);
+        if (success) {
+            alert("Item retornado ao estoque com sucesso!");
+            if (onUpdate) onUpdate();
+            loadData(); 
+        } else {
+            alert("Erro: Não foi possível realizar a devolução. Verifique se o produto ainda existe.");
+        }
     } catch (error: any) {
-        alert("Erro ao devolver item.");
+        console.error(error);
+        alert("Erro técnico ao devolver item.");
     } finally {
         setProcessingId(null);
     }
@@ -200,7 +198,6 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
         </div>
       </div>
 
-      {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-1 border-l-4 border-l-blue-500">
           <div className="p-4 space-y-4">
@@ -218,103 +215,51 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                 {client.cpf && <p className="text-xs text-zinc-500 font-mono">CPF: {client.cpf}</p>}
               </div>
             </div>
-            
             <div className="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
-               {client.email && (
-                 <div className="flex items-center gap-2">
-                   <Mail size={14} /> {client.email}
-                 </div>
-               )}
-               {(client.celular || client.telefone_fixo) && (
-                 <div className="flex items-center gap-2">
-                   <Phone size={14} /> {client.celular || client.telefone_fixo}
-                 </div>
-               )}
-               
+               {client.email && <div className="flex items-center gap-2"><Mail size={14} /> {client.email}</div>}
+               {(client.celular || client.telefone_fixo) && <div className="flex items-center gap-2"><Phone size={14} /> {client.celular || client.telefone_fixo}</div>}
                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 mt-2 space-y-2">
-                  <div className="flex justify-between items-center">
-                     <span className="text-xs text-zinc-500">Aceita Ofertas:</span>
-                     {client.receber_ofertas ? <Badge variant="success" className="text-[10px]">Sim</Badge> : <Badge variant="secondary" className="text-[10px]">Não</Badge>}
-                  </div>
-                  <div className="flex justify-between items-center">
-                     <span className="text-xs text-zinc-500">Status Provador:</span>
-                     {client.pode_provador ? <Badge variant="success" className="text-[10px]">Autorizado</Badge> : <Badge variant="secondary" className="text-[10px]">Não Autorizado</Badge>}
-                  </div>
+                  <div className="flex justify-between items-center"><span className="text-xs text-zinc-500">Aceita Ofertas:</span>{client.receber_ofertas ? <Badge variant="success" className="text-[10px]">Sim</Badge> : <Badge variant="secondary" className="text-[10px]">Não</Badge>}</div>
+                  <div className="flex justify-between items-center"><span className="text-xs text-zinc-500">Status Provador:</span>{client.pode_provador ? <Badge variant="success" className="text-[10px]">Autorizado</Badge> : <Badge variant="secondary" className="text-[10px]">Não Autorizado</Badge>}</div>
                </div>
             </div>
           </div>
         </Card>
 
         <Card className="md:col-span-2">
-           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 p-4">
-              <div className="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl text-center flex flex-col justify-between h-full min-h-[100px]">
-                 <div className="text-zinc-500 dark:text-zinc-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1">
-                   <ShoppingBag size={14} /> Qtd Compras
-                 </div>
+           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 p-4 h-full items-stretch">
+              <div className="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl text-center flex flex-col justify-between">
+                 <div className="text-zinc-500 dark:text-zinc-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1"><ShoppingBag size={14} /> Qtd Compras</div>
                  <div className="text-xl font-bold text-zinc-900 dark:text-white">{totalPurchases}</div>
               </div>
-
-              <div className="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl text-center flex flex-col justify-between h-full min-h-[100px]">
-                 <div className="text-zinc-500 dark:text-zinc-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1">
-                   <CreditCard size={14} /> Valor Gasto
-                 </div>
-                 <div className="text-xl font-bold text-green-600 dark:text-green-400">
-                   {formatCurrency(totalSpent)}
-                 </div>
+              <div className="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl text-center flex flex-col justify-between">
+                 <div className="text-zinc-500 dark:text-zinc-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1"><CreditCard size={14} /> Valor Gasto</div>
+                 <div className="text-xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totalSpent)}</div>
               </div>
-
-              <div className="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl text-center flex flex-col justify-between h-full min-h-[100px]">
-                 <div className="text-zinc-500 dark:text-zinc-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1">
-                   <Calendar size={14} /> Última Compra
-                 </div>
+              <div className="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl text-center flex flex-col justify-between">
+                 <div className="text-zinc-500 dark:text-zinc-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1"><Calendar size={14} /> Última Compra</div>
                  <div className="text-lg font-bold text-zinc-900 dark:text-white truncate">{lastPurchaseDate}</div>
               </div>
-              
-              <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 p-3 rounded-xl text-center flex flex-col justify-between h-full min-h-[100px] relative group">
-                 <div className="text-amber-600 dark:text-amber-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1">
-                   <Gift size={14} /> Vale Presente
-                 </div>
-                 <div className="text-xl font-bold text-amber-700 dark:text-amber-300">
-                   {formatCurrency(client.saldo_vale_presente || 0)}
-                 </div>
-                 <button 
-                    onClick={() => setIsGiftModalOpen(true)}
-                    className="w-full mt-2 text-[10px] font-bold bg-amber-100 dark:bg-amber-800/30 text-amber-700 dark:text-amber-300 rounded py-1 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors flex items-center justify-center gap-1"
-                 >
-                    <Plus size={10} /> Gerenciar Saldo
-                 </button>
+              <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 p-3 rounded-xl text-center flex flex-col justify-between relative group">
+                 <div className="text-amber-600 dark:text-amber-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1"><Gift size={14} /> Vale Presente</div>
+                 <div className="text-xl font-bold text-amber-700 dark:text-amber-300">{formatCurrency(client.saldo_vale_presente || 0)}</div>
+                 <button onClick={() => setIsGiftModalOpen(true)} className="w-full mt-2 text-[10px] font-bold bg-amber-100 dark:bg-amber-800/30 text-amber-700 dark:text-amber-300 rounded py-1 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors flex items-center justify-center gap-1"><Plus size={10} /> Gerenciar Saldo</button>
               </div>
-
-              <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 p-3 rounded-xl text-center flex flex-col justify-between h-full min-h-[100px]">
-                <div className="text-red-600 dark:text-red-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1">
-                  <BookOpen size={14} /> Saldo Crediário
-                </div>
-                <div className="text-xl font-bold text-red-700 dark:text-red-400">
-                  {formatCurrency(client.saldo_devedor_crediario || 0)}
-                </div>
-                {(client.saldo_devedor_crediario || 0) > 0 && (
-                  <button 
-                    onClick={() => setIsCrediarioModalOpen(true)} 
-                    className="w-full mt-2 text-[10px] font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded py-1 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center justify-center gap-1"
-                  >
-                    <Wallet size={10} /> Receber
-                  </button>
-                )}
+              <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 p-3 rounded-xl text-center flex flex-col justify-between">
+                <div className="text-red-600 dark:text-red-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1"><BookOpen size={14} /> Saldo Crediário</div>
+                <div className="text-xl font-bold text-red-700 dark:text-red-400">{formatCurrency(client.saldo_devedor_crediario || 0)}</div>
+                {(client.saldo_devedor_crediario || 0) > 0 && <button onClick={() => setIsCrediarioModalOpen(true)} className="w-full mt-2 text-[10px] font-bold bg-red-100 dark:bg-red-800/30 text-red-700 dark:text-red-400 rounded py-1 hover:bg-red-200 dark:hover:bg-red-800/50 transition-colors flex items-center justify-center gap-1"><Wallet size={10} /> Receber</button>}
               </div>
            </div>
         </Card>
       </div>
 
-      {/* Itens em Provador (Granular 1 a 1) */}
+      {/* SEÇÃO: ITENS EM PROVADOR (Pendente) */}
       {provadorHistory.length > 0 && (
           <Card 
-            title={
-                <div className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
-                    <Shirt size={20} /> Em Provador (Pendente)
-                </div>
-            }
-            description="Visualização individual de cada peça retirada que ainda não retornou"
-            className="border-l-4 border-l-purple-500"
+            title={<div className="flex items-center gap-2 text-purple-700 dark:text-purple-400"><Shirt size={20} /> Em Provador (Pendente)</div>}
+            description="Peças retiradas para provar que ainda não foram retornadas ao estoque"
+            className="border-l-4 border-l-purple-500 animate-fade-in"
           >
              <div className="overflow-x-auto max-h-[400px]">
                 <table className="w-full text-sm text-left">
@@ -331,38 +276,23 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                         {provadorHistory.map((unit) => {
                             const { weekDay, dateTime } = formatDateStandard(unit.data_entrada);
                             const responsibleName = resolveUserName(unit.responsavel);
-                            
+                            const isProcessing = processingId === unit.displayId;
+
                             return (
                                 <tr key={unit.displayId} className="hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition-colors">
-                                    <td className="px-6 py-3 whitespace-nowrap text-zinc-600 dark:text-zinc-400 text-xs">
-                                        <div className="flex flex-col">
-                                            <span className="font-bold">{weekDay}</span>
-                                            <span>{dateTime}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">
-                                        {unit.produto_nome}
-                                    </td>
-                                    <td className="px-6 py-3 text-center">
-                                        <Badge variant="outline" className="text-purple-600 border-purple-200">1 peça</Badge>
-                                    </td>
-                                    <td className="px-6 py-3 text-zinc-500 dark:text-zinc-400 text-xs">
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="w-6 h-6 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-bold border border-zinc-200 dark:border-zinc-700">
-                                                {responsibleName.substring(0, 2).toUpperCase()}
-                                            </div>
-                                            <span className="font-medium">{responsibleName}</span>
-                                        </div>
-                                    </td>
+                                    <td className="px-6 py-3 whitespace-nowrap text-zinc-600 dark:text-zinc-400 text-xs"><div className="flex flex-col"><span className="font-bold">{weekDay}</span><span>{dateTime}</span></div></td>
+                                    <td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">{unit.produto_nome}</td>
+                                    <td className="px-6 py-3 text-center"><Badge variant="outline" className="text-purple-600 border-purple-200">1 peça</Badge></td>
+                                    <td className="px-6 py-3 text-zinc-500 dark:text-zinc-400 text-xs"><div className="flex items-center gap-1.5"><div className="w-6 h-6 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-bold border border-zinc-200 dark:border-zinc-700">{responsibleName.substring(0, 2).toUpperCase()}</div><span className="font-medium">{responsibleName}</span></div></td>
                                     <td className="px-6 py-3 text-center">
                                       <Button 
-                                          size="sm"
-                                          variant="outline"
-                                          className="h-8 text-xs border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-purple-700 dark:text-purple-300 gap-1"
-                                          onClick={(e) => handleReturnProvador(e, unit)}
-                                          disabled={processingId === unit.id}
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="h-8 text-xs border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-purple-700 dark:text-purple-300 gap-1" 
+                                        onClick={(e) => handleReturnProvador(e, unit)} 
+                                        disabled={isProcessing}
                                       >
-                                          {processingId === unit.id ? <Loader2 size={12} className="animate-spin" /> : <><Undo2 size={12} /> Devolver</>}
+                                        {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <><Undo2 size={12} /> Devolver</>}
                                       </Button>
                                     </td>
                                 </tr>
@@ -374,119 +304,36 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
           </Card>
       )}
 
-      {/* Histórico completo de Movimentações */}
-      <Card 
-        title={
-            <div className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
-                <History size={20} /> Histórico Geral de Estoque
-            </div>
-        }
-        description="Logs de todas as entradas e saídas registradas para este cliente"
-      >
+      {/* Histórico Geral de Estoque */}
+      <Card title={<div className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300"><History size={20} /> Histórico Geral de Estoque</div>} description="Logs de todas as movimentações registradas para este cliente">
          <div className="overflow-x-auto max-h-[450px]">
-            {fullStockHistory.length === 0 ? (
-                <div className="p-6 text-center text-zinc-500 italic">Nenhuma movimentação de estoque registrada.</div>
-            ) : (
+            {fullStockHistory.length === 0 ? <div className="p-6 text-center text-zinc-500 italic">Nenhuma movimentação de estoque registrada.</div> : (
                 <>
-                  {/* MOBILE VIEW: Card List */}
                   <div className="flex flex-col gap-3 sm:hidden p-1 bg-zinc-50 dark:bg-zinc-950/50">
                     {fullStockHistory.map((entry) => {
                       const isEntry = entry.quantidade > 0;
                       const { weekDay, dateTime } = formatDateStandard(entry.data_entrada);
                       const responsibleName = resolveUserName(entry.responsavel);
                       const displayMotivo = formatMotivo(entry.motivo);
-
                       return (
-                        <div 
-                          key={entry.id} 
-                          className={`text-left p-4 rounded-xl border bg-white dark:bg-zinc-900 shadow-sm transition-all flex flex-col gap-3 ${
-                            isEntry ? 'border-green-100 dark:border-green-900/30' : 'border-zinc-100 dark:border-zinc-800'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div className="flex flex-col min-w-0 flex-1 pr-2">
-                              <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm truncate">
-                                {entry.produto_nome}
-                              </h3>
-                              <p className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1 italic">
-                                <Tag size={10} className="text-zinc-400" /> {displayMotivo}
-                              </p>
-                            </div>
-                            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-black ${
-                              isEntry 
-                                ? 'text-green-600 bg-green-50 dark:bg-green-900/20' 
-                                : 'text-red-600 bg-red-50 dark:bg-red-900/20'
-                            }`}>
-                              {isEntry ? '+' : ''}{entry.quantidade} un
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between mt-1 pt-2 border-t border-zinc-50 dark:border-zinc-800">
-                            <div className="flex flex-col gap-1 text-[10px] text-zinc-400">
-                              <div className="flex items-center gap-1">
-                                <Calendar size={10} className="shrink-0" />
-                                <span className="truncate">{weekDay.split('-')[0]}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Clock size={10} className="shrink-0" />
-                                <span>{dateTime.split(' às ')[1]}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                               <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-medium">
-                                  <div className="w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-bold border border-zinc-200 dark:border-zinc-700">
-                                    {responsibleName.substring(0, 2).toUpperCase()}
-                                  </div>
-                                  <span>{responsibleName}</span>
-                               </div>
-                            </div>
-                          </div>
+                        <div key={entry.id} className={`text-left p-4 rounded-xl border bg-white dark:bg-zinc-900 shadow-sm transition-all flex flex-col gap-3 ${isEntry ? 'border-green-100 dark:border-green-900/30' : 'border-zinc-100 dark:border-zinc-800'}`}>
+                          <div className="flex justify-between items-start"><div className="flex flex-col min-w-0 flex-1 pr-2"><h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm truncate">{entry.produto_nome}</h3><p className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1 italic"><Tag size={10} className="text-zinc-400" /> {displayMotivo}</p></div><div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-black ${isEntry ? 'text-green-600 bg-green-50 dark:bg-green-900/20' : 'text-red-600 bg-red-50 dark:bg-red-900/20'}`}>{isEntry ? '+' : ''}{entry.quantidade} un</div></div>
+                          <div className="flex items-center justify-between mt-1 pt-2 border-t border-zinc-50 dark:border-zinc-800"><div className="flex flex-col gap-1 text-[10px] text-zinc-400"><div className="flex items-center gap-1"><Calendar size={10} className="shrink-0" /><span className="truncate">{weekDay.split('-')[0]}</span></div><div className="flex items-center gap-1"><Clock size={10} className="shrink-0" /><span>{dateTime.split(' às ')[1]}</span></div></div><div className="flex items-center gap-2"><div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-medium"><div className="w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-bold border border-zinc-200 dark:border-zinc-700">{responsibleName.substring(0, 2).toUpperCase()}</div><span>{responsibleName}</span></div></div></div>
                         </div>
                       );
                     })}
                   </div>
-
-                  {/* DESKTOP VIEW: Standard Table */}
                   <table className="hidden sm:table w-full text-sm text-left">
                       <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800 sticky top-0 backdrop-blur-sm z-10">
-                          <tr>
-                              <th className="px-6 py-3 font-medium">Data / Hora</th>
-                              <th className="px-6 py-3 font-medium">Produto</th>
-                              <th className="px-6 py-3 font-medium text-center">Qtd</th>
-                              <th className="px-6 py-3 font-medium">Motivo</th>
-                              <th className="px-6 py-3 font-medium">Responsável</th>
-                          </tr>
+                          <tr><th className="px-6 py-3 font-medium">Data / Hora</th><th className="px-6 py-3 font-medium">Produto</th><th className="px-6 py-3 font-medium text-center">Qtd</th><th className="px-6 py-3 font-medium">Motivo</th><th className="px-6 py-3 font-medium">Responsável</th></tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                           {fullStockHistory.map((entry) => {
                               const { dateTime } = formatDateStandard(entry.data_entrada);
                               const isEntry = entry.quantidade > 0;
                               const responsibleName = resolveUserName(entry.responsavel);
-                              
                               return (
-                                  <tr key={entry.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors">
-                                      <td className="px-6 py-3 text-zinc-600 dark:text-zinc-400 whitespace-nowrap text-xs">
-                                          {dateTime}
-                                      </td>
-                                      <td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">
-                                          {entry.produto_nome}
-                                      </td>
-                                      <td className="px-6 py-3 text-center">
-                                          <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                              isEntry 
-                                              ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' 
-                                              : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'
-                                          }`}>
-                                              {isEntry ? '+' : ''}{entry.quantidade}
-                                          </div>
-                                      </td>
-                                      <td className="px-6 py-3 text-xs text-zinc-500">
-                                          {formatMotivo(entry.motivo)}
-                                      </td>
-                                      <td className="px-6 py-3 text-xs text-zinc-500 italic">
-                                          {responsibleName}
-                                      </td>
-                                  </tr>
+                                  <tr key={entry.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors"><td className="px-6 py-3 text-zinc-600 dark:text-zinc-400 whitespace-nowrap text-xs">{dateTime}</td><td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">{entry.produto_nome}</td><td className="px-6 py-3 text-center"><div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${isEntry ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'}`}>{isEntry ? '+' : ''}{entry.quantidade}</div></td><td className="px-6 py-3 text-xs text-zinc-500">{formatMotivo(entry.motivo)}</td><td className="px-6 py-3 text-xs text-zinc-500 italic">{responsibleName}</td></tr>
                               );
                           })}
                       </tbody>

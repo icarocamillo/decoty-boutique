@@ -87,41 +87,40 @@ const prepareClientPayload = (client: any) => {
   return payload;
 };
 
-/**
- * Função Auxiliar para buscar recebimentos e anexar às vendas de forma manual.
- * Resolve o problema de "coluna com mesmo nome da tabela" e mapeia 'valor_pago' para 'valor'.
- */
 const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
     if (!sales || sales.length === 0) return [];
     
-    const saleIds = sales.map(s => s.id);
-    const { data: payments, error } = await supabase
-        .from('crediario_recebimentos')
-        .select('id, venda_id, valor_pago, metodo_pagamento, responsavel, data_recebimento')
-        .in('venda_id', saleIds);
+    if (isSupabaseConfigured()) {
+        const saleIds = sales.map(s => s.id);
+        const { data: payments, error } = await supabase
+            .from('crediario_recebimentos')
+            .select('id, venda_id, valor_pago, metodo_pagamento, responsavel, data_recebimento')
+            .in('venda_id', saleIds);
 
-    if (error) {
-        console.error("Erro ao buscar recebimentos para o histórico:", error);
-        return sales.map(s => ({ ...s, ui_id: s.sales_id || s.ui_id, pagamentos_crediario: [] }));
+        if (error) {
+            console.error("Erro ao buscar recebimentos para o histórico:", error);
+            return sales.map(s => ({ ...s, ui_id: s.sales_id || s.ui_id, pagamentos_crediario: [] }));
+        }
+
+        return sales.map(s => {
+            const salePayments = (payments || [])
+                .filter(p => p.venda_id === s.id)
+                .map(p => ({
+                    id: p.id,
+                    valor: Number(p.valor_pago || 0),
+                    metodo: p.metodo_pagamento,
+                    data: p.data_recebimento,
+                    responsavel_nome: p.responsavel 
+                }));
+            
+            return { 
+                ...s, 
+                ui_id: s.sales_id || s.ui_id, 
+                pagamentos_crediario: salePayments 
+            };
+        });
     }
-
-    return sales.map(s => {
-        const salePayments = (payments || [])
-            .filter(p => p.venda_id === s.id)
-            .map(p => ({
-                id: p.id,
-                valor: Number(p.valor_pago || 0), // Mapeia valor_pago para valor
-                metodo: p.metodo_pagamento,
-                data: p.data_recebimento,
-                responsavel_nome: p.responsavel 
-            }));
-        
-        return { 
-            ...s, 
-            ui_id: s.sales_id || s.ui_id, 
-            pagamentos_crediario: salePayments 
-        };
-    });
+    return sales.map(s => ({ ...s, pagamentos_crediario: [] }));
 };
 
 export const mockService = {
@@ -140,7 +139,10 @@ export const mockService = {
       const { error } = await supabase.from('clients').insert([payload]);
       return !error;
     }
-    return false;
+    const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
+    const newClient = { ...client, id: 'c' + Date.now(), data_cadastro: new Date().toISOString() };
+    setLocalData(LS_KEYS.CLIENTS, [...clients, newClient]);
+    return true;
   },
 
   updateClient: async (client: Client): Promise<boolean> => {
@@ -149,7 +151,9 @@ export const mockService = {
       const { error } = await supabase.from('clients').update(payload).eq('id', client.id);
       return !error;
     }
-    return false;
+    const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
+    setLocalData(LS_KEYS.CLIENTS, clients.map(c => c.id === client.id ? client : c));
+    return true;
   },
 
   updateClientCrediario: async (clientId: string, amountToSubtract: number): Promise<boolean> => {
@@ -159,48 +163,39 @@ export const mockService = {
         const { error } = await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, roundMoney(currentDebt - amountToSubtract)) }).eq('id', clientId);
         return !error;
     }
-    return false;
+    const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
+    setLocalData(LS_KEYS.CLIENTS, clients.map(c => c.id === clientId ? { ...c, saldo_devedor_crediario: Math.max(0, roundMoney((c.saldo_devedor_crediario || 0) - amountToSubtract)) } : c));
+    return true;
   },
 
   processCrediarioPayment: async (clientId: string, amount: number, vendaId: string, metodo: string, responsavelId: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        // 1. Registro na tabela 'crediario_recebimentos'
-        // PAYLOAD ENVIADO: { venda_id, valor_pago, metodo_pagamento, responsavel, data_recebimento }
         const { error: receiptError } = await supabase.from('crediario_recebimentos').insert([{
             venda_id: vendaId,
-            valor_pago: amount, // Ajustado para 'valor_pago' conforme sua tabela
+            valor_pago: amount,
             metodo_pagamento: metodo, 
             responsavel: responsavelId, 
             data_recebimento: new Date().toISOString()
         }]);
 
-        if (receiptError) {
-            console.error("Erro ao registrar recebimento:", receiptError);
-            return false;
-        }
+        if (receiptError) return false;
 
-        // 2. Busca todos os recebimentos dessa venda para recalcular o total pago
         const { data: allReceipts } = await supabase.from('crediario_recebimentos').select('valor_pago').eq('venda_id', vendaId);
         const totalPaidAccumulated = (allReceipts || []).reduce((sum, r) => sum + Number(r.valor_pago || 0), 0);
 
-        // 3. Busca a venda e seus itens para atualizar status
         const { data: sale } = await supabase.from('sales').select('*, items:sale_items(*)').eq('id', vendaId).single();
         if (!sale) return false;
 
-        // 4. Atualiza status dos itens da venda
         let remainingToDistribute = totalPaidAccumulated;
         const items = sale.items || [];
         for (const item of items) {
             if (item.status === 'sold') {
                 const isItemPaid = remainingToDistribute >= roundMoney(item.subtotal);
-                await supabase.from('sale_items').update({ 
-                    status_pagamento: isItemPaid ? 'pago' : 'pendente' 
-                }).eq('id', item.id);
+                await supabase.from('sale_items').update({ status_pagamento: isItemPaid ? 'pago' : 'pendente' }).eq('id', item.id);
                 if (isItemPaid) remainingToDistribute = roundMoney(remainingToDistribute - item.subtotal);
             }
         }
 
-        // 5. Atualiza status global da venda e saldo do cliente
         const isFullyPaid = totalPaidAccumulated >= roundMoney(sale.valor_total);
         await supabase.from('sales').update({ status_pagamento: isFullyPaid ? 'pago' : 'pendente' }).eq('id', vendaId);
         await mockService.updateClientCrediario(clientId, amount);
@@ -342,7 +337,7 @@ export const mockService = {
         return attachPaymentsToSales(data || []);
     }
     const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
-    return sales.sort((a, b) => new Date(b.data_venda).getTime() - new Date(a.data_venda).getTime()).slice(0, 20);
+    return attachPaymentsToSales(sales.sort((a, b) => new Date(b.data_venda).getTime() - new Date(a.data_venda).getTime()).slice(0, 20));
   },
 
   getSalesByPeriod: async (start: string, end: string): Promise<Sale[]> => {
@@ -353,10 +348,11 @@ export const mockService = {
     const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
     const sDate = new Date(`${start}T00:00:00`);
     const eDate = new Date(`${end}T23:59:59`);
-    return sales.filter(s => {
+    const filtered = sales.filter(s => {
         const d = new Date(s.data_venda);
         return d >= sDate && d <= eDate;
     });
+    return attachPaymentsToSales(filtered);
   },
 
   getDashboardChartData: async () => {
@@ -403,10 +399,19 @@ export const mockService = {
   },
 
   logStockEntry: async (entry: Omit<StockEntry, 'id' | 'data_entrada'>) => {
-    const newEntry = { ...entry, data_entrada: new Date().toISOString() };
     if (isSupabaseConfigured()) {
-        await supabase.from('stock_entries').insert([newEntry]);
+        // No Supabase, deixamos o banco gerar o ID e o timestamp
+        const { error } = await supabase.from('stock_entries').insert([entry]);
+        if (error) console.error("Erro ao salvar log de estoque no Supabase:", error);
     }
+    // No LocalStorage, simulamos o ID e Data
+    const newEntry = { 
+        ...entry, 
+        id: 'stk' + Date.now() + Math.random(), 
+        data_entrada: new Date().toISOString() 
+    } as StockEntry;
+    const entries = getLocalData<StockEntry[]>(LS_KEYS.STOCK, MOCK_STOCK_ENTRIES);
+    setLocalData(LS_KEYS.STOCK, [newEntry, ...entries]);
   },
 
   updateProductStock: async (productId: string, newQuantity: number, reason: string, clientInfo: {id: string, name: string} | undefined, userId: string) => {
@@ -417,16 +422,20 @@ export const mockService = {
       
       if (isSupabaseConfigured()) {
           await supabase.from('products').update({ quantidade_estoque: newQuantity }).eq('id', productId);
-          await mockService.logStockEntry({
-              produto_id: productId,
-              produto_nome: `${product.nome} - ${product.marca}`,
-              quantidade: diff,
-              responsavel: userId, 
-              motivo: reason,
-              cliente_id: clientInfo?.id,
-              cliente_nome: clientInfo?.name
-          });
+      } else {
+          const updated = products.map(p => p.id === productId ? { ...p, quantidade_estoque: newQuantity } : p);
+          setLocalData(LS_KEYS.PRODUCTS, updated);
       }
+
+      await mockService.logStockEntry({
+          produto_id: productId,
+          produto_nome: `${product.nome} - ${product.marca}`,
+          quantidade: diff,
+          responsavel: userId, 
+          motivo: reason,
+          cliente_id: clientInfo?.id,
+          cliente_nome: clientInfo?.name
+      });
   },
 
   getSuppliers: async (): Promise<Supplier[]> => {
@@ -442,7 +451,9 @@ export const mockService = {
         const { error } = await supabase.from('suppliers').insert([supplier]);
         return !error;
     }
-    return false;
+    const suppliers = getLocalData<Supplier[]>(LS_KEYS.SUPPLIERS, MOCK_SUPPLIERS);
+    setLocalData(LS_KEYS.SUPPLIERS, [...suppliers, { ...supplier, id: 'sup' + Date.now() }]);
+    return true;
   },
 
   updateSupplier: async (supplier: Supplier): Promise<boolean> => {
@@ -450,7 +461,9 @@ export const mockService = {
         const { error } = await supabase.from('suppliers').update(supplier).eq('id', supplier.id);
         return !error;
     }
-    return false;
+    const suppliers = getLocalData<Supplier[]>(LS_KEYS.SUPPLIERS, MOCK_SUPPLIERS);
+    setLocalData(LS_KEYS.SUPPLIERS, suppliers.map(s => s.id === supplier.id ? supplier : s));
+    return true;
   },
 
   getPaymentDiscounts: async (): Promise<PaymentDiscounts> => {
@@ -627,26 +640,44 @@ export const mockService = {
           const { data } = await supabase.from('stock_entries').select('*').eq('cliente_id', clientId).order('data_entrada', { ascending: false });
           return data || [];
       }
-      return [];
+      const allEntries = getLocalData<StockEntry[]>(LS_KEYS.STOCK, MOCK_STOCK_ENTRIES);
+      return allEntries.filter(e => e.cliente_id === clientId);
   },
 
   returnProvadorItem: async (entry: StockEntry, userId: string): Promise<boolean> => {
+      if (!entry.produto_id && !entry.produto_nome) return false;
+
+      let targetProductId = entry.produto_id;
+
+      // Robustez: Se o produto_id estiver faltando, tentamos encontrar pelo nome + marca
       if (isSupabaseConfigured()) {
-          const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', entry.produto_id).single();
+          if (!targetProductId) {
+             const { data: foundProd } = await supabase.from('products').select('id').eq('nome', entry.produto_nome.split(' - ')[0]).maybeSingle();
+             targetProductId = foundProd?.id;
+          }
+
+          if (!targetProductId) return false;
+
+          const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', targetProductId).single();
           if (!prod) return false;
-          await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + Math.abs(entry.quantidade) }).eq('id', entry.produto_id);
-          await mockService.logStockEntry({
-              produto_id: entry.produto_id,
-              produto_nome: entry.produto_nome,
-              quantidade: Math.abs(entry.quantidade),
-              responsavel: userId, 
-              motivo: 'Retorno Provador',
-              cliente_id: entry.cliente_id,
-              cliente_nome: entry.cliente_nome
-          });
-          return true;
+
+          await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + Math.abs(entry.quantidade) }).eq('id', targetProductId);
+      } else {
+          const products = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
+          const updated = products.map(p => p.id === targetProductId ? { ...p, quantidade_estoque: p.quantidade_estoque + Math.abs(entry.quantidade) } : p);
+          setLocalData(LS_KEYS.PRODUCTS, updated);
       }
-      return false;
+
+      await mockService.logStockEntry({
+          produto_id: targetProductId,
+          produto_nome: entry.produto_nome,
+          quantidade: Math.abs(entry.quantidade), 
+          responsavel: userId, 
+          motivo: 'Retorno Provador',
+          cliente_id: entry.cliente_id,
+          cliente_nome: entry.cliente_nome
+      });
+      return true;
   },
 
   addClientBalance: async (clientId: string, amount: number): Promise<boolean> => {
@@ -655,6 +686,8 @@ export const mockService = {
        const { error } = await supabase.from('clients').update({ saldo_vale_presente: roundMoney(Number(clientData?.saldo_vale_presente || 0) + amount) }).eq('id', clientId);
        return !error;
     }
-    return false;
+    const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
+    setLocalData(LS_KEYS.CLIENTS, clients.map(c => c.id === clientId ? { ...c, saldo_vale_presente: roundMoney((c.saldo_vale_presente || 0) + amount) } : c));
+    return true;
   }
 };
