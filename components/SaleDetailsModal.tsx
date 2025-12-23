@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-/* Added BookOpen to the list of imports from lucide-react */
-import { X, User, CreditCard, Tag, Package, Receipt, Link, AlertTriangle, Mail, ShieldCheck, PieChart, Activity, Phone, Smartphone, Search, Loader2, Check, Gift, Undo2, Wallet, Hourglass, BookOpen, ShoppingBag } from 'lucide-react';
+/* Added DollarSign to the list of imports from lucide-react */
+import { X, User, CreditCard, Tag, Package, Receipt, Link, AlertTriangle, Mail, ShieldCheck, PieChart, Activity, Phone, Smartphone, Search, Loader2, Check, Gift, Undo2, Wallet, DollarSign, BookOpen, ShoppingBag, Hourglass } from 'lucide-react';
 import { Sale, Client, SaleItem, UserProfile } from '../types';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
@@ -133,7 +133,7 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
                                                     {item.status_pagamento === 'pago' ? (
                                                         <Badge variant="success" className="text-[9px] h-4 px-1">Pago</Badge>
                                                     ) : (
-                                                        <Badge variant="warning" className="text-[9px] h-4 px-1">Pendente</Badge>
+                                                        <Badge variant="warning" className="text-[9px] h-4 px-1 gap-1"><DollarSign size={8} /> Pendente</Badge>
                                                     )}
                                                 </div>
                                             </div>
@@ -369,7 +369,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                             </Badge>
                         ) : (
                             <Badge variant="warning" className="text-[10px] px-1.5 h-4 gap-1">
-                                <Hourglass size={8} /> Pendente
+                                <DollarSign size={8} /> Pagamento pendente
                             </Badge>
                         )
                     )}
@@ -499,7 +499,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
             </div>
 
             <div className="flex flex-col gap-4">
-              <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-lg border border-zinc-100 dark:border-zinc-800 h-full flex flex-col justify-between">
+              <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-lg border border-zinc-100 dark:border-zinc-800 h-full flex flex-col justify-between shadow-sm">
                 <div>
                     <h3 className="text-xs font-bold text-zinc-400 uppercase mb-3 flex items-center gap-2">
                     <CreditCard size={14} /> Detalhes Financeiros
@@ -538,12 +538,12 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                     {isCrediario ? (
                       <>
                         <div className="flex justify-between items-center">
-                          <span className="font-semibold text-zinc-700 dark:text-zinc-300">Valor Total da venda:</span>
+                          <span className="font-semibold text-zinc-700 dark:text-zinc-300 text-xs uppercase">Valor Total da venda:</span>
                           <span className={`font-bold text-lg text-zinc-900 dark:text-white ${currentSale.status === 'cancelled' ? 'line-through opacity-60' : ''}`}>{formatCurrency(currentTotalNet)}</span>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="font-semibold text-zinc-700 dark:text-zinc-300">Total Pago Atual:</span>
-                          <span className={`font-bold text-xl text-emerald-600 dark:text-emerald-500 ${currentSale.status === 'cancelled' ? 'line-through decoration-red-500 decoration-2' : ''}`}>{formatCurrency(totalPaidInCrediario)}</span>
+                        <div className="flex justify-between items-center p-2 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
+                          <span className="font-bold text-emerald-700 dark:text-emerald-400 text-xs uppercase">Total Pago Atual:</span>
+                          <span className={`font-black text-xl text-emerald-600 dark:text-emerald-500 ${currentSale.status === 'cancelled' ? 'line-through decoration-red-500 decoration-2' : ''}`}>{formatCurrency(totalPaidInCrediario)}</span>
                         </div>
                       </>
                     ) : (
@@ -611,7 +611,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                           item.status_pagamento === 'pago' ? (
                             <Badge variant="success" className="text-[9px] h-4 px-1 gap-1"><Check size={8} /> Pago</Badge>
                           ) : (
-                            <Badge variant="warning" className="text-[9px] h-4 px-1 gap-1"><Hourglass size={8} /> Pendente</Badge>
+                            <Badge variant="warning" className="text-[9px] h-4 px-1 gap-1"><DollarSign size={8} /> Pendente</Badge>
                           )
                         )}
                       </div>
@@ -678,7 +678,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                           </td>
                           <td className="px-4 py-3 text-center">
                              {!isReturned && currentSale.status !== 'cancelled' && (
-                                 item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[9px] h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[9px] h-4 gap-1"><Hourglass size={8} /> Pendente</Badge>
+                                 item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[9px] h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[9px] h-4 gap-1"><DollarSign size={8} /> Pendente</Badge>
                              )}
                           </td>
                           <td className="px-4 py-3 text-right text-zinc-600 dark:text-zinc-400">{formatCurrency(item.preco_unitario)}</td>

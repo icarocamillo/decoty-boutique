@@ -1,7 +1,6 @@
-
 import React, { useState, useMemo } from 'react';
 import { Sale } from '../types';
-import { ShoppingBag, User, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, Calendar, Clock, Package } from 'lucide-react';
+import { ShoppingBag, User, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, Calendar, Clock, Package, DollarSign, Check } from 'lucide-react';
 import { SaleDetailsModal } from './SaleDetailsModal';
 import { Badge } from './ui/Badge';
 import { formatDateStandard } from '../utils';
@@ -11,7 +10,7 @@ interface RecentSalesProps {
   onUpdate?: () => void;
 }
 
-type SortKey = 'id' | 'cliente_nome' | 'produtos_resumo' | 'data_venda' | 'item_count' | 'valor_total';
+type SortKey = 'id' | 'cliente_nome' | 'produtos_resumo' | 'data_venda' | 'item_count' | 'valor_total' | 'status_pagamento';
 
 export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
@@ -44,8 +43,8 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
     if (!sortConfig) return sales;
     
     const sorted = [...sales].sort((a, b) => {
-      let aValue: any = a[sortConfig.key];
-      let bValue: any = b[sortConfig.key];
+      let aValue: any = a[sortConfig.key as keyof Sale];
+      let bValue: any = b[sortConfig.key as keyof Sale];
 
       if (sortConfig.key === 'item_count') {
          aValue = a.items?.reduce((acc, item) => acc + item.quantidade, 0) ?? a.item_count ?? 0;
@@ -130,11 +129,20 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
                     </p>
                   </div>
                 </div>
-                {isCancelled ? (
-                  <Badge variant="destructive" className="text-[10px] shrink-0">Cancelada</Badge>
-                ) : (
-                  <Badge variant="success" className="text-[10px] shrink-0">Concluída</Badge>
-                )}
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  {isCancelled ? (
+                    <Badge variant="destructive" className="text-[10px]">Cancelada</Badge>
+                  ) : (
+                    <>
+                      <Badge variant="success" className="text-[10px]">Concluída</Badge>
+                      {sale.status_pagamento === 'pago' ? (
+                        <Badge variant="success" className="text-[8px] px-1.5 h-4 gap-1"><Check size={8} /> Pago</Badge>
+                      ) : (
+                        <Badge variant="warning" className="text-[8px] px-1.5 h-4 gap-1"><DollarSign size={8} /> Pendente</Badge>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center gap-4 text-[11px] text-zinc-500 dark:text-zinc-400 border-y border-zinc-50 dark:border-zinc-800 py-2">
@@ -171,19 +179,21 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
               <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('id')}>
                 <div className="flex items-center">ID <SortIcon columnKey="id" /></div>
               </th>
-              <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('cliente_nome')}>
-                <div className="flex items-center">Cliente <SortIcon columnKey="cliente_nome" /></div>
-              </th>
-              {/* DESKTOP: Coluna de Produtos */}
-              <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('produtos_resumo')}>
-                <div className="flex items-center">Produtos <SortIcon columnKey="produtos_resumo" /></div>
-              </th>
               <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('data_venda')}>
                 <div className="flex items-center">Data <SortIcon columnKey="data_venda" /></div>
               </th>
-              <th className="px-4 py-3 font-medium text-center">Status</th>
+              <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('cliente_nome')}>
+                <div className="flex items-center">Cliente <SortIcon columnKey="cliente_nome" /></div>
+              </th>
+              <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('produtos_resumo')}>
+                <div className="flex items-center">Produtos <SortIcon columnKey="produtos_resumo" /></div>
+              </th>
               <th className="px-4 py-3 font-medium text-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('item_count')}>
                  <div className="flex items-center justify-center">Itens <SortIcon columnKey="item_count" /></div>
+              </th>
+              <th className="px-4 py-3 font-medium text-center">Status</th>
+              <th className="px-4 py-3 font-medium text-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('status_pagamento')}>
+                 <div className="flex items-center justify-center">Pagamento <SortIcon columnKey="status_pagamento" /></div>
               </th>
               <th className="px-4 py-3 font-medium text-right cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('valor_total')}>
                 <div className="flex items-center justify-end">Total <SortIcon columnKey="valor_total" /></div>
@@ -208,6 +218,12 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
                   <td className="px-4 py-3 font-medium text-zinc-900 dark:text-white">
                     {cleanId(sale)}
                   </td>
+                  <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
+                    <div className="flex flex-col text-xs">
+                      <span className="font-bold text-zinc-800 dark:text-zinc-200">{weekDay}</span>
+                      <span className="text-zinc-500 dark:text-zinc-500">{dateTime}</span>
+                    </div>
+                  </td>
                   <td className={`px-4 py-3 ${isCancelled ? 'opacity-60 text-zinc-500' : 'text-zinc-700 dark:text-zinc-300'}`}>
                     <div className="flex items-center gap-2 group">
                       <User size={14} className="text-zinc-400 group-hover:text-emerald-600 transition-colors" />
@@ -216,7 +232,6 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
                       </span>
                     </div>
                   </td>
-                  {/* DESKTOP: Celula de Produtos */}
                   <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
                     <div className="flex items-center gap-2 max-w-[200px] overflow-hidden">
                       <Package size={14} className="text-zinc-300 shrink-0" />
@@ -225,20 +240,22 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
-                    <div className="flex flex-col text-xs">
-                      <span className="font-bold text-zinc-800 dark:text-zinc-200">{weekDay}</span>
-                      <span className="text-zinc-500 dark:text-zinc-500">{dateTime}</span>
+                  <td className="px-4 py-3 text-center">
+                    <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${isCancelled ? 'bg-zinc-50 text-zinc-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'}`}>
+                      <ShoppingBag size={12} />
+                      {displayedItemCount}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center">
                      {isCancelled ? <Badge variant="destructive" className="scale-90">Cancelada</Badge> : <Badge variant="success" className="scale-90">Concluída</Badge>}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${isCancelled ? 'bg-zinc-50 text-zinc-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'}`}>
-                      <ShoppingBag size={12} />
-                      {displayedItemCount}
-                    </div>
+                     {!isCancelled && (
+                         sale.status_pagamento === 'pago' 
+                          ? <Badge variant="success" className="text-[9px] h-5 gap-1 px-2"><Check size={10} /> Pago</Badge> 
+                          : <Badge variant="warning" className="text-[9px] h-5 gap-1 px-2"><DollarSign size={10} /> Pendente</Badge>
+                     )}
+                     {isCancelled && <span className="text-zinc-300 dark:text-zinc-700">-</span>}
                   </td>
                   <td className={`px-4 py-3 text-right font-medium text-zinc-900 dark:text-white ${isCancelled ? 'line-through opacity-60' : ''}`}>
                     {formatCurrency(currentTotal)}
