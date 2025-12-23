@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   Cell 
@@ -9,7 +8,7 @@ import {
   Calendar, ShoppingBag, HelpCircle, Filter, CreditCard, Undo2, Archive, CheckCircle2, AlertTriangle, Gift, BookOpen
 } from 'lucide-react';
 import { Card } from './ui/Card';
-import { mockService } from '../services/mockService';
+import { mockService, PaymentFees } from '../services/mockService';
 import { Sale, Product, StockEntry, Client } from '../types';
 
 // Tooltip Component Interno
@@ -44,9 +43,11 @@ export const ManagementReportPage: React.FC = () => {
   });
 
   const [sales, setSales] = useState<Sale[]>([]);
+  const [receipts, setReceipts] = useState<any[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [globalFees, setGlobalFees] = useState<PaymentFees | null>(null);
   const [loading, setLoading] = useState(true);
   
   // Estado para controlar o tema atual para os gráficos
@@ -71,17 +72,20 @@ export const ManagementReportPage: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [salesData, productsData, stockData, clientsData] = await Promise.all([
-          // Busca baseada no filtro de data
+        const [salesData, receiptsData, productsData, stockData, clientsData, feesData] = await Promise.all([
           mockService.getSalesByPeriod(startDate, endDate), 
+          mockService.getReceiptsByPeriod(startDate, endDate),
           mockService.getProducts(),
           mockService.getStockEntries(),
-          mockService.getClients()
+          mockService.getClients(),
+          mockService.getPaymentFees()
         ]);
         setSales(salesData);
+        setReceipts(receiptsData);
         setProducts(productsData);
         setStockEntries(stockData);
         setClients(clientsData);
+        setGlobalFees(feesData);
       } catch (error) {
         console.error("Erro ao carregar dados do relatório", error);
       } finally {
@@ -96,13 +100,22 @@ export const ManagementReportPage: React.FC = () => {
     return Math.round((value + Number.EPSILON) * 100) / 100;
   };
 
+  // Helper para calcular taxa de um recebimento avulso
+  const calculateSingleReceiptFee = useCallback((amount: number, method: string) => {
+    if (!globalFees) return 0;
+    let percent = 0;
+    if (method === 'Cartão de Débito') percent = globalFees.debit;
+    else if (method === 'Cartão de Crédito') percent = globalFees.credit_spot; // Consideramos à vista para recebimentos parciais
+    return roundCurrency(amount * (percent / 100));
+  }, [globalFees]);
+
   const kpis = useMemo(() => {
     if (loading) return null;
 
     // Totais Operacionais
     let totalReturns = 0; 
     let totalCreditNextMonth = 0;
-    let totalCrediarioPending = 0; // NOVO: Saldo Crediário Pendente
+    let totalCrediarioPending = 0; 
     let totalCancelledSalesCount = 0;
     let totalReturnedItemsCount = 0;
     
@@ -111,11 +124,11 @@ export const ManagementReportPage: React.FC = () => {
     let totalDiscountExtra = 0;
     let totalGiftCardUsed = 0; 
     let totalFees = 0;
-    let totalRealRevenue = 0; // RESULTADO FINAL LÍQUIDO
+    let totalRealRevenue = 0; // RESULTADO FINAL LÍQUIDO (CASH BASIS)
 
-    // Variáveis para o Fluxo (Lucro Bruto Puro: Venda - Custo)
-    let totalVendaBrutaEfetiva = 0; // Preço de Etiqueta (sem taxas ou descontos) de itens NÃO devolvidos
-    let totalCustoVendas = 0; // CMV
+    // Variáveis para o Fluxo (Lucro Bruto: Venda Cash - Custo Accrual)
+    let totalVendaBrutaEfetiva = 0; // Entrada real bruta no caixa
+    let totalCustoVendas = 0; // CMV das vendas realizadas NO PERÍODO
 
     // Quantidades
     let totalItemsSold = 0;
@@ -127,117 +140,101 @@ export const ManagementReportPage: React.FC = () => {
     const discountsByMethod: Record<string, number> = {}; 
     const feesByMethod: Record<string, number> = {}; 
 
+    // --- 1. PROCESSAR VENDAS DO PERÍODO (Accrual p/ Custo, Cash p/ outros meios) ---
     sales.forEach(sale => {
       const isCancelled = sale.status === 'cancelled';
       const method = sale.metodo_pagamento || 'Outros';
+      const isCrediario = method === 'Crediário';
 
-      // Cálculo do rateio do desconto extra para estorno preciso
-      const totalItemsInSale = sale.item_count || 1;
-      const extraDiscountPerUnit = (sale.desconto_extra || 0) / totalItemsInSale;
-
-      // PROCESSAMENTO DE TAXAS (Sempre contabiliza, independente de cancelamento)
-      const saleFee = sale.taxas_aplicadas?.valor || 0;
-      if (saleFee > 0) {
-          feesByMethod[method] = roundCurrency((feesByMethod[method] || 0) + saleFee);
-          totalFees = roundCurrency(totalFees + saleFee);
-      }
-
-      if (isCancelled) {
-        totalCancelledSalesCount++;
-        // Se a venda foi cancelada, a receita financeira do caixa é zero, 
-        // mas a taxa é uma perda líquida (pois a operadora não devolve)
-        totalRealRevenue = roundCurrency(totalRealRevenue - saleFee);
-
-        // Se a venda foi cancelada, somamos todos os seus itens como devolvidos
-        if (sale.items) {
-           sale.items.forEach(item => {
-              const itemNetRefund = roundCurrency(item.subtotal - (item.quantidade * extraDiscountPerUnit));
-              totalReturns += itemNetRefund;
-              totalReturnedItemsCount += item.quantidade;
-           });
-        }
-        return; // Pula processamento de receita para canceladas
-      }
-
-      // VENDA CONCLUÍDA: Processar itens
-      if (sale.items) {
-        sale.items.forEach(item => {
-           const isReturnedItem = item.status === 'returned';
-           const isPendente = item.status_pagamento === 'pendente';
-           
-           if (isReturnedItem) {
-             const itemNetRefund = roundCurrency(item.subtotal - (item.quantidade * extraDiscountPerUnit));
-             totalReturns += itemNetRefund;
-             totalReturnedItemsCount += item.quantidade;
-           } else {
-             // ITEM VENDIDO E NÃO DEVOLVIDO
-             const itemGrossValue = item.quantidade * item.preco_unitario;
-             totalVendaBrutaEfetiva += roundCurrency(itemGrossValue);
-             totalItemsSold += item.quantidade;
-             
-             const custoSnapshot = item.custo_unitario || 0;
-             totalCustoVendas += roundCurrency(item.quantidade * custoSnapshot);
-
-             // Dados de Marca
-             brandSalesMap[item.marca] = (brandSalesMap[item.marca] || 0) + item.quantidade;
-             brandRevenueMap[item.marca] = (brandRevenueMap[item.marca] || 0) + item.subtotal;
-
-             // --- CÁLCULO CREDIÁRIO PENDENTE (GRANULAR) ---
-             if (method === 'Crediário' && isPendente) {
-                const itemNetDebt = roundCurrency(item.subtotal - (item.quantidade * extraDiscountPerUnit));
-                totalCrediarioPending += itemNetDebt;
-             }
-           }
-        });
-      } else if (method === 'Crediário' && sale.status_pagamento === 'pendente') {
-        // Fallback caso a venda não tenha lista de itens detalhada (legado)
-        totalCrediarioPending += roundCurrency(sale.valor_total);
-      }
-
-      // Lógica Financeira Real (Líquida da Venda Inteira)
-      let saleRevenue = sale.valor_liquido_lojista;
-      if (saleRevenue === undefined || saleRevenue === null) {
-          const appliedFee = sale.taxas_aplicadas?.valor || 0;
-          saleRevenue = sale.valor_total - appliedFee;
-      }
-      
-      const saleGiftCard = roundCurrency(sale.uso_vale_presente || 0);
-      
-      // Vale Presente conta como Receita Real, pois o cliente já pagou por ele.
-      const saleNetRevenueWithGift = roundCurrency(saleRevenue + saleGiftCard);
-      totalRealRevenue += saleNetRevenueWithGift;
-
-      const saleExtraDiscount = roundCurrency(sale.desconto_extra || 0);
-      let saleItemsDiscount = 0;
-
-      if (sale.items) {
-          sale.items.forEach(i => {
-              if (i.status !== 'returned') {
-                  saleItemsDiscount += roundCurrency(i.desconto || 0);
+      // 1.1 CMV E OPERACIONAL (Sempre pelo evento da venda)
+      if (!isCancelled && sale.items) {
+          sale.items.forEach(item => {
+              if (item.status !== 'returned') {
+                  totalItemsSold += item.quantidade;
+                  totalCustoVendas += roundCurrency(item.quantidade * (item.custo_unitario || 0));
+                  brandSalesMap[item.marca] = (brandSalesMap[item.marca] || 0) + item.quantidade;
+                  brandRevenueMap[item.marca] = (brandRevenueMap[item.marca] || 0) + item.subtotal;
               }
           });
       }
 
-      totalDiscountExtra += saleExtraDiscount;
-      totalGiftCardUsed += saleGiftCard;
-      
-      // Descontos Totais NÃO incluem Vale Presente
-      totalDiscountOverall += roundCurrency(saleItemsDiscount + saleExtraDiscount);
+      // 1.2 RECEITA E TAXAS (Regime Híbrido: Caixa para Tudo exceto Crediário)
+      if (!isCrediario) {
+          const saleFee = sale.taxas_aplicadas?.valor || 0;
+          if (saleFee > 0) {
+              feesByMethod[method] = roundCurrency((feesByMethod[method] || 0) + saleFee);
+              totalFees = roundCurrency(totalFees + saleFee);
+          }
 
-      if (saleItemsDiscount > 0) {
-          discountsByMethod[method] = roundCurrency((discountsByMethod[method] || 0) + saleItemsDiscount);
+          if (!isCancelled) {
+              const saleGross = sale.valor_total + (sale.uso_vale_presente || 0);
+              totalVendaBrutaEfetiva += roundCurrency(saleGross);
+              
+              let saleRevenue = sale.valor_liquido_lojista;
+              if (saleRevenue === undefined || saleRevenue === null) {
+                  saleRevenue = sale.valor_total - saleFee;
+              }
+              const saleNetWithGift = roundCurrency(saleRevenue + (sale.uso_vale_presente || 0));
+              totalRealRevenue += saleNetWithGift;
+              paymentMethodMap[method] = roundCurrency((paymentMethodMap[method] || 0) + saleNetWithGift);
+
+              // Descontos
+              const saleExtraDiscount = roundCurrency(sale.desconto_extra || 0);
+              let saleItemsDiscount = 0;
+              sale.items?.forEach(i => { if (i.status !== 'returned') saleItemsDiscount += roundCurrency(i.desconto || 0); });
+              totalDiscountExtra += saleExtraDiscount;
+              totalDiscountOverall += roundCurrency(saleItemsDiscount + saleExtraDiscount);
+              if (saleItemsDiscount > 0) discountsByMethod[method] = roundCurrency((discountsByMethod[method] || 0) + saleItemsDiscount);
+
+              // Previsão
+              if (method === 'Cartão de Crédito' && (sale.parcelas || 1) > 1) {
+                  totalCreditNextMonth += roundCurrency(saleRevenue / sale.parcelas!);
+              }
+          } else {
+              totalCancelledSalesCount++;
+              totalRealRevenue = roundCurrency(totalRealRevenue - saleFee);
+          }
+      } else {
+          // É CREDIÁRIO: No evento da venda, contabilizamos pendência de quitação
+          if (!isCancelled) {
+              // Calcular saldo pendente real (Total da venda - Total já pago até hoje)
+              const totalPaidToDate = sale.pagamentos_crediario?.reduce((sum, p) => sum + Number(p.valor || 0), 0) || 0;
+              const remainingOnThisSale = Math.max(0, sale.valor_total - totalPaidToDate);
+              totalCrediarioPending += roundCurrency(remainingOnThisSale);
+          } else {
+              totalCancelledSalesCount++;
+          }
       }
 
-      // Previsão Próximo Mês
-      if (method === 'Cartão de Crédito' && (sale.parcelas || 1) > 1) {
-          const installmentValue = saleRevenue / (sale.parcelas || 1);
-          totalCreditNextMonth += roundCurrency(installmentValue);
+      // Devoluções/Cancelamentos (Impacto financeiro)
+      if (isCancelled || (sale.items?.some(i => i.status === 'returned'))) {
+          const totalItemsInSale = sale.item_count || 1;
+          const extraDiscountPerUnit = (sale.desconto_extra || 0) / totalItemsInSale;
+          sale.items?.forEach(item => {
+              if (item.status === 'returned' || isCancelled) {
+                  const itemNetRefund = roundCurrency(item.subtotal - (item.quantidade * extraDiscountPerUnit));
+                  totalReturns += itemNetRefund;
+                  totalReturnedItemsCount += item.quantidade;
+              }
+          });
       }
-
-      // O gráfico de métodos de pagamento agora reflete a receita total gerada por aquele meio
-      paymentMethodMap[method] = roundCurrency((paymentMethodMap[method] || 0) + saleNetRevenueWithGift);
     });
 
+    // --- 2. PROCESSAR RECEBIMENTOS DE CREDIÁRIO (A Única Entrada Real de Crediário no Período) ---
+    receipts.forEach(rec => {
+        const val = Number(rec.valor_pago || 0);
+        const method = rec.metodo_pagamento || 'Dinheiro';
+        const fee = calculateSingleReceiptFee(val, method);
+        const net = roundCurrency(val - fee);
+
+        totalVendaBrutaEfetiva += val;
+        totalRealRevenue += net;
+        totalFees += fee;
+        if (fee > 0) feesByMethod[method] = roundCurrency((feesByMethod[method] || 0) + fee);
+        paymentMethodMap[method] = roundCurrency((paymentMethodMap[method] || 0) + net);
+    });
+
+    // --- 3. ESTOQUE E VALE PRESENTE ---
     const stockCostByBrandMap: Record<string, number> = {};
     let totalStockValue = 0;
     products.forEach(p => {
@@ -246,11 +243,8 @@ export const ManagementReportPage: React.FC = () => {
       totalStockValue += val;
     });
 
-    // Cálculo de saldo total de Vale Presente em clientes
     let totalClientBalance = 0;
-    clients.forEach(c => {
-      totalClientBalance += roundCurrency(c.saldo_vale_presente || 0);
-    });
+    clients.forEach(c => { totalClientBalance += roundCurrency(c.saldo_vale_presente || 0); });
 
     return {
       totalNet: roundCurrency(totalRealRevenue),
@@ -276,7 +270,7 @@ export const ManagementReportPage: React.FC = () => {
       totalStockValue: roundCurrency(totalStockValue)
     };
 
-  }, [sales, products, stockEntries, clients, loading, startDate, endDate]);
+  }, [sales, receipts, products, stockEntries, clients, loading, startDate, endDate, calculateSingleReceiptFee]);
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -358,7 +352,7 @@ export const ManagementReportPage: React.FC = () => {
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                   <TrendingUp size={14} /> Fluxo (Lucro Bruto)
-                  <ReportTooltip text="Visão Custo / Ganho: Diferença pura entre o Preço de Venda (Etiqueta) e o Preço de Custo (CMV) das peças efetivamente vendidas e não devolvidas, ignorando taxas e descontos." />
+                  <ReportTooltip text="Visão Custo / Ganho em regime de caixa: Entradas reais brutas no período (incluindo apenas parcelas recebidas de crediário) subtraídas do custo das mercadorias vendidas no período." />
                 </span>
                 <div className="mt-2">
                   <div className="flex justify-between text-xs mb-1">
@@ -366,7 +360,7 @@ export const ManagementReportPage: React.FC = () => {
                       <span>{formatCurrency(kpis.totalCustoVendas)}</span>
                   </div>
                   <div className="flex justify-between text-xs mb-1">
-                      <span className="text-zinc-400 dark:text-zinc-400">Venda Bruta (Efetiva):</span>
+                      <span className="text-zinc-400 dark:text-zinc-400">Entrada Bruta (Caixa):</span>
                       <span>{formatCurrency(kpis.totalVendaBrutaEfetiva)}</span>
                   </div>
                   <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-2"></div>
@@ -385,24 +379,24 @@ export const ManagementReportPage: React.FC = () => {
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                   <DollarSign size={14} /> Receita Real vs Potencial
-                  <ReportTooltip text="Detalhamento da perda de receita do valor bruto (etiqueta) até o valor líquido real (após descontos e taxas). Nota: Vale Presente é considerado receita pois o cliente pagou previamente por ele." />
+                  <ReportTooltip text="Visão financeira real do caixa: Venda Bruta considera entradas imediatas + recebimentos de crediário. Receita Real é o valor líquido final após todas as taxas do período." />
                 </span>
                 <div className="mt-2 space-y-1">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-zinc-600 dark:text-zinc-300 font-medium">Venda Bruta (Etiqueta):</span>
+                      <span className="text-zinc-600 dark:text-zinc-300 font-medium">Entrada Bruta (Caixa):</span>
                       <span className="font-bold text-zinc-900 dark:text-white">{formatCurrency(kpis.totalVendaBrutaEfetiva)}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] text-zinc-500">
-                      <span>Descontos Totais (Reais):</span>
+                      <span>Descontos Oferecidos:</span>
                       <span className="text-zinc-600">-{formatCurrency(kpis.totalDiscountOverall)}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] text-zinc-500">
-                      <span>Taxas Maquininha (Totais):</span>
+                      <span>Taxas Bancárias (Período):</span>
                       <span className="text-zinc-500">-{formatCurrency(kpis.totalFees)}</span>
                     </div>
                     <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1"></div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-bold text-zinc-800 dark:text-white">Receita Real</span>
+                      <span className="text-sm font-bold text-zinc-800 dark:text-white">Receita Líquida Real</span>
                       <span className="text-sm font-bold text-emerald-600 dark:text-emerald-500">{formatCurrency(kpis.totalNet)}</span>
                     </div>
                 </div>
@@ -431,7 +425,7 @@ export const ManagementReportPage: React.FC = () => {
                 <div>
                   <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1 mb-2">
                     <Tag size={14} /> Total Descontos
-                    <ReportTooltip text="Soma de descontos de negociação e taxas de método. Vale Presente é excluído pois conta como pagamento antecipado (receita)." />
+                    <ReportTooltip text="Soma de descontos de negociação e taxas de método das vendas realizadas no período." />
                   </span>
                   
                   <div className="space-y-1.5 max-h-[80px] overflow-y-auto pr-1 custom-scrollbar">
@@ -466,7 +460,7 @@ export const ManagementReportPage: React.FC = () => {
                 <div>
                   <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1 mb-2">
                     <CreditCard size={14} /> Total Taxas
-                    <ReportTooltip text="Custo operacional total com taxas de cartão, incluindo transações de vendas canceladas, pois estas taxas não costumam ser devolvidas pela operadora." />
+                    <ReportTooltip text="Custo operacional total com taxas de cartão ocorridas no período (em vendas imediatas e recebimentos de crediário)." />
                   </span>
                   
                   <div className="space-y-1.5 max-h-[80px] overflow-y-auto pr-1 custom-scrollbar">
@@ -507,7 +501,6 @@ export const ManagementReportPage: React.FC = () => {
                     </h3>
                   </div>
 
-                  <div className="mt-3 space-y-3">
                   <div>
                     <div className="flex justify-between items-center text-[10px] font-bold text-zinc-400 uppercase tracking-tight">
                       <span>Saldo Disponível em Clientes</span>
@@ -515,7 +508,6 @@ export const ManagementReportPage: React.FC = () => {
                     <h3 className="text-xl font-bold text-amber-600 dark:text-amber-500 leading-tight">
                       {formatCurrency(kpis.totalClientBalance)}
                     </h3>
-                  </div>
                   </div>
                 </div>
               </div>
@@ -559,7 +551,7 @@ export const ManagementReportPage: React.FC = () => {
           
           {/* Vendas por Meio de Pagamento */}
           <Card 
-            title={<>Receita Real por Tipo de Pagamento <ReportTooltip text="Volume financeiro efetivo (Líquido de taxas) agrupado por método de pagamento. Inclui uso de Vale Presente." /></>} 
+            title={<>Receita Real por Tipo de Pagamento <ReportTooltip text="Volume financeiro efetivo (Líquido de taxas) agrupado por método de pagamento. Inclui uso de Vale Presente e parcelas de crediário recebidas." /></>} 
             className="min-h-[350px]"
           >
               <ResponsiveContainer width="100%" height={300}>

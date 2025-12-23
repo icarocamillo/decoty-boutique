@@ -1,4 +1,3 @@
-
 import { Client, Product, Sale, SaleItem, StockEntry, Supplier, PaymentDiscounts, PaymentFees, CartItem, UserProfile, CrediarioPayment } from '../types';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { MOCK_CLIENTS, MOCK_PRODUCTS, MOCK_INITIAL_SALES, MOCK_STOCK_ENTRIES, MOCK_SUPPLIERS } from '../constants';
@@ -353,6 +352,22 @@ export const mockService = {
         return d >= sDate && d <= eDate;
     });
     return attachPaymentsToSales(filtered);
+  },
+
+  getReceiptsByPeriod: async (start: string, end: string): Promise<any[]> => {
+    if (isSupabaseConfigured()) {
+        const { data, error } = await supabase
+            .from('crediario_recebimentos')
+            .select('*')
+            .gte('data_recebimento', `${start}T00:00:00`)
+            .lte('data_recebimento', `${end}T23:59:59`);
+        if (error) {
+            console.error("Erro ao buscar recebimentos por período:", error);
+            return [];
+        }
+        return data || [];
+    }
+    return []; // No mock local fallback for now
   },
 
   getDashboardChartData: async () => {
