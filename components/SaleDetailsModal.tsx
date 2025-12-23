@@ -269,6 +269,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
 
   const isCrediario = currentSale.metodo_pagamento === 'Crediário';
   const totalPaidInCrediario = currentSale.pagamentos_crediario?.reduce((acc, p) => acc + p.valor, 0) || 0;
+  const valorFaltante = Math.max(0, currentTotalNet - totalPaidInCrediario);
 
   const sellerId = currentSale.responsavel || '';
   const matchedUser = users.find(u => u.id === sellerId);
@@ -550,6 +551,10 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                         <div className="flex justify-between items-center">
                           <span className="font-semibold text-zinc-700 dark:text-zinc-300 text-xs uppercase">Valor Total da venda:</span>
                           <span className={`font-bold text-lg text-zinc-900 dark:text-white ${currentSale.status === 'cancelled' ? 'line-through opacity-60' : ''}`}>{formatCurrency(currentTotalNet)}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-2 bg-red-50/50 dark:bg-red-950/20 rounded-lg border border-red-100 dark:border-red-900/30">
+                          <span className="font-bold text-red-700 dark:text-red-400 text-xs uppercase">Valor Faltante:</span>
+                          <span className={`font-black text-xl text-red-600 dark:text-red-500 ${currentSale.status === 'cancelled' ? 'line-through' : ''}`}>{formatCurrency(valorFaltante)}</span>
                         </div>
                         <div className="flex justify-between items-center p-2 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
                           <span className="font-bold text-emerald-700 dark:text-emerald-400 text-xs uppercase">Total Pago Atual:</span>
