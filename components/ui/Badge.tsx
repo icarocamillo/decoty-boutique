@@ -13,7 +13,7 @@ export const Badge: React.FC<BadgeProps> = ({ children, variant = 'default', cla
     secondary: "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100",
     destructive: "bg-red-100 text-red-700 border border-red-200 dark:bg-red-600 dark:text-white dark:border-transparent",
     success: "bg-green-100 text-green-700 border border-green-200 dark:bg-emerald-600 dark:text-white dark:border-transparent",
-    warning: "bg-yellow-100 text-yellow-800 border border-yellow-200 dark:bg-amber-500 dark:text-zinc-950 dark:border-transparent",
+    warning: "bg-yellow-100 text-yellow-800 border border-yellow-200 dark:bg-amber-600 dark:text-white dark:border-transparent",
     info: "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-600 dark:text-white dark:border-transparent",
     purple: "bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-600 dark:text-white dark:border-transparent",
   };

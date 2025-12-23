@@ -226,11 +226,11 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 mt-2 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-zinc-500 dark:text-zinc-400">Aceita Ofertas:</span>
-                    {client.receber_ofertas ? <Badge variant="info" className="text-[10px]">Sim</Badge> : <Badge variant="secondary" className="text-[10px]">Não</Badge>}
+                    {client.receber_ofertas ? <Badge variant="info" className="text-[10px] border-0">Sim</Badge> : <Badge variant="secondary" className="text-[10px]">Não</Badge>}
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-zinc-500 dark:text-zinc-400">Status Provador:</span>
-                    {client.pode_provador ? <Badge variant="purple" className="text-[10px]">Autorizado</Badge> : <Badge variant="secondary" className="text-[10px]">Não Autorizado</Badge>}
+                    {client.pode_provador ? <Badge variant="purple" className="text-[10px] border-0">Autorizado</Badge> : <Badge variant="secondary" className="text-[10px]">Não Autorizado</Badge>}
                   </div>
                </div>
             </div>
@@ -294,7 +294,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                           <Button 
                             size="sm" 
                             variant="success" 
-                            className="h-9 px-3 text-xs gap-1.5 shadow-md shadow-emerald-500/10 active:scale-95 transition-all" 
+                            className="h-9 px-3 text-xs gap-1.5 shadow-md shadow-emerald-500/10 active:scale-95 transition-all border-0" 
                             onClick={(e) => handleReturnProvador(e, unit)} 
                             disabled={isProcessing}
                           >
@@ -308,7 +308,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                               <div className="flex items-center gap-1"><Clock size={12} className="text-zinc-400 shrink-0" /><span>{dateTime.split(' às ')[1]}</span></div>
                            </div>
                            <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-bold bg-zinc-50 dark:bg-zinc-800 px-2 py-1 rounded-lg border border-zinc-100 dark:border-zinc-800">
-                             <div className="w-5 h-5 rounded-full bg-purple-600 dark:bg-purple-600 text-white flex items-center justify-center text-[8px] border border-purple-400 dark:border-purple-400">{responsibleName.substring(0, 2).toUpperCase()}</div>
+                             <Badge variant="purple" className="w-5 h-5 p-0 rounded-full flex items-center justify-center text-[8px] border-0">{responsibleName.substring(0, 2).toUpperCase()}</Badge>
                              <span className="truncate max-w-[80px] dark:text-zinc-300">{responsibleName}</span>
                            </div>
                         </div>
@@ -343,7 +343,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                                       <td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">{unit.produto_nome}</td>
                                       <td className="px-6 py-3 text-center"><Badge variant="outline" className="text-zinc-600 dark:text-zinc-300">{details.tamanho}</Badge></td>
                                       <td className="px-6 py-3 text-center text-zinc-600 dark:text-zinc-400 text-xs">{details.cor}</td>
-                                      <td className="px-6 py-3 text-zinc-500 dark:text-zinc-400 text-xs"><div className="flex items-center gap-1.5"><div className="w-6 h-6 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-bold border border-zinc-200 dark:border-zinc-700">{responsibleName.substring(0, 2).toUpperCase()}</div><span className="font-medium">{responsibleName}</span></div></td>
+                                      <td className="px-6 py-3 text-zinc-500 dark:text-zinc-400 text-xs"><div className="flex items-center gap-1.5"><Badge variant="secondary" className="w-6 h-6 p-0 rounded-full flex items-center justify-center text-[8px] font-bold">{responsibleName.substring(0, 2).toUpperCase()}</Badge><span className="font-medium">{responsibleName}</span></div></td>
                                       <td className="px-6 py-3 text-center">
                                         <Button 
                                           size="sm" 
@@ -378,8 +378,8 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                       const displayMotivo = formatMotivo(entry.motivo);
                       return (
                         <div key={entry.id} className={`text-left p-4 rounded-xl border bg-white dark:bg-zinc-900 shadow-sm transition-all flex flex-col gap-3 ${isEntry ? 'border-green-100 dark:border-green-900/30' : 'border-zinc-100 dark:border-zinc-800'}`}>
-                          <div className="flex justify-between items-start"><div className="flex flex-col min-w-0 flex-1 pr-2"><h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm truncate">{entry.produto_nome}</h3><p className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1 italic"><Tag size={10} className="text-zinc-400" /> {displayMotivo}</p></div><div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-black ${isEntry ? 'text-green-600 bg-green-50 dark:bg-green-900/20' : 'text-red-600 bg-red-50 dark:bg-red-900/20'}`}>{isEntry ? '+' : ''}{entry.quantidade} un</div></div>
-                          <div className="flex items-center justify-between mt-1 pt-2 border-t border-zinc-50 dark:border-zinc-800"><div className="flex flex-col gap-1 text-[10px] text-zinc-400"><div className="flex items-center gap-1"><Calendar size={10} className="shrink-0" /><span className="truncate">{weekDay.split('-')[0]}</span></div><div className="flex items-center gap-1"><Clock size={10} className="shrink-0" /><span>{dateTime.split(' às ')[1]}</span></div></div><div className="flex items-center gap-2"><div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-medium"><div className="w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-bold border border-zinc-200 dark:border-zinc-700">{responsibleName.substring(0, 2).toUpperCase()}</div><span className="dark:text-zinc-300">{responsibleName}</span></div></div></div>
+                          <div className="flex justify-between items-start"><div className="flex flex-col min-w-0 flex-1 pr-2"><h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm truncate">{entry.produto_nome}</h3><p className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1 italic"><Tag size={10} className="text-zinc-400" /> {displayMotivo}</p></div><Badge variant={isEntry ? "success" : "destructive"} className="text-[10px] shrink-0">{isEntry ? '+' : ''}{entry.quantidade} un</Badge></div>
+                          <div className="flex items-center justify-between mt-1 pt-2 border-t border-zinc-50 dark:border-zinc-800"><div className="flex flex-col gap-1 text-[10px] text-zinc-400"><div className="flex items-center gap-1"><Calendar size={10} className="shrink-0" /><span className="truncate">{weekDay.split('-')[0]}</span></div><div className="flex items-center gap-1"><Clock size={10} className="shrink-0" /><span>{dateTime.split(' às ')[1]}</span></div></div><div className="flex items-center gap-2"><div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-medium"><Badge variant="secondary" className="w-5 h-5 p-0 rounded-full flex items-center justify-center text-[8px] font-bold">{responsibleName.substring(0, 2).toUpperCase()}</Badge><span className="dark:text-zinc-300">{responsibleName}</span></div></div></div>
                         </div>
                       );
                     })}
@@ -394,7 +394,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                               const isEntry = entry.quantidade > 0;
                               const responsibleName = resolveUserName(entry.responsavel);
                               return (
-                                  <tr key={entry.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors bg-white dark:bg-zinc-900"><td className="px-6 py-3 text-zinc-600 dark:text-zinc-400 whitespace-nowrap text-xs">{dateTime}</td><td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">{entry.produto_nome}</td><td className="px-6 py-3 text-center"><div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${isEntry ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'}`}>{isEntry ? '+' : ''}{entry.quantidade}</div></td><td className="px-6 py-3 text-xs text-zinc-500">{formatMotivo(entry.motivo)}</td><td className="px-6 py-3 text-xs text-zinc-500 italic">{responsibleName}</td></tr>
+                                  <tr key={entry.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors bg-white dark:bg-zinc-900"><td className="px-6 py-3 text-zinc-600 dark:text-zinc-400 whitespace-nowrap text-xs">{dateTime}</td><td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">{entry.produto_nome}</td><td className="px-6 py-3 text-center"><Badge variant={isEntry ? "success" : "destructive"}>{isEntry ? '+' : ''}{entry.quantidade}</Badge></td><td className="px-6 py-3 text-xs text-zinc-500">{formatMotivo(entry.motivo)}</td><td className="px-6 py-3 text-xs text-zinc-500 italic">{responsibleName}</td></tr>
                               );
                           })}
                       </tbody>

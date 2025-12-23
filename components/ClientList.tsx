@@ -389,10 +389,10 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate, entri
                       <td className="px-6 py-4">
                          <div className="flex items-center gap-2">
                             {client.saldo_devedor_crediario && client.saldo_devedor_crediario > 0 ? (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800">
-                                   <BookOpen size={12} />
+                                <Badge variant="destructive" className="font-bold border-0">
+                                   <BookOpen size={12} className="mr-1" />
                                    {formatCurrency(client.saldo_devedor_crediario)}
-                                </span>
+                                </Badge>
                             ) : (
                                 <span className="text-zinc-400 text-xs">-</span>
                             )}
@@ -401,10 +401,10 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate, entri
                       <td className="px-6 py-4">
                          <div className="flex items-center gap-2">
                             {client.saldo_vale_presente && client.saldo_vale_presente > 0 ? (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                                   <Gift size={12} />
+                                <Badge variant="warning" className="font-bold border-0">
+                                   <Gift size={12} className="mr-1" />
                                    {formatCurrency(client.saldo_vale_presente)}
-                                </span>
+                                </Badge>
                             ) : (
                                 <span className="text-zinc-400 text-xs">-</span>
                             )}
@@ -413,7 +413,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate, entri
                       <td className="px-6 py-4 text-center">
                          {pendingQty > 0 ? (
                             <div className="inline-flex flex-col items-center gap-1">
-                               <Badge variant="purple" className="font-bold px-3 py-1 animate-pulse">
+                               <Badge variant="purple" className="font-bold px-3 py-1 animate-pulse border-0">
                                   <Shirt size={14} className="mr-1.5" /> {pendingQty} peças
                                </Badge>
                                <span className="text-[9px] text-purple-600 dark:text-purple-400 uppercase font-bold">Na Rua</span>

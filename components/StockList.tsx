@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { StockEntry, Product, UserProfile, Sale } from '../types';
 import { ArrowDownCircle, ArrowUpCircle, Package, Archive, Search, Filter, User, Shirt, Undo2, Loader2, ChevronRight, Calendar, Clock } from 'lucide-react';
@@ -396,13 +395,9 @@ export const StockList: React.FC<StockListProps> = ({ entries, products, onUpdat
                             <Badge variant="outline" className="text-[9px] h-4 px-1">{product?.tamanho || '-'}</Badge>
                           </div>
                         </div>
-                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-black ${
-                          isPositive 
-                            ? 'text-green-600 bg-green-50 dark:bg-green-900/20' 
-                            : 'text-red-600 bg-red-50 dark:bg-red-900/20'
-                        }`}>
+                        <Badge variant={isPositive ? "success" : "destructive"} className="text-[10px] shrink-0 font-black">
                           {isPositive ? '+' : ''}{entry.quantidade} un
-                        </div>
+                        </Badge>
                       </div>
 
                       <div className="flex items-start gap-3 bg-zinc-50 dark:bg-zinc-800/50 p-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800/50">
@@ -523,14 +518,10 @@ export const StockList: React.FC<StockListProps> = ({ entries, products, onUpdat
                            {product?.cor || '-'}
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
-                            isPositive 
-                              ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' 
-                              : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'
-                          }`}>
+                          <Badge variant={isPositive ? "success" : "destructive"} className="gap-1 px-3">
                             {isPositive ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
                             {isPositive ? '+' : ''}{entry.quantidade}
-                          </div>
+                          </Badge>
                         </td>
                         <td className="px-6 py-4 text-center text-zinc-700 dark:text-zinc-300 font-mono">
                            <div className="inline-flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-md">
