@@ -111,6 +111,7 @@ export interface Client {
   pode_provador?: boolean; 
   saldo_vale_presente?: number; 
   saldo_devedor_crediario?: number; 
+  itens_pendentes_provador?: number; // Nova coluna de cache de performance
   endereco?: ClientAddress;
   data_cadastro: string;
 }

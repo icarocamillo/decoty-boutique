@@ -232,7 +232,7 @@ const AppLayout: React.FC = () => {
               />
             } />
             
-            <Route path="/clients" element={<ClientList clients={clients} onUpdate={fetchDashboardData} />} />
+            <Route path="/clients" element={<ClientList clients={clients} onUpdate={fetchDashboardData} entries={stockEntries} />} />
             <Route path="/clients/:clientId/history" element={<ClientHistoryPage onUpdate={fetchDashboardData} />} />
             <Route path="/suppliers" element={<SupplierList suppliers={suppliers} onUpdate={fetchDashboardData} />} />
             

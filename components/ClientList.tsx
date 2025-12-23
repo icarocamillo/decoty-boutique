@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { Client } from '../types';
+import { Client, StockEntry } from '../types';
 import { User, Phone, Mail, UserPlus, Smartphone, MapPin, Megaphone, Search, Filter, CreditCard, Pencil, Shirt, Gift, ChevronRight, BookOpen } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -13,9 +14,10 @@ import { useAuth } from '../contexts/AuthContext';
 interface ClientListProps {
   clients: Client[];
   onUpdate: () => void;
+  entries?: StockEntry[];
 }
 
-export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => {
+export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate, entries = [] }) => {
   const navigate = useNavigate();
   const { userRole } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,7 +27,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDebt, setFilterDebt] = useState('all'); // 'all' | 'positive'
   const [filterBalance, setFilterBalance] = useState('all'); // 'all' | 'positive'
-  const [filterProvador, setFilterProvador] = useState('all'); // 'all' | 'true' | 'false'
+  const [filterProvador, setFilterProvador] = useState('all'); // 'all' | 'true' | 'false' | 'pending'
   const [filterWhatsApp, setFilterWhatsApp] = useState('all'); // 'all' | 'true' | 'false'
   const [filterOffers, setFilterOffers] = useState('all'); // 'all' | 'true' | 'false'
 
@@ -62,9 +64,10 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
         : true;
 
       // 4. Provador Filter
-      const matchesProvador = filterProvador !== 'all'
-        ? (filterProvador === 'true' ? client.pode_provador : !client.pode_provador)
-        : true;
+      let matchesProvador = true;
+      if (filterProvador === 'true') matchesProvador = client.pode_provador || false;
+      else if (filterProvador === 'false') matchesProvador = !client.pode_provador;
+      else if (filterProvador === 'pending') matchesProvador = (client.itens_pendentes_provador || 0) > 0;
 
       // 5. WhatsApp Filter
       const matchesWhats = filterWhatsApp !== 'all'
@@ -84,6 +87,8 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
       result.sort((a, b) => (b.saldo_devedor_crediario || 0) - (a.saldo_devedor_crediario || 0));
     } else if (filterBalance === 'positive') {
       result.sort((a, b) => (b.saldo_vale_presente || 0) - (a.saldo_vale_presente || 0));
+    } else if (filterProvador === 'pending') {
+      result.sort((a, b) => (b.itens_pendentes_provador || 0) - (a.itens_pendentes_provador || 0));
     }
 
     return result;
@@ -128,7 +133,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
       </div>
 
       <Card className="overflow-hidden">
-        {/* Toolbar de Filtros Reestruturada */}
+        {/* Toolbar de Filtros */}
         <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col gap-4">
            <div className="flex flex-col xl:flex-row gap-3 w-full justify-between items-start xl:items-center">
              
@@ -181,6 +186,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
                      onChange={(e) => setFilterProvador(e.target.value)}
                    >
                      <option value="all" className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-normal">Provador: Todos</option>
+                     <option value="pending" className="bg-white dark:bg-zinc-900 text-purple-700 dark:text-purple-400 font-bold">Possui Pendências</option>
                      <option value="true" className="bg-white dark:bg-zinc-900 text-purple-700 dark:text-purple-400 font-bold">Autorizado</option>
                      <option value="false" className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 font-normal">Bloqueado</option>
                    </select>
@@ -222,6 +228,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
         <div className="flex flex-col gap-3 sm:hidden p-4 bg-zinc-50 dark:bg-zinc-950/50">
           {currentClients.map((client) => {
             const address = formatAddress(client);
+            const pendingQty = client.itens_pendentes_provador || 0;
             return (
               <div 
                 key={client.id}
@@ -242,7 +249,11 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                      {client.receber_ofertas && <Badge className="text-[8px] h-4 bg-blue-500 text-white border-0">Ofertas</Badge>}
-                     {client.pode_provador && <Badge className="text-[8px] h-4 bg-purple-500 text-white border-0">Provador</Badge>}
+                     {pendingQty > 0 ? (
+                        <Badge className="text-[8px] h-4 bg-purple-600 text-white border-0">Em Provador ({pendingQty})</Badge>
+                     ) : client.pode_provador && (
+                        <Badge className="text-[8px] h-4 bg-purple-500 text-white border-0">Provador</Badge>
+                     )}
                   </div>
                 </div>
 
@@ -298,11 +309,6 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
               </div>
             );
           })}
-          {currentClients.length === 0 && (
-            <div className="py-12 text-center text-zinc-400 text-sm bg-white dark:bg-zinc-900 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
-               Nenhum cliente encontrado.
-            </div>
-          )}
         </div>
 
         {/* DESKTOP VIEW: Standard Table */}
@@ -314,12 +320,14 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
                   <th className="px-6 py-4 font-medium">Contato</th>
                   <th className="px-6 py-4 font-medium">Crediário</th>
                   <th className="px-6 py-4 font-medium">Vale Presente</th>
+                  <th className="px-6 py-4 font-medium text-center">Provador</th>
                   <th className="px-6 py-4 font-medium">Localização</th>
                   <th className="px-6 py-4 font-medium text-center">Editar</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {currentClients.map((client) => {
+                  const pendingQty = client.itens_pendentes_provador || 0;
                   return (
                     <tr 
                       key={client.id} 
@@ -332,14 +340,14 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
                           <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 flex items-center justify-center relative shrink-0">
                             <User size={20} />
                             
-                            {/* Ícone: Aceita Ofertas (Canto Superior Direito) */}
+                            {/* Ícone: Aceita Ofertas */}
                             {client.receber_ofertas && (
                               <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center border-2 border-white dark:border-zinc-900 shadow-sm" title="Aceita Ofertas">
                                 <Megaphone size={10} />
                               </div>
                             )}
                             
-                            {/* Ícone: Pode Provador (Canto Inferior Direito) */}
+                            {/* Ícone: Pode Provador */}
                             {client.pode_provador && (
                               <div className="absolute -bottom-1 -right-1 bg-purple-500 text-white rounded-full w-5 h-5 flex items-center justify-center border-2 border-white dark:border-zinc-900 shadow-sm" title="Permitido Provador">
                                 <Shirt size={10} />
@@ -403,6 +411,18 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
                             )}
                          </div>
                       </td>
+                      <td className="px-6 py-4 text-center">
+                         {pendingQty > 0 ? (
+                            <div className="inline-flex flex-col items-center gap-1">
+                               <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800 font-bold px-3 py-1 animate-pulse">
+                                  <Shirt size={14} className="mr-1.5" /> {pendingQty} peças
+                               </Badge>
+                               <span className="text-[9px] text-purple-500 uppercase font-bold">Na Rua</span>
+                            </div>
+                         ) : (
+                            <span className="text-zinc-300 dark:text-zinc-700">-</span>
+                         )}
+                      </td>
                       <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">
                         <div className="flex items-start gap-2 max-w-[200px]">
                             <MapPin size={16} className="text-zinc-400 mt-0.5 shrink-0" />
@@ -411,7 +431,6 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                           {/* Botão de Editar */}
                            <Button 
                               variant="ghost" 
                               size="sm" 
@@ -428,7 +447,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate }) => 
                 })}
                 {currentClients.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-zinc-500 dark:text-zinc-400">
+                    <td colSpan={7} className="px-6 py-12 text-center text-zinc-500 dark:text-zinc-400">
                       Nenhum cliente encontrado com os filtros atuais.
                     </td>
                   </tr>
