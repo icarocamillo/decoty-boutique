@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Product } from '../types';
 import { PackagePlus, Search, Edit, ArrowUp, ArrowDown, ArrowUpDown, Filter, Settings, Check, Tag, Layers, ChevronRight } from 'lucide-react';
@@ -36,7 +35,8 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) 
   // State for UI
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
-  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null);
+  // Inicializado para sempre mostrar por ID DECOTY decrescente por padrão
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>({ key: 'ui_id', direction: 'desc' });
   
   // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
