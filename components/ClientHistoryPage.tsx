@@ -207,10 +207,10 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
         <Card className="md:col-span-1 border-l-4 border-l-blue-500">
           <div className="p-4 space-y-4">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 relative">
+              <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-400 relative">
                 <User size={24} />
                 {client.pode_provador && (
-                    <div className="absolute -bottom-1 -right-1 bg-purple-500 text-white rounded-full p-1 border border-white dark:border-zinc-800" title="Permissão Provador Ativa">
+                    <div className="absolute -bottom-1 -right-1 bg-purple-600 text-white rounded-full p-1 border border-white dark:border-zinc-800 shadow-sm" title="Permissão Provador Ativa">
                         <Shirt size={10} />
                     </div>
                 )}
@@ -224,8 +224,14 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                {client.email && <div className="flex items-center gap-2"><Mail size={14} /> {client.email}</div>}
                {(client.celular || client.telefone_fixo) && <div className="flex items-center gap-2"><Phone size={14} /> {client.celular || client.telefone_fixo}</div>}
                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 mt-2 space-y-2">
-                  <div className="flex justify-between items-center"><span className="text-xs text-zinc-500">Aceita Ofertas:</span>{client.receber_ofertas ? <Badge variant="success" className="text-[10px]">Sim</Badge> : <Badge variant="secondary" className="text-[10px]">Não</Badge>}</div>
-                  <div className="flex justify-between items-center"><span className="text-xs text-zinc-500">Status Provador:</span>{client.pode_provador ? <Badge variant="success" className="text-[10px]">Autorizado</Badge> : <Badge variant="secondary" className="text-[10px]">Não Autorizado</Badge>}</div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">Aceita Ofertas:</span>
+                    {client.receber_ofertas ? <Badge variant="info" className="text-[10px]">Sim</Badge> : <Badge variant="secondary" className="text-[10px]">Não</Badge>}
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">Status Provador:</span>
+                    {client.pode_provador ? <Badge variant="purple" className="text-[10px]">Autorizado</Badge> : <Badge variant="secondary" className="text-[10px]">Não Autorizado</Badge>}
+                  </div>
                </div>
             </div>
           </div>
@@ -233,15 +239,15 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
 
         <Card className="md:col-span-2">
            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 p-4 h-full items-stretch">
-              <div className="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl text-center flex flex-col justify-between">
+              <div className="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl text-center flex flex-col justify-between border border-transparent dark:border-zinc-700/50">
                  <div className="text-zinc-500 dark:text-zinc-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1"><ShoppingBag size={14} /> Qtd Compras</div>
                  <div className="text-xl font-bold text-zinc-900 dark:text-white">{totalPurchases}</div>
               </div>
-              <div className="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl text-center flex flex-col justify-between">
+              <div className="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl text-center flex flex-col justify-between border border-transparent dark:border-zinc-700/50">
                  <div className="text-zinc-500 dark:text-zinc-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1"><CreditCard size={14} /> Valor Gasto</div>
                  <div className="text-xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totalSpent)}</div>
               </div>
-              <div className="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl text-center flex flex-col justify-between">
+              <div className="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl text-center flex flex-col justify-between border border-transparent dark:border-zinc-700/50">
                  <div className="text-zinc-500 dark:text-zinc-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1"><Calendar size={14} /> Última Compra</div>
                  <div className="text-lg font-bold text-zinc-900 dark:text-white truncate">{lastPurchaseDate}</div>
               </div>
@@ -281,8 +287,8 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                           <div className="min-w-0 flex-1">
                             <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm truncate">{unit.produto_nome}</h4>
                             <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="outline" className="text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/10 text-[10px]">Tam: {details.tamanho}</Badge>
-                              <Badge variant="outline" className="text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/10 text-[10px]">Cor: {details.cor}</Badge>
+                              <Badge variant="outline" className="text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/10 text-[10px]">Tam: {details.tamanho}</Badge>
+                              <Badge variant="outline" className="text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/10 text-[10px]">Cor: {details.cor}</Badge>
                             </div>
                           </div>
                           <Button 
@@ -301,9 +307,9 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                               <div className="flex items-center gap-1"><Calendar size={12} className="text-zinc-400 shrink-0" /><span>{weekDay}</span></div>
                               <div className="flex items-center gap-1"><Clock size={12} className="text-zinc-400 shrink-0" /><span>{dateTime.split(' às ')[1]}</span></div>
                            </div>
-                           <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-bold bg-zinc-50 dark:bg-zinc-800/50 px-2 py-1 rounded-lg border border-zinc-100 dark:border-zinc-800">
-                             <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center text-[8px] border border-purple-200 dark:border-purple-800">{responsibleName.substring(0, 2).toUpperCase()}</div>
-                             <span className="truncate max-w-[80px]">{responsibleName}</span>
+                           <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-bold bg-zinc-50 dark:bg-zinc-800 px-2 py-1 rounded-lg border border-zinc-100 dark:border-zinc-800">
+                             <div className="w-5 h-5 rounded-full bg-purple-600 dark:bg-purple-600 text-white flex items-center justify-center text-[8px] border border-purple-400 dark:border-purple-400">{responsibleName.substring(0, 2).toUpperCase()}</div>
+                             <span className="truncate max-w-[80px] dark:text-zinc-300">{responsibleName}</span>
                            </div>
                         </div>
                       </div>
@@ -314,7 +320,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                 {/* DESKTOP VIEW: Table */}
                 <div className="hidden sm:block overflow-x-auto max-h-[400px]">
                   <table className="w-full text-sm text-left">
-                      <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800 sticky top-0 backdrop-blur-sm z-10">
+                      <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-100 dark:border-zinc-800 sticky top-0 backdrop-blur-sm z-10">
                           <tr>
                               <th className="px-6 py-3 font-medium">Data Retirada</th>
                               <th className="px-6 py-3 font-medium">Produto</th>
@@ -332,7 +338,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                               const details = getProductDetails(unit);
 
                               return (
-                                  <tr key={unit.displayId} className="hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition-colors">
+                                  <tr key={unit.displayId} className="hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition-colors bg-white dark:bg-zinc-900">
                                       <td className="px-6 py-3 whitespace-nowrap text-zinc-600 dark:text-zinc-400 text-xs"><div className="flex flex-col"><span className="font-bold">{weekDay}</span><span>{dateTime}</span></div></td>
                                       <td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">{unit.produto_nome}</td>
                                       <td className="px-6 py-3 text-center"><Badge variant="outline" className="text-zinc-600 dark:text-zinc-300">{details.tamanho}</Badge></td>
@@ -373,13 +379,13 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                       return (
                         <div key={entry.id} className={`text-left p-4 rounded-xl border bg-white dark:bg-zinc-900 shadow-sm transition-all flex flex-col gap-3 ${isEntry ? 'border-green-100 dark:border-green-900/30' : 'border-zinc-100 dark:border-zinc-800'}`}>
                           <div className="flex justify-between items-start"><div className="flex flex-col min-w-0 flex-1 pr-2"><h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm truncate">{entry.produto_nome}</h3><p className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1 italic"><Tag size={10} className="text-zinc-400" /> {displayMotivo}</p></div><div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-black ${isEntry ? 'text-green-600 bg-green-50 dark:bg-green-900/20' : 'text-red-600 bg-red-50 dark:bg-red-900/20'}`}>{isEntry ? '+' : ''}{entry.quantidade} un</div></div>
-                          <div className="flex items-center justify-between mt-1 pt-2 border-t border-zinc-50 dark:border-zinc-800"><div className="flex flex-col gap-1 text-[10px] text-zinc-400"><div className="flex items-center gap-1"><Calendar size={10} className="shrink-0" /><span className="truncate">{weekDay.split('-')[0]}</span></div><div className="flex items-center gap-1"><Clock size={10} className="shrink-0" /><span>{dateTime.split(' às ')[1]}</span></div></div><div className="flex items-center gap-2"><div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-medium"><div className="w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-bold border border-zinc-200 dark:border-zinc-700">{responsibleName.substring(0, 2).toUpperCase()}</div><span>{responsibleName}</span></div></div></div>
+                          <div className="flex items-center justify-between mt-1 pt-2 border-t border-zinc-50 dark:border-zinc-800"><div className="flex flex-col gap-1 text-[10px] text-zinc-400"><div className="flex items-center gap-1"><Calendar size={10} className="shrink-0" /><span className="truncate">{weekDay.split('-')[0]}</span></div><div className="flex items-center gap-1"><Clock size={10} className="shrink-0" /><span>{dateTime.split(' às ')[1]}</span></div></div><div className="flex items-center gap-2"><div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-medium"><div className="w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[8px] font-bold border border-zinc-200 dark:border-zinc-700">{responsibleName.substring(0, 2).toUpperCase()}</div><span className="dark:text-zinc-300">{responsibleName}</span></div></div></div>
                         </div>
                       );
                     })}
                   </div>
                   <table className="hidden sm:table w-full text-sm text-left">
-                      <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800 sticky top-0 backdrop-blur-sm z-10">
+                      <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-100 dark:border-zinc-800 sticky top-0 backdrop-blur-sm z-10">
                           <tr><th className="px-6 py-3 font-medium">Data / Hora</th><th className="px-6 py-3 font-medium">Produto</th><th className="px-6 py-3 font-medium text-center">Qtd</th><th className="px-6 py-3 font-medium">Motivo</th><th className="px-6 py-3 font-medium">Responsável</th></tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -388,7 +394,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
                               const isEntry = entry.quantidade > 0;
                               const responsibleName = resolveUserName(entry.responsavel);
                               return (
-                                  <tr key={entry.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors"><td className="px-6 py-3 text-zinc-600 dark:text-zinc-400 whitespace-nowrap text-xs">{dateTime}</td><td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">{entry.produto_nome}</td><td className="px-6 py-3 text-center"><div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${isEntry ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'}`}>{isEntry ? '+' : ''}{entry.quantidade}</div></td><td className="px-6 py-3 text-xs text-zinc-500">{formatMotivo(entry.motivo)}</td><td className="px-6 py-3 text-xs text-zinc-500 italic">{responsibleName}</td></tr>
+                                  <tr key={entry.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors bg-white dark:bg-zinc-900"><td className="px-6 py-3 text-zinc-600 dark:text-zinc-400 whitespace-nowrap text-xs">{dateTime}</td><td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">{entry.produto_nome}</td><td className="px-6 py-3 text-center"><div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${isEntry ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'}`}>{isEntry ? '+' : ''}{entry.quantidade}</div></td><td className="px-6 py-3 text-xs text-zinc-500">{formatMotivo(entry.motivo)}</td><td className="px-6 py-3 text-xs text-zinc-500 italic">{responsibleName}</td></tr>
                               );
                           })}
                       </tbody>

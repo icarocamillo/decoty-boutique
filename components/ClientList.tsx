@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Client, StockEntry } from '../types';
 import { User, Phone, Mail, UserPlus, Smartphone, MapPin, Megaphone, Search, Filter, CreditCard, Pencil, Shirt, Gift, ChevronRight, BookOpen } from 'lucide-react';
@@ -248,11 +247,11 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate, entri
                      </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                     {client.receber_ofertas && <Badge className="text-[8px] h-4 bg-blue-500 text-white border-0">Ofertas</Badge>}
+                     {client.receber_ofertas && <Badge variant="info" className="text-[8px] h-4 border-0">Ofertas</Badge>}
                      {pendingQty > 0 ? (
-                        <Badge className="text-[8px] h-4 bg-purple-600 text-white border-0">Em Provador ({pendingQty})</Badge>
+                        <Badge variant="purple" className="text-[8px] h-4 border-0">Em Provador ({pendingQty})</Badge>
                      ) : client.pode_provador && (
-                        <Badge className="text-[8px] h-4 bg-purple-500 text-white border-0">Provador</Badge>
+                        <Badge variant="purple" className="text-[8px] h-4 border-0">Provador</Badge>
                      )}
                   </div>
                 </div>
@@ -342,14 +341,14 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate, entri
                             
                             {/* Ícone: Aceita Ofertas */}
                             {client.receber_ofertas && (
-                              <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center border-2 border-white dark:border-zinc-900 shadow-sm" title="Aceita Ofertas">
+                              <div className="absolute -top-1 -right-1 bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center border-2 border-white dark:border-zinc-900 shadow-sm" title="Aceita Ofertas">
                                 <Megaphone size={10} />
                               </div>
                             )}
                             
                             {/* Ícone: Pode Provador */}
                             {client.pode_provador && (
-                              <div className="absolute -bottom-1 -right-1 bg-purple-500 text-white rounded-full w-5 h-5 flex items-center justify-center border-2 border-white dark:border-zinc-900 shadow-sm" title="Permitido Provador">
+                              <div className="absolute -bottom-1 -right-1 bg-purple-600 text-white rounded-full w-5 h-5 flex items-center justify-center border-2 border-white dark:border-zinc-900 shadow-sm" title="Permitido Provador">
                                 <Shirt size={10} />
                               </div>
                             )}
@@ -414,10 +413,10 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate, entri
                       <td className="px-6 py-4 text-center">
                          {pendingQty > 0 ? (
                             <div className="inline-flex flex-col items-center gap-1">
-                               <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800 font-bold px-3 py-1 animate-pulse">
+                               <Badge variant="purple" className="font-bold px-3 py-1 animate-pulse">
                                   <Shirt size={14} className="mr-1.5" /> {pendingQty} peças
                                </Badge>
-                               <span className="text-[9px] text-purple-500 uppercase font-bold">Na Rua</span>
+                               <span className="text-[9px] text-purple-600 dark:text-purple-400 uppercase font-bold">Na Rua</span>
                             </div>
                          ) : (
                             <span className="text-zinc-300 dark:text-zinc-700">-</span>
