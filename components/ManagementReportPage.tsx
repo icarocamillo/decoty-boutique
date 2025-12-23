@@ -36,6 +36,7 @@ export const ManagementReportPage: React.FC = () => {
   
   const [endDate, setEndDate] = useState(() => {
     const date = new Date();
+    // Added const declaration for year to fix 'Cannot find name year' errors on line 39 and 42
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -186,9 +187,10 @@ export const ManagementReportPage: React.FC = () => {
               totalDiscountOverall += roundCurrency(saleItemsDiscount + saleExtraDiscount);
               if (saleItemsDiscount > 0) discountsByMethod[method] = roundCurrency((discountsByMethod[method] || 0) + saleItemsDiscount);
 
-              // Previsão
-              if (method === 'Cartão de Crédito' && (sale.parcelas || 1) > 1) {
-                  totalCreditNextMonth += roundCurrency(saleRevenue / sale.parcelas!);
+              // Previsão: Cartão de crédito (mesmo 1x) é recebível futuro
+              if (method === 'Cartão de Crédito') {
+                  const parcelas = sale.parcelas || 1;
+                  totalCreditNextMonth += roundCurrency(saleRevenue / parcelas);
               }
           } else {
               totalCancelledSalesCount++;
@@ -232,6 +234,11 @@ export const ManagementReportPage: React.FC = () => {
         totalFees += fee;
         if (fee > 0) feesByMethod[method] = roundCurrency((feesByMethod[method] || 0) + fee);
         paymentMethodMap[method] = roundCurrency((paymentMethodMap[method] || 0) + net);
+
+        // Se o recebimento de crediário foi via Cartão de Crédito, ele é a receber no próximo mês
+        if (method === 'Cartão de Crédito') {
+            totalCreditNextMonth = roundCurrency(totalCreditNextMonth + net);
+        }
     });
 
     // --- 3. ESTOQUE E VALE PRESENTE ---
@@ -518,13 +525,13 @@ export const ManagementReportPage: React.FC = () => {
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                   <Calendar size={14} /> A Receber (Próximo Mês)
-                  <ReportTooltip text="Previsão de entrada de caixa no próximo mês referente a parcelas de cartão de crédito (Líquido de taxas)." />
+                  <ReportTooltip text="Previsão de entrada de caixa no próximo mês referente a operações de cartão de crédito realizadas no período (Líquido de taxas). Inclui vendas diretas e quitações de crediário." />
                 </span>
                 <h3 className="text-xl font-bold text-purple-500 dark:text-purple-500 mt-2">
                   {formatCurrency(kpis.totalCreditNextMonth)}
                 </h3>
                 <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
-                  Saldo líquido de parcelados.
+                  Saldo líquido de operações no crédito.
                 </p>
               </div>
           </Card>
