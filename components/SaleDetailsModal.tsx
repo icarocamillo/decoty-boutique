@@ -349,17 +349,33 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
             {/* CARD CLIENTE */}
             <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden flex flex-col h-full shadow-sm">
                 <div className="bg-zinc-50 dark:bg-zinc-900/50 px-4 py-3 border-b border-zinc-100 dark:border-zinc-700 flex justify-between items-center">
-                   <h3 className="text-xs font-bold text-zinc-500 uppercase flex items-center gap-2"><User size={14} /> Cliente</h3>
+                   <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase flex items-center gap-2"><User size={14} /> Cliente</h3>
                 </div>
                 <div className="p-5 flex-1 space-y-4">
                    {!isLinkingMode ? (
                        <>
                            <div className="flex items-start gap-4">
-                              <div className="h-12 w-12 rounded-full bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center text-zinc-500 dark:text-zinc-400 shrink-0 border border-zinc-200 dark:border-zinc-600"><User size={24} /></div>
+                              <div className="h-14 w-14 rounded-full bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center text-zinc-500 dark:text-zinc-400 shrink-0 border border-zinc-200 dark:border-zinc-600 shadow-inner"><User size={28} /></div>
                               <div className="min-w-0 flex-1">
-                                 <p className={`text-lg font-bold text-zinc-900 dark:text-white leading-tight ${currentSale.cliente_id ? 'hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer underline decoration-dotted transition-colors' : ''}`} onClick={() => { if (currentSale.cliente_id) { navigate(`/clients/${currentSale.cliente_id}/history`); onClose(); } }}>{currentSale.cliente_nome || 'Cliente Balcão'}</p>
-                                 <div className="flex flex-col gap-1.5 mt-2">
-                                    {currentSale.cliente_cpf && <p className="text-sm text-zinc-500 font-mono flex items-center gap-1.5"><CreditCard size={12} /> {currentSale.cliente_cpf}</p>}
+                                 <p className={`text-xl font-bold text-zinc-900 dark:text-white leading-tight ${currentSale.cliente_id ? 'hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer underline decoration-dotted transition-colors' : ''}`} onClick={() => { if (currentSale.cliente_id) { navigate(`/clients/${currentSale.cliente_id}/history`); onClose(); } }}>{currentSale.cliente_nome || 'Cliente Balcão'}</p>
+                                 <div className="flex flex-col gap-2 mt-3">
+                                    {(currentSale.cliente_cpf || clientDetails?.cpf) && (
+                                      <p className="text-xs text-zinc-600 dark:text-zinc-400 font-mono flex items-center gap-2 bg-zinc-50 dark:bg-zinc-900/50 w-fit px-2 py-1 rounded-md border border-zinc-100 dark:border-zinc-800">
+                                        <CreditCard size={14} className="text-zinc-400" /> {currentSale.cliente_cpf || clientDetails?.cpf}
+                                      </p>
+                                    )}
+                                    
+                                    {clientDetails && (clientDetails.celular || clientDetails.telefone_fixo) && (
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="text-xs text-zinc-600 dark:text-zinc-400 flex items-center gap-2">
+                                          {clientDetails.celular ? <Smartphone size={14} className="text-zinc-400" /> : <Phone size={14} className="text-zinc-400" />}
+                                          <span className="font-medium">{clientDetails.celular || clientDetails.telefone_fixo}</span>
+                                        </p>
+                                        {clientDetails.is_whatsapp && (
+                                          <Badge variant="success" className="text-[10px] h-4 px-1.5 border-0">Whats</Badge>
+                                        )}
+                                      </div>
+                                    )}
                                  </div>
                               </div>
                            </div>
@@ -390,7 +406,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                 <div className="bg-zinc-50/80 dark:bg-zinc-900/30 border-t border-zinc-100 dark:border-zinc-700 p-3">
                     <div className="flex items-center gap-3">
                        <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0"><ShieldCheck size={14} /></div>
-                       <div className="flex-1 min-w-0 flex flex-col justify-center"><p className="text-[10px] text-zinc-400 uppercase font-semibold tracking-wide">Vendedor</p><p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{displaySeller}</p></div>
+                       <div className="flex-1 min-w-0 flex flex-col justify-center"><p className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase font-semibold tracking-wide">Vendedor</p><p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{displaySeller}</p></div>
                     </div>
                 </div>
             </div>
@@ -399,13 +415,13 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
             <div className="flex flex-col gap-4">
               <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-lg border border-zinc-100 dark:border-zinc-800 h-full flex flex-col justify-between shadow-sm">
                 <div>
-                    <h3 className="text-xs font-bold text-zinc-400 uppercase mb-3 flex items-center gap-2"><CreditCard size={14} /> Resumo Financeiro</h3>
+                    <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-400 uppercase mb-3 flex items-center gap-2"><CreditCard size={14} /> Resumo Financeiro</h3>
                     <div className="flex flex-col gap-2">
                       <div className="flex justify-between text-sm"><span className="text-zinc-600 dark:text-zinc-400">Método de Venda:</span><span className="font-bold text-zinc-900 dark:text-white">{currentSale.metodo_pagamento}</span></div>
                       <div className="flex justify-between text-sm"><span className="text-zinc-600 dark:text-zinc-400">Subtotal Bruto:</span><span className={`text-zinc-900 dark:text-white ${currentSale.status === 'cancelled' ? 'line-through opacity-60' : ''}`}>{formatCurrency(soldItemsSubtotal)}</span></div>
-                      {totalPaymentDiscount > 0 && <div className="flex justify-between text-sm text-green-600"><span>Desconto Pagamento:</span><span>- {formatCurrency(totalPaymentDiscount)}</span></div>}
-                      {totalExtraDiscount > 0 && <div className="flex justify-between text-sm text-blue-600"><span>Desconto Extra:</span><span>- {formatCurrency(totalExtraDiscount)}</span></div>}
-                      {giftCardUsed > 0 && <div className="flex justify-between text-sm text-amber-600"><span className="flex items-center gap-1"><Gift size={12} /> Vale Presente:</span><span>- {formatCurrency(giftCardUsed)}</span></div>}
+                      {totalPaymentDiscount > 0 && <div className="flex justify-between text-sm text-green-600 dark:text-emerald-400"><span>Desconto Pagamento:</span><span>- {formatCurrency(totalPaymentDiscount)}</span></div>}
+                      {totalExtraDiscount > 0 && <div className="flex justify-between text-sm text-blue-600 dark:text-blue-400"><span>Desconto Extra:</span><span>- {formatCurrency(totalExtraDiscount)}</span></div>}
+                      {giftCardUsed > 0 && <div className="flex justify-between text-sm text-amber-600 dark:text-amber-400"><span className="flex items-center gap-1"><Gift size={12} /> Vale Presente:</span><span>- {formatCurrency(giftCardUsed)}</span></div>}
                     </div>
                 </div>
                 <div className="mt-4 pt-3 border-t border-zinc-200 dark:border-zinc-700 flex flex-col gap-2">
@@ -453,7 +469,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3 flex items-center gap-2"><Package size={16} className="text-zinc-500" /> Itens Adquiridos</h3>
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3 flex items-center gap-2"><Package size={16} className="text-zinc-500 dark:text-zinc-400" /> Itens Adquiridos</h3>
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden hidden sm:block">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-zinc-50 dark:bg-zinc-800 text-xs text-zinc-500 dark:text-zinc-400 uppercase font-medium">
@@ -470,15 +486,15 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                     {unrolledItems.map((item) => {
                       const isReturned = item.status === 'returned';
                       return (
-                        <tr key={item.virtualId} className={`hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale bg-zinc-50/50' : ''}`}>
-                          <td className="px-4 py-3"><div className="font-medium text-zinc-900 dark:text-white">{item.nome_produto}</div><div className="text-[10px] text-zinc-400">{item.marca}</div></td>
-                          <td className="px-4 py-3 text-center"><Badge variant="secondary">{item.tamanho}</Badge></td>
-                          <td className="px-4 py-3 text-center text-zinc-800 dark:text-zinc-200">{item.quantidade}</td>
+                        <tr key={item.virtualId} className={`hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale bg-zinc-50/50 dark:bg-zinc-900/20' : ''}`}>
+                          <td className="px-4 py-3"><div className="font-medium text-zinc-900 dark:text-white">{item.nome_produto}</div><div className="text-[10px] text-zinc-400 dark:text-zinc-400">{item.marca}</div></td>
+                          <td className="px-4 py-3 text-center"><Badge variant="secondary" className="dark:bg-zinc-800 dark:text-zinc-300">{item.tamanho}</Badge></td>
+                          <td className="px-4 py-3 text-center text-zinc-800 dark:text-zinc-200 font-bold">{item.quantidade}</td>
                           <td className="px-4 py-3 text-center">{isReturned ? <Badge variant="destructive" className="text-[9px]">Devolvido</Badge> : <Badge variant="success" className="text-[9px]">Vendido</Badge>}</td>
                           <td className="px-4 py-3 text-center">
                              {!isReturned && currentSale.status !== 'cancelled' && (item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[9px] h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[9px] h-4 px-1.5 gap-1"><DollarSign size={8} /> Pendente</Badge>)}
                           </td>
-                          <td className="px-4 py-3 text-right font-bold text-zinc-900 dark:text-white">{formatCurrency(item.subtotal)}</td>
+                          <td className="px-4 py-3 text-right font-bold text-zinc-900 dark:text-zinc-100">{formatCurrency(item.subtotal)}</td>
                         </tr>
                       );
                     })}
@@ -491,7 +507,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                 <div key={item.virtualId} className="bg-zinc-50 dark:bg-zinc-800/30 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700">
                     <div className="flex justify-between items-start">
                         <span className="font-bold text-sm text-zinc-900 dark:text-white">{item.nome_produto}</span>
-                        <Badge variant="outline" className="text-[9px] dark:text-zinc-300">{item.tamanho}</Badge>
+                        <Badge variant="outline" className="text-[9px] dark:text-zinc-300 border-zinc-200 dark:border-zinc-700">{item.tamanho}</Badge>
                     </div>
                     <div className="flex justify-between items-center mt-2">
                         <span className="text-xs text-zinc-700 dark:text-zinc-200 font-bold">{formatCurrency(item.subtotal)}</span>
@@ -507,8 +523,8 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
         </div>
 
         <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800 flex justify-between shrink-0">
-          <div>{currentSale.status !== 'cancelled' && <Button type="button" variant="destructive" onClick={() => setIsReturnModalOpen(true)} disabled={isCancelling} className="gap-2"><Undo2 size={16} /> Devolver Itens</Button>}</div>
-          <Button onClick={onClose} variant="primary">Fechar</Button>
+          <div>{currentSale.status !== 'cancelled' && <Button type="button" variant="destructive" onClick={() => setIsReturnModalOpen(true)} disabled={isCancelling} className="gap-2 shadow-sm"><Undo2 size={16} /> Devolver Itens</Button>}</div>
+          <Button onClick={onClose} variant="primary" className="px-8 shadow-sm">Fechar</Button>
         </div>
       </div>
       <ReturnItemsModal isOpen={isReturnModalOpen} onClose={() => setIsReturnModalOpen(false)} sale={currentSale} client={clientDetails} onConfirm={handleConfirmReturn} isLoading={isCancelling} />
