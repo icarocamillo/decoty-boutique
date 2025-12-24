@@ -1,6 +1,6 @@
 
 import { Client, Product, Sale, SaleItem, StockEntry, Supplier, PaymentDiscounts, PaymentFees, CartItem, UserProfile, CrediarioPayment } from '../types';
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, withRetry } from './supabaseClient';
 import { MOCK_CLIENTS, MOCK_PRODUCTS, MOCK_INITIAL_SALES, MOCK_STOCK_ENTRIES, MOCK_SUPPLIERS } from '../constants';
 
 export type { PaymentDiscounts, PaymentFees };
@@ -91,13 +91,16 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
     
     if (isSupabaseConfigured()) {
         const saleIds = sales.map(s => s.id);
-        const { data: payments, error } = await supabase
-            .from('crediario_recebimentos')
-            .select('id, venda_id, valor_pago, metodo_pagamento, responsavel, data_recebimento')
-            .in('venda_id', saleIds);
+        // Fix: Removed incorrect comments and leveraged improved withRetry signature for correct destructuring.
+        const { data: payments, error } = await withRetry(async () => 
+            await supabase
+                .from('crediario_recebimentos')
+                .select('id, venda_id, valor_pago, metodo_pagamento, responsavel, data_recebimento')
+                .in('venda_id', saleIds)
+        );
 
         if (error) {
-            console.error("Erro ao buscar recebimentos para o histórico:", error);
+            console.error("Erro ao buscar recebimentos:", error);
             return sales.map(s => ({ ...s, ui_id: s.sales_id || s.ui_id, pagamentos_crediario: [] }));
         }
 
@@ -119,7 +122,6 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
             };
         });
     }
-    // No modo LocalStorage, tentamos buscar recibos também
     const allReceipts = getLocalData<any[]>(LS_KEYS.RECEIPTS, []);
     return sales.map(s => {
         const salePayments = allReceipts
@@ -138,7 +140,8 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
 export const mockService = {
   getClients: async (): Promise<Client[]> => {
     if (isSupabaseConfigured()) {
-      const { data, error } = await supabase.from('clients').select('*').order('nome');
+      // Fix: Generic inference for data and error properties correctly resolved by fixed withRetry.
+      const { data, error } = await withRetry(async () => await supabase.from('clients').select('*').order('nome'));
       if (error) { console.error(error); return []; }
       return (data || []).map(normalizeClientData);
     }
@@ -148,7 +151,8 @@ export const mockService = {
   createClient: async (client: Omit<Client, 'id' | 'data_cadastro'>): Promise<boolean> => {
     if (isSupabaseConfigured()) {
       const payload = prepareClientPayload(client);
-      const { error } = await supabase.from('clients').insert([payload]);
+      // Fix: Inference correctly handles error object.
+      const { error } = await withRetry(async () => await supabase.from('clients').insert([payload]));
       return !error;
     }
     const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
@@ -160,7 +164,8 @@ export const mockService = {
   updateClient: async (client: Client): Promise<boolean> => {
     if (isSupabaseConfigured()) {
       const payload = prepareClientPayload(client);
-      const { error } = await supabase.from('clients').update(payload).eq('id', client.id);
+      // Fix: Inference correctly handles error object.
+      const { error } = await withRetry(async () => await supabase.from('clients').update(payload).eq('id', client.id));
       return !error;
     }
     const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
@@ -170,9 +175,11 @@ export const mockService = {
 
   updateClientCrediario: async (clientId: string, amountToSubtract: number): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', clientId).single();
+        // Fix: Correct inference for Supabase single() response.
+        const { data: c } = await withRetry(async () => await supabase.from('clients').select('saldo_devedor_crediario').eq('id', clientId).single());
         const currentDebt = Number(c?.saldo_devedor_crediario || 0);
-        const { error } = await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, roundMoney(currentDebt - amountToSubtract)) }).eq('id', clientId);
+        // Fix: Correct inference for Supabase update response.
+        const { error } = await withRetry(async () => await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, roundMoney(currentDebt - amountToSubtract)) }).eq('id', clientId));
         return !error;
     }
     const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
@@ -191,13 +198,16 @@ export const mockService = {
     };
 
     if (isSupabaseConfigured()) {
-        const { error: receiptError } = await supabase.from('crediario_recebimentos').insert([receiptData]);
+        // Fix: Correct inference for error handling.
+        const { error: receiptError } = await withRetry(async () => await supabase.from('crediario_recebimentos').insert([receiptData]));
         if (receiptError) return false;
 
-        const { data: allReceipts } = await supabase.from('crediario_recebimentos').select('valor_pago').eq('venda_id', vendaId);
+        // Fix: Correct inference for array data.
+        const { data: allReceipts } = await withRetry(async () => await supabase.from('crediario_recebimentos').select('valor_pago').eq('venda_id', vendaId));
         const totalPaidAccumulated = (allReceipts || []).reduce((sum, r) => sum + Number(r.valor_pago || 0), 0);
 
-        const { data: sale } = await supabase.from('sales').select('*, items:sale_items(*)').eq('id', vendaId).single();
+        // Fix: Correct inference for single result.
+        const { data: sale } = await withRetry(async () => await supabase.from('sales').select('*, items:sale_items(*)').eq('id', vendaId).single());
         if (!sale) return false;
 
         let remainingToDistribute = totalPaidAccumulated;
@@ -205,13 +215,13 @@ export const mockService = {
         for (const item of items) {
             if (item.status === 'sold') {
                 const isItemPaid = remainingToDistribute >= roundMoney(item.subtotal);
-                await supabase.from('sale_items').update({ status_pagamento: isItemPaid ? 'pago' : 'pendente' }).eq('id', item.id);
+                await withRetry(async () => await supabase.from('sale_items').update({ status_pagamento: isItemPaid ? 'pago' : 'pendente' }).eq('id', item.id));
                 if (isItemPaid) remainingToDistribute = roundMoney(remainingToDistribute - item.subtotal);
             }
         }
 
         const isFullyPaid = totalPaidAccumulated >= roundMoney(sale.valor_total);
-        await supabase.from('sales').update({ status_pagamento: isFullyPaid ? 'pago' : 'pendente' }).eq('id', vendaId);
+        await withRetry(async () => await supabase.from('sales').update({ status_pagamento: isFullyPaid ? 'pago' : 'pendente' }).eq('id', vendaId));
         await mockService.updateClientCrediario(clientId, amount);
         return true;
     } else {
@@ -224,7 +234,8 @@ export const mockService = {
 
   getProducts: async (): Promise<Product[]> => {
     if (isSupabaseConfigured()) {
-      const { data, error } = await supabase.from('products').select('*').order('nome');
+      // Fix: Inference correctly handles data and error properties.
+      const { data, error } = await withRetry(async () => await supabase.from('products').select('*').order('nome'));
       if (error) return [];
       return data || [];
     }
@@ -233,7 +244,8 @@ export const mockService = {
 
   createProduct: async (product: Omit<Product, 'id' | 'ui_id'>, userId: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        const { data, error } = await supabase.from('products').insert([product]).select().single();
+        // Fix: Inference correctly handles destructured properties.
+        const { data, error } = await withRetry(async () => await supabase.from('products').insert([product]).select().single());
         if (!error && data) {
             await mockService.logStockEntry({
                 produto_id: data.id, 
@@ -250,10 +262,11 @@ export const mockService = {
 
   updateProduct: async (product: Product, userId: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        const { data: oldProduct } = await supabase.from('products').select('quantidade_estoque').eq('id', product.id).single();
+        // Fix: Inference correctly handles old product data.
+        const { data: oldProduct } = await withRetry(async () => await supabase.from('products').select('quantidade_estoque').eq('id', product.id).single());
         const oldStock = oldProduct?.quantidade_estoque || 0;
         const diff = product.quantidade_estoque - oldStock;
-        const { error } = await supabase.from('products').update(product).eq('id', product.id);
+        const { error } = await withRetry(async () => await supabase.from('products').update(product).eq('id', product.id));
         if (!error && diff !== 0) {
              await mockService.logStockEntry({
                 produto_id: product.id,
@@ -294,14 +307,15 @@ export const mockService = {
     };
 
     if (isSupabaseConfigured()) {
-        const { data: sale, error: saleError } = await supabase.from('sales').insert([saleData]).select().single();
+        // Fix: Correct inference for destructured sale data and error.
+        const { data: sale, error: saleError } = await withRetry(async () => await supabase.from('sales').insert([saleData]).select().single());
         if (saleError || !sale) return false;
 
         const saleDisplayId = sale.sales_id || sale.ui_id || sale.id;
 
         if (isCrediario && client.id) {
-            const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', client.id).single();
-            await supabase.from('clients').update({ saldo_devedor_crediario: roundMoney(Number(c?.saldo_devedor_crediario || 0) + totalValue) }).eq('id', client.id);
+            const { data: c } = await withRetry(async () => await supabase.from('clients').select('saldo_devedor_crediario').eq('id', client.id).single());
+            await withRetry(async () => await supabase.from('clients').update({ saldo_devedor_crediario: roundMoney(Number(c?.saldo_devedor_crediario || 0) + totalValue) }).eq('id', client.id));
         }
 
         const itemsData = cart.flatMap(item => {
@@ -323,12 +337,12 @@ export const mockService = {
             }));
         });
         
-        await supabase.from('sale_items').insert(itemsData);
+        await withRetry(async () => await supabase.from('sale_items').insert(itemsData));
 
         for (const item of cart) {
-            const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
+            const { data: prod } = await withRetry(async () => await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single());
             if (prod) {
-                await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque - item.quantidade }).eq('id', item.produto_id);
+                await withRetry(async () => await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque - item.quantidade }).eq('id', item.produto_id));
                 await mockService.logStockEntry({
                     produto_id: item.produto_id,
                     produto_nome: `${item.nome} - ${item.marca}`,
@@ -342,8 +356,8 @@ export const mockService = {
         }
 
         if (giftCardUsed > 0 && client.id) {
-             const { data: c } = await supabase.from('clients').select('saldo_vale_presente').eq('id', client.id).single();
-             if (c) await supabase.from('clients').update({ saldo_vale_presente: roundMoney((c.saldo_vale_presente || 0) - giftCardUsed) }).eq('id', client.id);
+             const { data: c } = await withRetry(async () => await supabase.from('clients').select('saldo_vale_presente').eq('id', client.id).single());
+             if (c) await withRetry(async () => await supabase.from('clients').update({ saldo_vale_presente: roundMoney((c.saldo_vale_presente || 0) - giftCardUsed) }).eq('id', client.id));
         }
         return true;
     } else {
@@ -356,7 +370,7 @@ export const mockService = {
 
   getRecentSales: async (): Promise<Sale[]> => {
     if (isSupabaseConfigured()) {
-        const { data } = await supabase.from('sales').select('*, items:sale_items(*)').order('data_venda', { ascending: false }).limit(20);
+        const { data } = await withRetry(async () => await supabase.from('sales').select('*, items:sale_items(*)').order('data_venda', { ascending: false }).limit(20));
         return attachPaymentsToSales(data || []);
     }
     const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
@@ -365,7 +379,7 @@ export const mockService = {
 
   getSalesByPeriod: async (start: string, end: string): Promise<Sale[]> => {
     if (isSupabaseConfigured()) {
-        const { data } = await supabase.from('sales').select('*, items:sale_items(*)').gte('data_venda', `${start}T00:00:00`).lte('data_venda', `${end}T23:59:59`);
+        const { data } = await withRetry(async () => await supabase.from('sales').select('*, items:sale_items(*)').gte('data_venda', `${start}T00:00:00`).lte('data_venda', `${end}T23:59:59`));
         return attachPaymentsToSales(data || []);
     }
     const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
@@ -380,11 +394,13 @@ export const mockService = {
 
   getReceiptsByPeriod: async (start: string, end: string): Promise<any[]> => {
     if (isSupabaseConfigured()) {
-        const { data, error } = await supabase
-            .from('crediario_recebimentos')
-            .select('*')
-            .gte('data_recebimento', `${start}T00:00:00`)
-            .lte('data_recebimento', `${end}T23:59:59`);
+        const { data, error } = await withRetry(async () => 
+            await supabase
+                .from('crediario_recebimentos')
+                .select('*')
+                .gte('data_recebimento', `${start}T00:00:00`)
+                .lte('data_recebimento', `${end}T23:59:59`)
+        );
         if (error) {
             console.error("Erro ao buscar recebimentos por período:", error);
             return [];
@@ -437,7 +453,8 @@ export const mockService = {
 
   getStockEntries: async (): Promise<StockEntry[]> => {
     if (isSupabaseConfigured()) {
-        const { data } = await supabase.from('stock_entries').select('*').order('data_entrada', { ascending: false });
+        // Fix: data property correctly inferred.
+        const { data } = await withRetry(async () => await supabase.from('stock_entries').select('*').order('data_entrada', { ascending: false }));
         return data || [];
     }
     return getLocalData<StockEntry[]>(LS_KEYS.STOCK, MOCK_STOCK_ENTRIES);
@@ -445,8 +462,8 @@ export const mockService = {
 
   logStockEntry: async (entry: Omit<StockEntry, 'id' | 'data_entrada'>) => {
     if (isSupabaseConfigured()) {
-        const { error } = await supabase.from('stock_entries').insert([entry]);
-        if (error) console.error("Erro ao salvar log de estoque no Supabase:", error);
+        const { error } = await withRetry(async () => await supabase.from('stock_entries').insert([entry]));
+        if (error) console.error("Erro ao salvar log de estoque:", error);
     }
     const newEntry = { 
         ...entry, 
@@ -464,7 +481,7 @@ export const mockService = {
       const diff = newQuantity - product.quantidade_estoque;
       
       if (isSupabaseConfigured()) {
-          await supabase.from('products').update({ quantidade_estoque: newQuantity }).eq('id', productId);
+          await withRetry(async () => await supabase.from('products').update({ quantidade_estoque: newQuantity }).eq('id', productId));
       } else {
           const updated = products.map(p => p.id === productId ? { ...p, quantidade_estoque: newQuantity } : p);
           setLocalData(LS_KEYS.PRODUCTS, updated);
@@ -483,7 +500,8 @@ export const mockService = {
 
   getSuppliers: async (): Promise<Supplier[]> => {
     if (isSupabaseConfigured()) {
-        const { data } = await supabase.from('suppliers').select('*').order('nome_empresa');
+        // Fix: data property correctly inferred.
+        const { data } = await withRetry(async () => await supabase.from('suppliers').select('*').order('nome_empresa'));
         return data || [];
     }
     return getLocalData<Supplier[]>(LS_KEYS.SUPPLIERS, MOCK_SUPPLIERS);
@@ -491,7 +509,7 @@ export const mockService = {
 
   createSupplier: async (supplier: Omit<Supplier, 'id'>): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        const { error } = await supabase.from('suppliers').insert([supplier]);
+        const { error } = await withRetry(async () => await supabase.from('suppliers').insert([supplier]));
         return !error;
     }
     const suppliers = getLocalData<Supplier[]>(LS_KEYS.SUPPLIERS, MOCK_SUPPLIERS);
@@ -501,7 +519,7 @@ export const mockService = {
 
   updateSupplier: async (supplier: Supplier): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        const { error } = await supabase.from('suppliers').update(supplier).eq('id', supplier.id);
+        const { error } = await withRetry(async () => await supabase.from('suppliers').update(supplier).eq('id', supplier.id));
         return !error;
     }
     const suppliers = getLocalData<Supplier[]>(LS_KEYS.SUPPLIERS, MOCK_SUPPLIERS);
@@ -512,7 +530,7 @@ export const mockService = {
   getPaymentDiscounts: async (): Promise<PaymentDiscounts> => {
       const defaults = { credit_spot: 0, debit: 0, pix: 0 };
       if (isSupabaseConfigured()) {
-          const { data } = await supabase.from('store_config').select('value').eq('key', 'payment_discounts').maybeSingle();
+          const { data } = await withRetry(async () => await supabase.from('store_config').select('value').eq('key', 'payment_discounts').maybeSingle());
           return data ? JSON.parse(data.value) : defaults;
       }
       return defaults;
@@ -520,7 +538,7 @@ export const mockService = {
 
   updatePaymentDiscounts: async (discounts: PaymentDiscounts): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          const { error } = await supabase.from('store_config').upsert({ key: 'payment_discounts', value: JSON.stringify(discounts) }, { onConflict: 'key' });
+          const { error } = await withRetry(async () => await supabase.from('store_config').upsert({ key: 'payment_discounts', value: JSON.stringify(discounts) }, { onConflict: 'key' }));
           return !error;
       }
       return false;
@@ -529,7 +547,7 @@ export const mockService = {
   getPaymentFees: async (): Promise<PaymentFees> => {
       const defaults = { credit_spot: 0, credit_installment: 0, debit: 0 };
       if (isSupabaseConfigured()) {
-          const { data } = await supabase.from('store_config').select('value').eq('key', 'payment_fees').maybeSingle();
+          const { data } = await withRetry(async () => await supabase.from('store_config').select('value').eq('key', 'payment_fees').maybeSingle());
           return data ? JSON.parse(data.value) : defaults;
       }
       return defaults;
@@ -537,7 +555,7 @@ export const mockService = {
 
   updatePaymentFees: async (fees: PaymentFees): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          const { error } = await supabase.from('store_config').upsert({ key: 'payment_fees', value: JSON.stringify(fees) }, { onConflict: 'key' });
+          const { error } = await withRetry(async () => await supabase.from('store_config').upsert({ key: 'payment_fees', value: JSON.stringify(fees) }, { onConflict: 'key' }));
           return !error;
       }
       return false;
@@ -545,7 +563,7 @@ export const mockService = {
 
   getStoreAccessHash: async (): Promise<string> => {
       if (isSupabaseConfigured()) {
-          const { data } = await supabase.from('store_config').select('value').eq('key', 'store_access_hash').maybeSingle();
+          const { data } = await withRetry(async () => await supabase.from('store_config').select('value').eq('key', 'store_access_hash').maybeSingle());
           return data ? String(data.value || '').trim() : ''; 
       }
       return '';
@@ -553,7 +571,7 @@ export const mockService = {
 
   updateStoreAccessHash: async (hash: string): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          const { error } = await supabase.from('store_config').upsert({ key: 'store_access_hash', value: hash }, { onConflict: 'key' });
+          const { error } = await withRetry(async () => await supabase.from('store_config').upsert({ key: 'store_access_hash', value: hash }, { onConflict: 'key' }));
           return !error;
       }
       return false;
@@ -561,7 +579,7 @@ export const mockService = {
 
   getUsers: async (): Promise<UserProfile[]> => {
       if (isSupabaseConfigured()) {
-          const { data } = await supabase.from('profiles').select('*');
+          const { data } = await withRetry(async () => await supabase.from('profiles').select('*'));
           return (data || []).map((p: any) => ({ id: p.id, name: p.name || 'User', email: p.email || '', role: p.role || 'salesperson', active: p.active }));
       }
       return [];
@@ -569,7 +587,7 @@ export const mockService = {
 
   updateUserStatus: async (userId: string, active: boolean): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          const { error } = await supabase.from('profiles').update({ active }).eq('id', userId);
+          const { error } = await withRetry(async () => await supabase.from('profiles').update({ active }).eq('id', userId));
           return !error;
       }
       return false;
@@ -577,7 +595,7 @@ export const mockService = {
 
   updateUserRole: async (userId: string, role: string): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          const { error } = await supabase.from('profiles').update({ role }).eq('id', userId);
+          const { error } = await withRetry(async () => await supabase.from('profiles').update({ role }).eq('id', userId));
           return !error;
       }
       return false;
@@ -585,24 +603,24 @@ export const mockService = {
 
   cancelSale: async (saleId: string, userId: string): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          const { data: sale } = await supabase.from('sales').select('*').eq('id', saleId).single();
-          const { error } = await supabase.from('sales').update({ status: 'cancelled' }).eq('id', saleId);
+          const { data: sale } = await withRetry(async () => await supabase.from('sales').select('*').eq('id', saleId).single());
+          const { error } = await withRetry(async () => await supabase.from('sales').update({ status: 'cancelled' }).eq('id', saleId));
           if (error) return false;
 
           const saleDisplayId = sale?.sales_id || sale?.ui_id || saleId;
 
           if (sale?.metodo_pagamento === 'Crediário' && sale.cliente_id) {
-              const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', sale.cliente_id).single();
-              await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, roundMoney(Number(c?.saldo_devedor_crediario || 0) - sale.valor_total)) }).eq('id', sale.cliente_id);
+              const { data: c } = await withRetry(async () => await supabase.from('clients').select('saldo_devedor_crediario').eq('id', sale.cliente_id).single());
+              await withRetry(async () => await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, roundMoney(Number(c?.saldo_devedor_crediario || 0) - sale.valor_total)) }).eq('id', sale.cliente_id));
           }
 
-          await supabase.from('sale_items').update({ status: 'returned' }).eq('venda_id', saleId);
-          const { data: items } = await supabase.from('sale_items').select('*').eq('venda_id', saleId);
+          await withRetry(async () => await supabase.from('sale_items').update({ status: 'returned' }).eq('venda_id', saleId));
+          const { data: items } = await withRetry(async () => await supabase.from('sale_items').select('*').eq('venda_id', saleId));
           if (items) {
               for (const item of items) {
-                  const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
+                  const { data: prod } = await withRetry(async () => await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single());
                   if (prod) {
-                      await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id);
+                      await withRetry(async () => await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id));
                       await mockService.logStockEntry({
                           produto_id: item.produto_id,
                           produto_nome: `${item.nome_produto} - ${item.marca}`,
@@ -620,17 +638,17 @@ export const mockService = {
 
   returnSaleItems: async (saleId: string, items: SaleItem[], clientId: string | undefined, userId: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        const { data: saleData } = await supabase.from('sales').select('sales_id, ui_id, cliente_nome').eq('id', saleId).single();
+        const { data: saleData } = await withRetry(async () => await supabase.from('sales').select('sales_id, ui_id, cliente_nome').eq('id', saleId).single());
         const saleDisplayId = saleData?.sales_id || saleData?.ui_id || saleId;
         
         let giftCardSum = 0;
         let debtReductionSum = 0;
 
         for (const item of items) {
-           const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
+           const { data: prod } = await withRetry(async () => await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single());
            if (prod) {
-               await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id);
-               await supabase.from('sale_items').update({ status: 'returned' }).eq('id', item.id);
+               await withRetry(async () => await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id));
+               await withRetry(async () => await supabase.from('sale_items').update({ status: 'returned' }).eq('id', item.id));
                await mockService.logStockEntry({
                    produto_id: item.produto_id,
                    produto_nome: `${item.nome_produto} - ${item.marca}`,
@@ -649,12 +667,12 @@ export const mockService = {
 
         if (clientId) {
             if (debtReductionSum > 0) {
-                const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', clientId).single();
-                await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, roundMoney(Number(c?.saldo_devedor_crediario || 0) - debtReductionSum)) }).eq('id', clientId);
+                const { data: c } = await withRetry(async () => await supabase.from('clients').select('saldo_devedor_crediario').eq('id', clientId).single());
+                await withRetry(async () => await supabase.from('clients').update({ saldo_devedor_crediario: Math.max(0, roundMoney(Number(c?.saldo_devedor_crediario || 0) - debtReductionSum)) }).eq('id', clientId));
             }
             if (giftCardSum > 0) {
-                const { data: c } = await supabase.from('clients').select('saldo_vale_presente').eq('id', clientId).single();
-                await supabase.from('clients').update({ saldo_vale_presente: roundMoney(Number(c?.saldo_vale_presente || 0) + giftCardSum) }).eq('id', clientId);
+                const { data: c } = await withRetry(async () => await supabase.from('clients').select('saldo_vale_presente').eq('id', clientId).single());
+                await withRetry(async () => await supabase.from('clients').update({ saldo_vale_presente: roundMoney(Number(c?.saldo_vale_presente || 0) + giftCardSum) }).eq('id', clientId));
             }
         }
         return true;
@@ -664,7 +682,7 @@ export const mockService = {
 
   linkClientToSale: async (saleId: string, client: Client): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          const { error } = await supabase.from('sales').update({ cliente_id: client.id, cliente_nome: client.nome, cliente_cpf: client.cpf }).eq('id', saleId);
+          const { error } = await withRetry(async () => await supabase.from('sales').update({ cliente_id: client.id, cliente_nome: client.nome, cliente_cpf: client.cpf }).eq('id', saleId));
           return !error;
       }
       return false;
@@ -672,10 +690,9 @@ export const mockService = {
 
   getClientSales: async (clientId: string): Promise<Sale[]> => {
       if (isSupabaseConfigured()) {
-          const { data } = await supabase.from('sales').select('*, items:sale_items(*)').eq('cliente_id', clientId).order('data_venda', { ascending: false });
+          const { data } = await withRetry(async () => await supabase.from('sales').select('*, items:sale_items(*)').eq('cliente_id', clientId).order('data_venda', { ascending: false }));
           return attachPaymentsToSales(data || []);
       }
-      // MODO MOCK: Buscar vendas do LocalStorage filtrando pelo cliente
       const allSales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
       const clientSales = allSales.filter(s => s.cliente_id === clientId);
       return attachPaymentsToSales(clientSales);
@@ -683,7 +700,7 @@ export const mockService = {
 
   getClientStockHistory: async (clientId: string): Promise<StockEntry[]> => {
       if (isSupabaseConfigured()) {
-          const { data } = await supabase.from('stock_entries').select('*').eq('cliente_id', clientId).order('data_entrada', { ascending: false });
+          const { data } = await withRetry(async () => await supabase.from('stock_entries').select('*').eq('cliente_id', clientId).order('data_entrada', { ascending: false }));
           return data || [];
       }
       const allEntries = getLocalData<StockEntry[]>(LS_KEYS.STOCK, MOCK_STOCK_ENTRIES);
@@ -695,13 +712,13 @@ export const mockService = {
       let targetProductId = entry.produto_id;
       if (isSupabaseConfigured()) {
           if (!targetProductId) {
-             const { data: foundProd } = await supabase.from('products').select('id').eq('nome', entry.produto_nome.split(' - ')[0]).maybeSingle();
+             const { data: foundProd } = await withRetry(async () => await supabase.from('products').select('id').eq('nome', entry.produto_nome.split(' - ')[0]).maybeSingle());
              targetProductId = foundProd?.id;
           }
           if (!targetProductId) return false;
-          const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', targetProductId).single();
+          const { data: prod } = await withRetry(async () => await supabase.from('products').select('quantidade_estoque').eq('id', targetProductId).single());
           if (!prod) return false;
-          await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + Math.abs(entry.quantidade) }).eq('id', targetProductId);
+          await withRetry(async () => await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + Math.abs(entry.quantidade) }).eq('id', targetProductId));
       } else {
           const products = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
           const updated = products.map(p => p.id === targetProductId ? { ...p, quantidade_estoque: p.quantidade_estoque + Math.abs(entry.quantidade) } : p);
@@ -721,8 +738,8 @@ export const mockService = {
 
   addClientBalance: async (clientId: string, amount: number): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-       const { data: clientData } = await supabase.from('clients').select('saldo_vale_presente').eq('id', clientId).single();
-       const { error } = await supabase.from('clients').update({ saldo_vale_presente: roundMoney(Number(clientData?.saldo_vale_presente || 0) + amount) }).eq('id', clientId);
+       const { data: clientData } = await withRetry(async () => await supabase.from('clients').select('saldo_vale_presente').eq('id', clientId).single());
+       const { error } = await withRetry(async () => await supabase.from('clients').update({ saldo_vale_presente: roundMoney(Number(clientData?.saldo_vale_presente || 0) + amount) }).eq('id', clientId));
        return !error;
     }
     const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);

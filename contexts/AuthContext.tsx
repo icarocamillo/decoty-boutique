@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
+import { supabase, isSupabaseConfigured, withRetry } from '../services/supabaseClient';
 import { Session, User } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -12,6 +12,7 @@ interface AuthContextType {
   loading: boolean;
   userRole: 'manager' | 'salesperson' | null;
   userName: string | null;
+  isOnline: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,8 +26,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<'manager' | 'salesperson' | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Inicializa usuários mock apenas para ambiente de teste
+  // Monitora status da rede do navegador
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const validateCurrentSession = async () => {
+    if (!isSupabaseConfigured()) return;
+    
+    try {
+      const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+      
+      if (error) throw error;
+
+      if (currentSession?.user) {
+         const { data: profile } = await supabase
+           .from('profiles')
+           .select('name, role, active')
+           .eq('id', currentSession.user.id)
+           .maybeSingle();
+
+         if (!profile || profile.active === false) {
+            await signOut();
+         } else {
+            setSession(currentSession);
+            setUser(currentSession.user);
+            setUserName(profile.name);
+            setUserRole(profile.role as 'manager' | 'salesperson');
+         }
+      }
+    } catch (e) {
+      console.error("Erro ao validar sessão:", e);
+    }
+  };
+
   useEffect(() => {
     if (!isSupabaseConfigured()) {
       const existingUsersStr = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
@@ -39,36 +81,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(defaultUsers));
       }
     }
-  }, []);
 
-  useEffect(() => {
     const checkAuth = async () => {
+      setLoading(true);
+      await validateCurrentSession();
+      setLoading(false);
+
       if (isSupabaseConfigured()) {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
-        if (currentSession?.user) {
-           const { data: profile } = await supabase
-             .from('profiles')
-             .select('name, role, active')
-             .eq('id', currentSession.user.id)
-             .maybeSingle();
-
-           if (!profile || profile.active === false) {
-              await supabase.auth.signOut();
-              setSession(null);
-              setUser(null);
-           } else {
-              setSession(currentSession);
-              setUser(currentSession.user);
-              setUserName(profile.name);
-              setUserRole(profile.role as 'manager' | 'salesperson');
-           }
-        }
-        
-        setLoading(false);
-
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          // Quando ocorre um login (ou refresh), validamos o perfil ANTES de definir o estado da aplicação
           if (session?.user) {
              const { data: profile } = await supabase
                .from('profiles')
@@ -77,12 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                .maybeSingle();
 
              if (!profile || profile.active === false) {
-                // Se o usuário logou mas está desativado no banco
-                await supabase.auth.signOut();
-                setSession(null);
-                setUser(null);
-                setUserName(null);
-                setUserRole(null);
+                await signOut();
              } else {
                 setSession(session);
                 setUser(session.user);
@@ -98,7 +113,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLoading(false);
         });
 
-        return () => subscription.unsubscribe();
+        // Trigger de validação ao focar na janela (usabilidade vital)
+        const onFocus = () => validateCurrentSession();
+        window.addEventListener('focus', onFocus);
+
+        return () => {
+            subscription.unsubscribe();
+            window.removeEventListener('focus', onFocus);
+        };
       } else {
         const storedSession = localStorage.getItem(LOCAL_STORAGE_SESSION_KEY);
         if (storedSession) {
@@ -126,51 +148,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     if (isSupabaseConfigured()) {
-      // 1. Tenta o login na Auth do Supabase
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) return { error };
 
       if (data.user) {
-         // 2. Imediatamente após o sucesso da senha, verifica o status na tabela profiles
          const { data: profile } = await supabase
            .from('profiles')
            .select('name, role, active')
            .eq('id', data.user.id)
            .maybeSingle();
          
-         // 3. Bloqueio Mandatário
          if (!profile || profile.active === false) {
             await supabase.auth.signOut();
-            // Limpa estados por segurança
             setSession(null);
             setUser(null);
-            return { 
-              error: { message: 'Seu usuário foi desativado. Por favor, procure a gerencia.' } 
-            };
+            return { error: { message: 'Seu usuário foi desativado. Por favor, procure a gerencia.' } };
          }
 
-         // Se chegou aqui, o login é válido e o usuário está ativo
          setSession(data.session);
          setUser(data.user);
          setUserName(profile.name);
          setUserRole(profile.role as 'manager' | 'salesperson');
       }
-
       return { error: null };
     } else {
       await new Promise(resolve => setTimeout(resolve, 600));
       const users = JSON.parse(localStorage.getItem(LOCAL_STORAGE_USERS_KEY) || '[]');
       const foundUser = users.find((u: any) => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-
       if (!foundUser) return { error: { message: 'E-mail ou senha incorretos.' } };
-      
-      if (foundUser.active === false) {
-          return { error: { message: 'Seu usuário foi desativado. Por favor, procure a gerencia.' } };
-      }
+      if (foundUser.active === false) return { error: { message: 'Seu usuário foi desativado.' } };
 
       const mockUser = { id: foundUser.id, email: foundUser.email, user_metadata: { name: foundUser.name, role: foundUser.role } } as any;
       const mockSession = { user: mockUser } as any;
-
       setSession(mockSession);
       setUser(mockUser);
       setUserName(foundUser.name);
@@ -185,9 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: { name, role, active: true }
-        }
+        options: { data: { name, role, active: true } }
       });
       return { error };
     } else {
@@ -212,7 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, signIn, signUp, signOut, loading, userRole, userName }}>
+    <AuthContext.Provider value={{ session, user, signIn, signUp, signOut, loading, userRole, userName, isOnline }}>
       {children}
     </AuthContext.Provider>
   );

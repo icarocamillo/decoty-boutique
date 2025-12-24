@@ -12,7 +12,7 @@ interface UserMenuProps {
 export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { user, userRole, userName, signOut } = useAuth();
+  const { user, userRole, userName, signOut, isOnline } = useAuth();
   const navigate = useNavigate();
 
   // Close on click outside
@@ -42,11 +42,14 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
         className="flex items-center gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 p-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-100 dark:focus:ring-zinc-700 group"
       >
         <div className="hidden sm:flex flex-col items-end justify-center text-right mr-0.5">
-          <span className="text-sm font-bold text-zinc-800 dark:text-white leading-tight mb-0.5">
+          <span className="text-sm font-bold text-zinc-800 dark:text-white leading-tight mb-0.5 flex items-center gap-1.5">
             {displayUserName}
+            <span className={`text-[10px] font-bold ${isOnline ? 'text-emerald-500' : 'text-red-500'} uppercase tracking-tight`}>
+              ({isOnline ? 'Online' : 'Offline'})
+            </span>
           </span>
           <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300 leading-tight">
-            {roleLabel}
+            Perfil de acesso: {roleLabel}
           </span>
           <span className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-tight truncate max-w-[150px]">
             {user?.email}
@@ -64,7 +67,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
         <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-zinc-100 dark:border-zinc-800 py-2 z-50 animate-fade-in-up origin-top-right">
           <div className="px-4 py-3 border-b border-zinc-50 dark:border-zinc-800 sm:hidden">
             <p className="text-sm font-bold text-zinc-900 dark:text-white">{displayUserName}</p>
-            <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">{roleLabel}</p>
+            <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Perfil de acesso: {roleLabel}</p>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">{user?.email}</p>
           </div>
           
