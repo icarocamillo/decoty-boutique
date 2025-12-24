@@ -1,9 +1,8 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate, Outlet } from 'react-router-dom';
-import { Plus, UserPlus, Package, Archive, ShoppingCart, Users, PieChart, Truck, Wifi, WifiOff } from 'lucide-react';
+import { Plus, UserPlus, Package, Archive, ShoppingCart, Users, PieChart, Truck } from 'lucide-react';
 import { mockService } from './services/mockService';
-import { startHeartbeat } from './services/supabaseClient';
 import { Sale, ChartDataPoint, Client, Product, StockEntry, Supplier } from './types';
 import { Button } from './components/ui/Button';
 import { NewSaleModal } from './components/NewSaleModal';
@@ -47,7 +46,7 @@ const ManagerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { userRole, isOnline } = useAuth(); 
+  const { userRole, userName } = useAuth(); 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => getInitialTheme());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,12 +60,6 @@ const AppLayout: React.FC = () => {
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [topBrand, setTopBrand] = useState<string>('-');
-
-  // Iniciar Heartbeat para manter Supabase "quente"
-  useEffect(() => {
-    const cleanup = startHeartbeat();
-    return cleanup;
-  }, []);
 
   useEffect(() => {
     if (isDarkMode) document.documentElement.classList.add('dark');
@@ -133,11 +126,9 @@ const AppLayout: React.FC = () => {
             <div className="transform group-hover:scale-105 transition-transform duration-300">
               <BrandLogo />
             </div>
-            <div className="flex flex-col">
-                <h1 className="text-3xl font-rouge text-zinc-900 dark:text-white tracking-wide pt-2">
-                Decoty Boutique
-                </h1>
-            </div>
+            <h1 className="text-3xl font-rouge text-zinc-900 dark:text-white tracking-wide pt-2">
+              Decoty Boutique
+            </h1>
           </div>
           
           <UserMenu isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
@@ -150,7 +141,6 @@ const AppLayout: React.FC = () => {
             variant="success"
             className="h-auto py-3 flex flex-col items-center gap-2 border-0 col-span-2 sm:col-span-1"
             onClick={() => setIsModalOpen(true)}
-            disabled={!isOnline}
           >
             <ShoppingCart size={24} />
             <span>Realizar Venda</span>
@@ -224,17 +214,6 @@ const AppLayout: React.FC = () => {
           )}
         </div>
 
-        {/* Alerta de Modo Offline */}
-        {!isOnline && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-xl flex items-center gap-3 text-red-700 dark:text-red-400 animate-pulse">
-                <WifiOff size={24} />
-                <div>
-                    <p className="font-bold">Conexão perdida.</p>
-                    <p className="text-xs">Verifique sua internet. Algumas funcionalidades podem não salvar dados corretamente até a reconexão.</p>
-                </div>
-            </div>
-        )}
-
         {isLoading ? (
           <LoadingScreen />
         ) : (
@@ -260,6 +239,7 @@ const AppLayout: React.FC = () => {
             <Route path="/products" element={<ProductList products={products} onUpdate={fetchDashboardData} />} />
             <Route path="/stock" element={<StockList entries={stockEntries} products={products} onUpdate={fetchDashboardData} />} />
 
+            {/* Vendedores agora também podem ver o relatório de vendas (SalesPage) */}
             <Route path="/sales" element={<SalesPage onUpdate={fetchDashboardData} />} />
             
             <Route path="/team" element={<ManagerRoute><TeamList /></ManagerRoute>} />
@@ -275,7 +255,7 @@ const AppLayout: React.FC = () => {
           <div className="flex items-center gap-4">
             <span className="hover:text-zinc-900 dark:hover:text-white cursor-pointer transition-colors">Termos de Uso</span>
             <span className="hover:text-zinc-900 dark:hover:text-white cursor-pointer transition-colors">Suporte</span>
-            <span className="text-xs bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded text-zinc-400 dark:text-zinc-500">v1.3.2</span>
+            <span className="text-xs bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded text-zinc-400 dark:text-zinc-500">v1.3.1</span>
           </div>
         </div>
       </footer>
