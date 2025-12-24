@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Plus, Trash2, ShoppingCart, Search, Package, User, ArrowRight, Filter, Check, CreditCard, DollarSign, Wallet, AlertCircle, ArrowLeft, Ticket, UserPlus, Gift, Handshake, Info, Minus, RefreshCw, List } from 'lucide-react';
+/* Added Loader2 to imports from lucide-react */
+import { X, Plus, Trash2, ShoppingCart, Search, Package, User, ArrowRight, Filter, Check, CreditCard, DollarSign, Wallet, AlertCircle, ArrowLeft, Ticket, UserPlus, Gift, Handshake, Info, Minus, RefreshCw, List, Loader2 } from 'lucide-react';
 import { Product, CartItem, Client } from '../types';
 import { mockService, PaymentDiscounts, PaymentFees } from '../services/mockService';
 import { Button } from './ui/Button';
@@ -21,10 +22,10 @@ const CATEGORIES = ['Vestidos', 'Blusas', 'Camisas', 'Calças', 'Saias', 'Casaco
 
 export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onSaleComplete }) => {
   const navigate = useNavigate();
-  const { user } = useAuth(); 
+  const { user, refreshSession } = useAuth(); 
   
   const [step, setStep] = useState<'client' | 'products' | 'payment'>('client');
-  const [activeTab, setActiveTab] = useState<'search' | 'cart'>('search'); // Nova aba para mobile
+  const [activeTab, setActiveTab] = useState<'search' | 'cart'>('search'); 
   const [products, setProducts] = useState<Product[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -68,20 +69,27 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
     if (isOpen) {
       document.body.style.overflow = 'hidden';
       setLoading(true);
-      Promise.all([
-        mockService.getProducts(),
-        mockService.getClients(),
-        mockService.getPaymentDiscounts(),
-        mockService.getPaymentFees(),
-        mockService.getSuppliers()
-      ])
+      
+      // Valida sessão antes de buscar dados para evitar tokens expirados silenciosos
+      refreshSession().then(() => {
+          return Promise.all([
+            mockService.getProducts(),
+            mockService.getClients(),
+            mockService.getPaymentDiscounts(),
+            mockService.getPaymentFees(),
+            mockService.getSuppliers()
+          ]);
+      })
       .then(([productsData, clientsData, discData, feesData, suppliersData]) => {
-        setProducts(productsData);
-        setClients(clientsData);
+        setProducts(productsData || []);
+        setClients(clientsData || []);
         setDiscountsConfig(discData);
         setFeesConfig(feesData);
         const supplierBrands = suppliersData.map(s => s.fantasy_name).filter((name): name is string => !!name && name.trim() !== '');
         setBrands(Array.from(new Set(supplierBrands)).sort());
+      })
+      .catch(err => {
+        console.error("Erro ao carregar dados do modal:", err);
       })
       .finally(() => setLoading(false));
 
@@ -102,7 +110,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
     } else {
       document.body.style.overflow = 'unset';
     }
-  }, [isOpen]);
+  }, [isOpen, refreshSession]);
 
   const filteredClients = useMemo(() => {
     if (!clientSearchTerm) return clients; 
@@ -257,7 +265,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-fade-in">
-      <div className="bg-white dark:bg-zinc-900 rounded-none sm:rounded-xl shadow-2xl w-full max-w-7xl h-full sm:h-[92vh] flex flex-col overflow-hidden animate-fade-in-up border-0 sm:border border-zinc-200 dark:border-zinc-800">
+      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-7xl h-full sm:h-[92vh] flex flex-col overflow-hidden animate-fade-in-up border-0 sm:border border-zinc-200 dark:border-zinc-800">
         
         {/* Header */}
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900 shrink-0">
@@ -279,26 +287,36 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
           {step === 'client' && (
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col items-center justify-center gap-4 bg-zinc-50 dark:bg-zinc-950/50 custom-scrollbar">
               <div className="w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-4 shadow-sm my-auto">
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
-                  <input type="text" placeholder="Buscar cliente..." className="w-full pl-12 pr-4 py-3 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500" value={clientSearchTerm} onChange={(e) => setClientSearchTerm(e.target.value)} disabled={isUnregisteredClient} />
-                </div>
-                {!isUnregisteredClient && (
-                  <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar pr-1">
-                    {filteredClients.map(c => (
-                      <div key={c.id} onClick={() => handleSelectClient(c)} className={`p-3 rounded-lg border cursor-pointer flex items-center justify-between transition-colors ${selectedClient?.id === c.id ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}>
-                        <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><User size={16} className="text-zinc-500" /></div><span className="font-bold text-zinc-800 dark:text-zinc-200">{c.nome}</span></div>
-                        {selectedClient?.id === c.id && <Check className="text-emerald-600" size={18} />}
-                      </div>
-                    ))}
-                    {filteredClients.length === 0 && clientSearchTerm && <p className="text-center py-4 text-zinc-400 text-sm italic">Nenhum cliente encontrado.</p>}
-                  </div>
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-3 text-zinc-500">
+                        {/* Fix: Loader2 is now correctly imported and used */}
+                        <Loader2 className="animate-spin" size={32} />
+                        <p className="text-sm font-medium">Revalidando conexão e carregando clientes...</p>
+                    </div>
+                ) : (
+                    <>
+                        <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
+                        <input type="text" placeholder="Buscar cliente..." className="w-full pl-12 pr-4 py-3 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500" value={clientSearchTerm} onChange={(e) => setClientSearchTerm(e.target.value)} disabled={isUnregisteredClient} />
+                        </div>
+                        {!isUnregisteredClient && (
+                        <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar pr-1">
+                            {filteredClients.map(c => (
+                            <div key={c.id} onClick={() => handleSelectClient(c)} className={`p-3 rounded-lg border cursor-pointer flex items-center justify-between transition-colors ${selectedClient?.id === c.id ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}>
+                                <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><User size={16} className="text-zinc-500" /></div><span className="font-bold text-zinc-800 dark:text-zinc-200">{c.nome}</span></div>
+                                {selectedClient?.id === c.id && <Check className="text-emerald-600" size={18} />}
+                            </div>
+                            ))}
+                            {filteredClients.length === 0 && clientSearchTerm && <p className="text-center py-4 text-zinc-400 text-sm italic">Nenhum cliente encontrado.</p>}
+                        </div>
+                        )}
+                        <label className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg cursor-pointer border border-zinc-200 dark:border-zinc-700">
+                        <input type="checkbox" checked={isUnregisteredClient} onChange={handleUnregisteredChange} className="w-5 h-5 text-emerald-600 rounded border-zinc-300 bg-transparent" />
+                        <span className="font-medium text-zinc-700 dark:text-zinc-300">Venda Balcão (Não registrado)</span>
+                        </label>
+                        <Button variant="success" className="w-full py-4 text-lg h-auto" disabled={!selectedClient && !isUnregisteredClient} onClick={() => setStep('products')}>Avançar para produtos <ArrowRight size={20} className="ml-2" /></Button>
+                    </>
                 )}
-                <label className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg cursor-pointer border border-zinc-200 dark:border-zinc-700">
-                  <input type="checkbox" checked={isUnregisteredClient} onChange={handleUnregisteredChange} className="w-5 h-5 text-emerald-600 rounded border-zinc-300 bg-transparent" />
-                  <span className="font-medium text-zinc-700 dark:text-zinc-300">Venda Balcão (Não registrado)</span>
-                </label>
-                <Button variant="success" className="w-full py-4 text-lg h-auto" disabled={!selectedClient && !isUnregisteredClient} onClick={() => setStep('products')}>Avançar para produtos <ArrowRight size={20} className="ml-2" /></Button>
               </div>
             </div>
           )}

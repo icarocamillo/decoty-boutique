@@ -1,6 +1,6 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase, isSupabaseConfigured, withRetry } from '../services/supabaseClient';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { supabase, isSupabaseConfigured, withRetry, refreshSessionIfExpiring } from '../services/supabaseClient';
 import { Session, User } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -13,6 +13,7 @@ interface AuthContextType {
   userRole: 'manager' | 'salesperson' | null;
   userName: string | null;
   isOnline: boolean;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,7 +29,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userName, setUserName] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Monitora status da rede do navegador
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -40,10 +40,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const validateCurrentSession = async () => {
+  const validateCurrentSession = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
     
     try {
+      // getSession() é preferível a getUser() para garantir refresh de tokens JWT
       const { data: { session: currentSession }, error } = await supabase.auth.getSession();
       
       if (error) throw error;
@@ -63,11 +64,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUserName(profile.name);
             setUserRole(profile.role as 'manager' | 'salesperson');
          }
+      } else {
+        setSession(null);
+        setUser(null);
       }
     } catch (e) {
       console.error("Erro ao validar sessão:", e);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -89,7 +93,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (isSupabaseConfigured()) {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          if (session?.user) {
+          if (event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+            await validateCurrentSession();
+          } else if (session?.user) {
              const { data: profile } = await supabase
                .from('profiles')
                .select('name, role, active')
@@ -104,22 +110,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUserName(profile.name);
                 setUserRole(profile.role as 'manager' | 'salesperson');
              }
-          } else {
-             setSession(null);
-             setUser(null);
-             setUserName(null);
-             setUserRole(null);
           }
           setLoading(false);
         });
 
-        // Trigger de validação ao focar na janela (usabilidade vital)
-        const onFocus = () => validateCurrentSession();
-        window.addEventListener('focus', onFocus);
+        // RE-VALIDAÇÃO ATIVA: Dispara ao voltar para a aba ou focar na janela
+        const handleVisibilityChange = () => {
+          if (document.visibilityState === 'visible') {
+            validateCurrentSession();
+          }
+        };
+
+        window.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', validateCurrentSession);
 
         return () => {
             subscription.unsubscribe();
-            window.removeEventListener('focus', onFocus);
+            window.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', validateCurrentSession);
         };
       } else {
         const storedSession = localStorage.getItem(LOCAL_STORAGE_SESSION_KEY);
@@ -144,7 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     checkAuth();
-  }, []);
+  }, [validateCurrentSession]);
 
   const signIn = async (email: string, password: string) => {
     if (isSupabaseConfigured()) {
@@ -219,7 +227,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, signIn, signUp, signOut, loading, userRole, userName, isOnline }}>
+    <AuthContext.Provider value={{ 
+      session, 
+      user, 
+      signIn, 
+      signUp, 
+      signOut, 
+      loading, 
+      userRole, 
+      userName, 
+      isOnline,
+      refreshSession: validateCurrentSession 
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -14,13 +14,32 @@ export const isSupabaseConfigured = () => {
          !SUPABASE_URL.includes('SUA_URL_DO_SUPABASE');
 };
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+});
 
 /**
- * Utilitário para executar funções assíncronas com lógica de repetição (Retry)
- * Útil para mitigar falhas temporárias de rede ou "cold starts" do banco.
+ * Força a renovação do token se necessário.
  */
-// Fix: Corrected type signature of withRetry to remove 'any' which was breaking type inference for callers.
+export const refreshSessionIfExpiring = async () => {
+  if (!isSupabaseConfigured()) return;
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) console.error("Erro ao renovar sessão:", error);
+    return session;
+  } catch (e) {
+    return null;
+  }
+};
+
+/**
+ * Utilitário aprimorado para executar funções assíncronas com lógica de repetição.
+ * Agora capaz de recuperar sessões expiradas silenciosamente.
+ */
 export async function withRetry<T>(
   fn: () => T | Promise<T>, 
   retries = 3, 
@@ -29,14 +48,22 @@ export async function withRetry<T>(
   try {
     return await fn();
   } catch (error: any) {
-    const isNetworkError = error.message?.toLowerCase().includes('fetch') || 
-                           error.message?.toLowerCase().includes('network') ||
-                           error.code === 'PGRST102'; // Timeout code
+    const errorMsg = error.message?.toLowerCase() || '';
+    const isAuthError = errorMsg.includes('jwt') || errorMsg.includes('expired') || errorMsg.includes('unauthorized') || error.code === '401';
+    const isNetworkError = errorMsg.includes('fetch') || errorMsg.includes('network') || error.code === 'PGRST102';
 
-    if (retries > 0 && isNetworkError) {
-      console.warn(`Conexão instável. Tentando novamente em ${delay}ms... (${retries} tentativas restantes)`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return withRetry(fn, retries - 1, delay * 2);
+    if (retries > 0) {
+      if (isAuthError) {
+        console.debug('Sessão expirada detectada no meio da operação. Tentando renovação silenciosa...');
+        await refreshSessionIfExpiring();
+        return withRetry(fn, retries - 1, delay); // Tenta de novo imediatamente com novo token
+      }
+
+      if (isNetworkError) {
+        console.warn(`Falha de conexão. Tentando novamente em ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return withRetry(fn, retries - 1, delay * 2);
+      }
     }
     throw error;
   }
@@ -44,19 +71,21 @@ export async function withRetry<T>(
 
 /**
  * Heartbeat: Mantém a conexão ativa e renova tokens JWT.
+ * Reduzido para 2 minutos para maior confiabilidade.
  */
 export const startHeartbeat = () => {
     if (!isSupabaseConfigured()) return;
     
-    // Executa a cada 5 minutos
     const interval = setInterval(async () => {
         try {
-            // Consulta ultra-leve apenas para manter o túnel HTTP aberto
+            // Verifica a sessão ativamente (isso dispara o refresh do token no SDK)
+            await supabase.auth.getSession();
+            // Ping leve no banco
             await supabase.from('store_config').select('key').limit(1);
         } catch (e) {
-            console.debug('Heartbeat falhou, tentando reconectar...');
+            console.debug('Heartbeat: Instabilidade detectada.');
         }
-    }, 5 * 60 * 1000);
+    }, 2 * 60 * 1000); 
 
     return () => clearInterval(interval);
 };
