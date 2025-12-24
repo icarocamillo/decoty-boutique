@@ -46,7 +46,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
             {displayUserName}
           </span>
           <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300 leading-tight">
-            {roleLabel}
+            Perfil de acesso: {roleLabel}
           </span>
           <span className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-tight truncate max-w-[150px]">
             {user?.email}
@@ -64,7 +64,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
         <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-zinc-100 dark:border-zinc-800 py-2 z-50 animate-fade-in-up origin-top-right">
           <div className="px-4 py-3 border-b border-zinc-50 dark:border-zinc-800 sm:hidden">
             <p className="text-sm font-bold text-zinc-900 dark:text-white">{displayUserName}</p>
-            <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">{roleLabel}</p>
+            <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Perfil de acesso: {roleLabel}</p>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">{user?.email}</p>
           </div>
           
