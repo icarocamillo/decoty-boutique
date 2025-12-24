@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, User, CreditCard, Tag, Package, Receipt, Link, AlertTriangle, Mail, ShieldCheck, PieChart, Activity, Phone, Smartphone, Search, Loader2, Check, Gift, Undo2, Wallet, DollarSign, BookOpen, ShoppingBag, Hourglass, Banknote } from 'lucide-react';
+import { X, User, CreditCard, Tag, Package, Receipt, Link, AlertTriangle, Mail, ShieldCheck, PieChart, Activity, Phone, Smartphone, Search, Loader2, Check, Gift, Undo2, Wallet, DollarSign, BookOpen, ShoppingBag, Hourglass, Banknote, CheckCircle2 } from 'lucide-react';
 import { Sale, Client, SaleItem, UserProfile, PaymentFees } from '../types';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
@@ -456,7 +456,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3 flex items-center gap-2"><Package size={16} className="text-zinc-500" /> Itens Adquiridos</h3>
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden hidden sm:block">
                 <table className="w-full text-sm text-left">
-                  <thead className="bg-zinc-50 dark:bg-zinc-800 text-xs text-zinc-500 uppercase font-medium">
+                  <thead className="bg-zinc-50 dark:bg-zinc-800 text-xs text-zinc-500 dark:text-zinc-400 uppercase font-medium">
                     <tr>
                       <th className="px-4 py-3">Produto</th>
                       <th className="px-4 py-3 text-center">Tam.</th>
@@ -473,12 +473,12 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                         <tr key={item.virtualId} className={`hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale bg-zinc-50/50' : ''}`}>
                           <td className="px-4 py-3"><div className="font-medium text-zinc-900 dark:text-white">{item.nome_produto}</div><div className="text-[10px] text-zinc-400">{item.marca}</div></td>
                           <td className="px-4 py-3 text-center"><Badge variant="secondary">{item.tamanho}</Badge></td>
-                          <td className="px-4 py-3 text-center">{item.quantidade}</td>
+                          <td className="px-4 py-3 text-center text-zinc-800 dark:text-zinc-200">{item.quantidade}</td>
                           <td className="px-4 py-3 text-center">{isReturned ? <Badge variant="destructive" className="text-[9px]">Devolvido</Badge> : <Badge variant="success" className="text-[9px]">Vendido</Badge>}</td>
                           <td className="px-4 py-3 text-center">
-                             {!isReturned && currentSale.status !== 'cancelled' && (item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[9px] h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[9px] h-4 gap-1"><DollarSign size={8} /> Pendente</Badge>)}
+                             {!isReturned && currentSale.status !== 'cancelled' && (item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[9px] h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[9px] h-4 px-1.5 gap-1"><DollarSign size={8} /> Pendente</Badge>)}
                           </td>
-                          <td className="px-4 py-3 text-right font-bold">{formatCurrency(item.subtotal)}</td>
+                          <td className="px-4 py-3 text-right font-bold text-zinc-900 dark:text-white">{formatCurrency(item.subtotal)}</td>
                         </tr>
                       );
                     })}
@@ -490,12 +490,15 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
               {unrolledItems.map((item) => (
                 <div key={item.virtualId} className="bg-zinc-50 dark:bg-zinc-800/30 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700">
                     <div className="flex justify-between items-start">
-                        <span className="font-bold text-sm dark:text-white">{item.nome_produto}</span>
-                        <Badge variant="outline" className="text-[9px]">{item.tamanho}</Badge>
+                        <span className="font-bold text-sm text-zinc-900 dark:text-white">{item.nome_produto}</span>
+                        <Badge variant="outline" className="text-[9px] dark:text-zinc-300">{item.tamanho}</Badge>
                     </div>
                     <div className="flex justify-between items-center mt-2">
-                        <span className="text-xs text-zinc-500 font-bold">{formatCurrency(item.subtotal)}</span>
-                        {item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[8px]">Pago</Badge> : <Badge variant="warning" className="text-[8px]">Pendente</Badge>}
+                        <span className="text-xs text-zinc-700 dark:text-zinc-200 font-bold">{formatCurrency(item.subtotal)}</span>
+                        <div className="flex items-center gap-2">
+                           <span className="text-[10px] text-zinc-500 dark:text-zinc-400">Qtd: {item.quantidade}</span>
+                           {item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[8px]">Pago</Badge> : <Badge variant="warning" className="text-[8px]">Pendente</Badge>}
+                        </div>
                     </div>
                 </div>
               ))}

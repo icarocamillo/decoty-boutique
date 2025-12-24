@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { X, UserPlus, User, Mail, Phone, Loader2, MapPin, Smartphone, Megaphone, Check, CreditCard, Shirt } from 'lucide-react';
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, UserPlus, User, Mail, Phone, Loader2, MapPin, Smartphone, Megaphone, Check, CreditCard, Shirt, AlertCircle } from 'lucide-react';
 import { Button } from './ui/Button';
 import { mockService } from '../services/mockService';
 import { Client } from '../types';
@@ -13,6 +14,7 @@ interface ClientFormModalProps {
 
 export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClose, onSuccess, clientToEdit }) => {
   const [loading, setLoading] = useState(false);
+  const [allClients, setAllClients] = useState<Client[]>([]);
   
   // State for Form Data
   const [formData, setFormData] = useState({
@@ -23,8 +25,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
     celular: '',
     is_whatsapp: false,
     receber_ofertas: false,
-    pode_provador: false, // Novo campo
-    // Endereço
+    pode_provador: false,
     cep: '',
     logradouro: '',
     numero: '',
@@ -33,6 +34,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
     cidade: '',
     estado: ''
   });
+
+  // Carrega lista de clientes para validação de duplicidade
+  useEffect(() => {
+    if (isOpen) {
+      mockService.getClients().then(setAllClients);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -45,7 +53,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
           celular: clientToEdit.celular || '',
           is_whatsapp: clientToEdit.is_whatsapp || false,
           receber_ofertas: clientToEdit.receber_ofertas || false,
-          pode_provador: clientToEdit.pode_provador || false, // Carrega estado existente
+          pode_provador: clientToEdit.pode_provador || false,
           cep: clientToEdit.endereco?.cep || '',
           logradouro: clientToEdit.endereco?.logradouro || '',
           numero: clientToEdit.endereco?.numero || '',
@@ -63,10 +71,21 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
     }
   }, [isOpen, clientToEdit]);
 
-  // Regra de Negócio: Cliente só pode receber ofertas se tiver Email OU (Celular E WhatsApp ativo)
+  // Validação de CPF Duplicado
+  const isCpfDuplicate = useMemo(() => {
+    const cleanCpf = formData.cpf.replace(/\D/g, '');
+    if (cleanCpf.length < 11) return false;
+    
+    return allClients.some(c => {
+      const existingCpf = (c.cpf || '').replace(/\D/g, '');
+      // Se estiver editando, não considerar o próprio cliente como duplicata
+      if (clientToEdit && c.id === clientToEdit.id) return false;
+      return existingCpf === cleanCpf;
+    });
+  }, [formData.cpf, allClients, clientToEdit]);
+
   const canReceiveOffers = !!formData.email || (!!formData.celular && formData.is_whatsapp);
 
-  // Efeito para desmarcar "Receber Ofertas" se a condição deixar de ser verdadeira
   useEffect(() => {
     if (!canReceiveOffers && formData.receber_ofertas) {
       setFormData(prev => ({ ...prev, receber_ofertas: false }));
@@ -75,7 +94,6 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    // Type checking for checkbox since standard event doesn't guarantee 'checked' for all elements
     const checked = (e.target as HTMLInputElement).checked;
     
     setFormData(prev => ({
@@ -84,12 +102,10 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
     }));
   };
 
-  // Máscara para CPF: 000.000.000-00
   const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é dígito
+    let value = e.target.value.replace(/\D/g, '');
     if (value.length > 11) value = value.slice(0, 11);
     
-    // Aplica a máscara
     if (value.length > 9) {
       value = `${value.slice(0, 3)}.${value.slice(3, 6)}.${value.slice(6, 9)}-${value.slice(9)}`;
     } else if (value.length > 6) {
@@ -101,53 +117,34 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
     setFormData(prev => ({ ...prev, cpf: value }));
   };
 
-  // Máscara para Telefone Fixo: (00) 0000-0000
   const handleFixoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é dígito
+    let value = e.target.value.replace(/\D/g, '');
     if (value.length > 10) value = value.slice(0, 10);
-    
-    // Aplica a máscara (XX) XXXX-XXXX
-    if (value.length > 2) {
-      value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
-    }
-    if (value.length > 9) { // (XX) XXXX-XXXX (length atual é 9 chars + mask chars)
-      value = `${value.slice(0, 9)}-${value.slice(9)}`;
-    }
-    
+    if (value.length > 2) value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+    if (value.length > 9) value = `${value.slice(0, 9)}-${value.slice(9)}`;
     setFormData(prev => ({ ...prev, telefone_fixo: value }));
   };
 
-  // Máscara para Celular: (00) 0 0000-0000
   const handleCelularChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é dígito
+    let value = e.target.value.replace(/\D/g, '');
     if (value.length > 11) value = value.slice(0, 11);
-
-    // Formata (XX) X XXXX-XXXX
     let formatted = value;
-    if (value.length > 2) {
-      formatted = `(${value.slice(0, 2)}) ${value.slice(2)}`;
-    }
-    if (value.length > 3) {
-      formatted = `(${value.slice(0, 2)}) ${value.slice(2, 3)} ${value.slice(3)}`;
-    }
-    if (value.length > 7) {
-      formatted = `(${value.slice(0, 2)}) ${value.slice(2, 3)} ${value.slice(3, 7)}-${value.slice(7)}`;
-    }
-
+    if (value.length > 2) formatted = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+    if (value.length > 3) formatted = `(${value.slice(0, 2)}) ${value.slice(2, 3)} ${value.slice(3)}`;
+    if (value.length > 7) formatted = `(${value.slice(0, 2)}) ${value.slice(2, 3)} ${value.slice(3, 7)}-${value.slice(7)}`;
     setFormData(prev => ({ ...prev, celular: formatted }));
   };
 
   const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value.length > 8) value = value.slice(0, 8);
-    if (value.length > 5) {
-      value = `${value.slice(0, 5)}-${value.slice(5)}`;
-    }
+    if (value.length > 5) value = `${value.slice(0, 5)}-${value.slice(5)}`;
     setFormData(prev => ({ ...prev, cep: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCpfDuplicate) return;
     if (!formData.nome || (!formData.celular && !formData.telefone_fixo)) {
        alert("Por favor, preencha o nome e ao menos um telefone de contato.");
        return;
@@ -155,7 +152,6 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
 
     setLoading(true);
     
-    // Construct the payload matching the updated Client interface
     const payload = {
       nome: formData.nome,
       cpf: formData.cpf,
@@ -164,8 +160,8 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
       celular: formData.celular,
       is_whatsapp: formData.is_whatsapp,
       receber_ofertas: formData.receber_ofertas,
-      pode_provador: formData.pode_provador, // Save flag
-      telefone: formData.celular || formData.telefone_fixo, // Fallback for legacy
+      pode_provador: formData.pode_provador,
+      telefone: formData.celular || formData.telefone_fixo,
       endereco: {
         cep: formData.cep,
         logradouro: formData.logradouro,
@@ -179,7 +175,6 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
 
     try {
       let success = false;
-      
       if (clientToEdit) {
         success = await mockService.updateClient({
           ...payload,
@@ -197,12 +192,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
          alert(`Erro ao ${clientToEdit ? 'editar' : 'cadastrar'} cliente`);
       }
     } catch (error: any) {
-        // TRATAMENTO AMIGÁVEL PARA ERRO DE COLUNA FALTANTE
-        if (error.message && (error.message.includes("pode_provador") || error.code === '42703')) {
-            alert("⚠️ AVISO DE CONFIGURAÇÃO:\n\nO banco de dados Supabase ainda não possui a coluna 'pode_provador'.\n\nPor favor, execute o script 'SUPABASE_INSTRUCTIONS.sql' no Editor SQL do Supabase para corrigir isso.");
-        } else {
-            alert(error.message);
-        }
+        alert(error.message || "Erro ao salvar cliente");
     } finally {
         setLoading(false);
     }
@@ -214,7 +204,6 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
       <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in-up border border-zinc-200 dark:border-zinc-800">
         
-        {/* Header - Fixed */}
         <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900 shrink-0">
           <div className="flex items-center gap-2">
             <UserPlus className="text-zinc-700 dark:text-zinc-300" size={20} />
@@ -227,11 +216,9 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
           </button>
         </div>
 
-        {/* Form Body - Scrollable */}
         <div className="p-6 overflow-y-auto flex-1 min-h-0 bg-white dark:bg-zinc-900">
           <form id="client-form" onSubmit={handleSubmit} className="space-y-6">
             
-            {/* Dados Pessoais e Contato */}
             <div className="space-y-4">
               <h3 className="text-xs font-bold text-zinc-400 uppercase flex items-center gap-2 mb-2">
                 <User size={14} /> Dados Pessoais
@@ -254,14 +241,26 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                   <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
                      <CreditCard size={16} className="text-zinc-400" /> CPF
                   </label>
-                  <input
-                    type="text"
-                    name="cpf"
-                    value={formData.cpf}
-                    onChange={handleCpfChange}
-                    placeholder="000.000.000-00"
-                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none font-mono"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="cpf"
+                      value={formData.cpf}
+                      onChange={handleCpfChange}
+                      placeholder="000.000.000-00"
+                      className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:outline-none font-mono transition-all ${
+                        isCpfDuplicate 
+                          ? 'border-red-500 ring-2 ring-red-500/20' 
+                          : 'border-zinc-300 dark:border-zinc-700 focus:ring-zinc-500'
+                      }`}
+                    />
+                    {isCpfDuplicate && (
+                      <div className="flex items-center gap-1 mt-1 text-red-500 animate-fade-in">
+                        <AlertCircle size={12} />
+                        <span className="text-[11px] font-bold">Este CPF já pertence a outro cliente cadastrado.</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -279,12 +278,10 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none"
                     />
                   </div>
-                 {/* Espaço Vazio ou Outro campo futuro */}
                  <div className="hidden md:block"></div>
                </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 {/* Telefone Fixo */}
                  <div className="space-y-2">
                     <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
                       <Phone size={16} className="text-zinc-400" /> Telefone Fixo
@@ -299,13 +296,10 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                     />
                   </div>
 
-                  {/* Celular + WhatsApp */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center justify-between">
                       <span className="flex items-center gap-2"><Smartphone size={16} className="text-zinc-400" /> Celular</span>
-                      
                       <label className="flex items-center gap-1 cursor-pointer group">
-                        {/* Checkbox WhatsApp corrigido para usar bg-transparent */}
                         <input 
                           type="checkbox" 
                           name="is_whatsapp"
@@ -330,13 +324,11 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
 
             <hr className="border-zinc-100 dark:border-zinc-800" />
 
-            {/* Endereço */}
             <div className="space-y-4">
               <h3 className="text-xs font-bold text-zinc-400 uppercase flex items-center gap-2 mb-2">
                 <MapPin size={14} /> Endereço
               </h3>
               
-              {/* Linha 1: CEP, Rua, Numero */}
               <div className="grid grid-cols-12 gap-4">
                  <div className="col-span-12 sm:col-span-3 space-y-2">
                     <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">CEP</label>
@@ -373,7 +365,6 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                  </div>
               </div>
 
-              {/* Linha 2: Complemento, Bairro */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <div className="space-y-2">
                     <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Complemento</label>
@@ -399,7 +390,6 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                  </div>
               </div>
 
-              {/* Linha 3: Cidade, UF */}
               <div className="grid grid-cols-12 gap-4">
                  <div className="col-span-12 sm:col-span-9 space-y-2">
                     <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Cidade</label>
@@ -431,11 +421,8 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
 
             <hr className="border-zinc-100 dark:border-zinc-800" />
 
-            {/* Preferências e Permissões */}
              <div className="space-y-4">
                <div className="grid grid-cols-1 gap-3">
-                 
-                 {/* Ofertas */}
                  <label className={`flex items-start gap-3 p-3 border rounded-lg transition-colors ${
                    canReceiveOffers 
                      ? 'bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800' 
@@ -461,7 +448,6 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                     </div>
                  </label>
 
-                 {/* Provador (NOVO) */}
                  <label className="flex items-start gap-3 p-3 border border-zinc-200 dark:border-zinc-700 rounded-lg cursor-pointer bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
                     <input 
                       type="checkbox" 
@@ -479,19 +465,22 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                       </span>
                     </div>
                  </label>
-
                </div>
              </div>
 
           </form>
         </div>
 
-        {/* Footer - Fixed */}
         <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-3 shrink-0">
           <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
             Cancelar
           </Button>
-          <Button type="submit" form="client-form" disabled={loading} className="w-32 flex items-center justify-center gap-2">
+          <Button 
+            type="submit" 
+            form="client-form" 
+            disabled={loading || isCpfDuplicate} 
+            className={`w-32 flex items-center justify-center gap-2 ${isCpfDuplicate ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
             {loading ? <Loader2 className="animate-spin" size={18} /> : (
               clientToEdit ? <><Check size={18} /> Salvar</> : 'Cadastrar'
             )}

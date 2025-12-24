@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from 'react-router-dom';
 import { Client, Sale, StockEntry, UserProfile, Product } from '../types';
 import { mockService } from '../services/mockService';
@@ -257,12 +258,12 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
               <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 p-3 rounded-xl text-center flex flex-col justify-between relative group">
                  <div className="text-amber-600 dark:text-amber-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1"><Gift size={14} /> Vale Presente</div>
                  <div className="text-xl font-bold text-amber-700 dark:text-amber-300">{formatCurrency(client.saldo_vale_presente || 0)}</div>
-                 <button onClick={() => setIsGiftModalOpen(true)} className="w-full mt-2 text-[10px] font-bold bg-amber-100 dark:bg-amber-800/30 text-amber-700 dark:text-amber-300 rounded py-1 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors flex items-center justify-center gap-1"><Plus size={10} /> Gerenciar Saldo</button>
+                 <button onClick={() => setIsGiftModalOpen(true)} className="w-full mt-2 text-[10px] font-bold bg-amber-100 dark:bg-amber-800/30 text-amber-700 dark:text-amber-300 rounded py-1 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors flex items-center justify-center gap-1">Gerenciar Saldo</button>
               </div>
               <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 p-3 rounded-xl text-center flex flex-col justify-between">
                 <div className="text-red-600 dark:text-red-400 text-[10px] uppercase font-bold mb-1 flex items-center justify-center gap-1"><BookOpen size={14} /> Saldo Crediário</div>
                 <div className="text-xl font-bold text-red-700 dark:text-red-400">{formatCurrency(client.saldo_devedor_crediario || 0)}</div>
-                {(client.saldo_devedor_crediario || 0) > 0 && <button onClick={() => setIsCrediarioModalOpen(true)} className="w-full mt-2 text-[10px] font-bold bg-red-100 dark:bg-red-800/30 text-red-700 dark:text-red-400 rounded py-1 hover:bg-red-200 dark:hover:bg-red-800/50 transition-colors flex items-center justify-center gap-1"><Wallet size={10} /> Receber</button>}
+                <button onClick={() => setIsCrediarioModalOpen(true)} className="w-full mt-2 text-[10px] font-bold bg-red-100 dark:bg-red-800/30 text-red-700 dark:text-red-400 rounded py-1 hover:bg-red-200 dark:hover:bg-red-800/50 transition-colors flex items-center justify-center gap-1">Gerenciar Saldo</button>
               </div>
            </div>
         </Card>
