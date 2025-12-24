@@ -82,7 +82,8 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
 
       selectedSale.pagamentos_crediario?.forEach(p => {
           totalPaid += p.valor;
-          const historicalFee = calculateFeeValue(p.valor, p.metodo, 1);
+          // Para o histórico, o parcelamento do cartão usado naquele pagamento específico
+          const historicalFee = calculateFeeValue(p.valor, p.metodo, (p as any).parcelas || 1);
           totalNet += (p.valor - historicalFee);
       });
 
@@ -127,7 +128,8 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
         amount,
         selectedSale.id,
         method,
-        user?.id || '' 
+        user?.id || '',
+        method === 'Cartão de Crédito' ? installments : 1
     );
     
     if (success) {
@@ -283,7 +285,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                             <div className="space-y-2">
                                 {selectedSale.pagamentos_crediario && selectedSale.pagamentos_crediario.length > 0 ? (
                                     selectedSale.pagamentos_crediario.map((pay) => {
-                                        const feeValue = calculateFeeValue(pay.valor, pay.metodo, 1);
+                                        const feeValue = calculateFeeValue(pay.valor, pay.metodo, (pay as any).parcelas || 1);
                                         return (
                                             <div key={pay.id} className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/30 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-700">
                                                 <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center text-emerald-500 shadow-sm border border-zinc-100 dark:border-zinc-700 shrink-0">
@@ -299,7 +301,9 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                                                     </p>
                                                 </div>
                                                 <div className="text-right shrink-0">
-                                                    <p className="text-[10px] font-black text-zinc-400 uppercase">{pay.metodo}</p>
+                                                    <p className="text-[10px] font-black text-zinc-400 uppercase">
+                                                      {pay.metodo} {(pay as any).parcelas > 1 ? `${(pay as any).parcelas}x` : ''}
+                                                    </p>
                                                     <p className="text-[10px] text-zinc-500 font-medium">por {resolveUserName(pay.responsavel_nome)}</p>
                                                 </div>
                                             </div>

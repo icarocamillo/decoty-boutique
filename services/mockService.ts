@@ -1,3 +1,4 @@
+
 import { Client, Product, Sale, SaleItem, StockEntry, Supplier, PaymentDiscounts, PaymentFees, CartItem, UserProfile, CrediarioPayment } from '../types';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { MOCK_CLIENTS, MOCK_PRODUCTS, MOCK_INITIAL_SALES, MOCK_STOCK_ENTRIES, MOCK_SUPPLIERS } from '../constants';
@@ -93,7 +94,7 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
         const saleIds = sales.map(s => s.id);
         const { data: payments, error } = await supabase
             .from('crediario_recebimentos')
-            .select('id, venda_id, valor_pago, metodo_pagamento, responsavel, data_recebimento')
+            .select('id, venda_id, valor_pago, metodo_pagamento, responsavel, data_recebimento, parcelas')
             .in('venda_id', saleIds);
 
         if (error) {
@@ -109,7 +110,8 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
                     valor: Number(p.valor_pago || 0),
                     metodo: p.metodo_pagamento,
                     data: p.data_recebimento,
-                    responsavel_nome: p.responsavel 
+                    responsavel_nome: p.responsavel,
+                    parcelas: p.parcelas || 1
                 }));
             
             return { 
@@ -167,14 +169,15 @@ export const mockService = {
     return true;
   },
 
-  processCrediarioPayment: async (clientId: string, amount: number, vendaId: string, metodo: string, responsavelId: string): Promise<boolean> => {
+  processCrediarioPayment: async (clientId: string, amount: number, vendaId: string, metodo: string, responsavelId: string, parcelas: number = 1): Promise<boolean> => {
     if (isSupabaseConfigured()) {
         const { error: receiptError } = await supabase.from('crediario_recebimentos').insert([{
             venda_id: vendaId,
             valor_pago: amount,
             metodo_pagamento: metodo, 
             responsavel: responsavelId, 
-            data_recebimento: new Date().toISOString()
+            data_recebimento: new Date().toISOString(),
+            parcelas: parcelas
         }]);
 
         if (receiptError) return false;
@@ -367,7 +370,7 @@ export const mockService = {
         }
         return data || [];
     }
-    return []; // No mock local fallback for now
+    return []; 
   },
 
   getDashboardChartData: async () => {
@@ -415,11 +418,9 @@ export const mockService = {
 
   logStockEntry: async (entry: Omit<StockEntry, 'id' | 'data_entrada'>) => {
     if (isSupabaseConfigured()) {
-        // No Supabase, deixamos o banco gerar o ID e o timestamp
         const { error } = await supabase.from('stock_entries').insert([entry]);
         if (error) console.error("Erro ao salvar log de estoque no Supabase:", error);
     }
-    // No LocalStorage, simulamos o ID e Data
     const newEntry = { 
         ...entry, 
         id: 'stk' + Date.now() + Math.random(), 
@@ -664,7 +665,6 @@ export const mockService = {
 
       let targetProductId = entry.produto_id;
 
-      // Robustez: Se o produto_id estiver faltando, tentamos encontrar pelo nome + marca
       if (isSupabaseConfigured()) {
           if (!targetProductId) {
              const { data: foundProd } = await supabase.from('products').select('id').eq('nome', entry.produto_nome.split(' - ')[0]).maybeSingle();
