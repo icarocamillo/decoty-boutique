@@ -1,5 +1,5 @@
 
-import { X, BookOpen, Check, Loader2, DollarSign, CreditCard, Wallet, Calendar, Receipt, ArrowLeft, ChevronRight, ChevronDown, Package, Info, Percent, History, Clock, TrendingUp, User as UserIcon, PieChart, Banknote, CheckCircle2 } from 'lucide-react';
+import { X, BookOpen, Check, Loader2, DollarSign, CreditCard, Wallet, Calendar, Receipt, ArrowLeft, ChevronRight, ChevronDown, Package, Info, Percent, History, Clock, TrendingUp, User as UserIcon, PieChart, Banknote } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { mockService, PaymentFees } from '../services/mockService';
@@ -72,12 +72,9 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
       return amount * (percent / 100);
   }, [fees]);
 
-  // Vendas de crediário (Todas do cliente, incluindo quitadas)
+  // Vendas de crediário pendentes
   const crediarioSales = useMemo(() => {
-    // Filtramos apenas vendas onde o método foi "Crediário"
-    // Removemos a verificação de s.status_pagamento para garantir que as "pagas" também apareçam
-    return sales
-      .filter(s => s.metodo_pagamento === 'Crediário' && s.status === 'completed')
+    return sales.filter(s => s.metodo_pagamento === 'Crediário' && s.status === 'completed' && s.status_pagamento !== 'pago')
       .sort((a, b) => new Date(b.data_venda).getTime() - new Date(a.data_venda).getTime());
   }, [sales]);
 
@@ -91,22 +88,20 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
 
       selectedSale.pagamentos_crediario?.forEach(p => {
           totalPaid += p.valor;
-          // Para o histórico, calculamos a taxa baseada no método usado no recebimento
+          // Para o histórico, assumimos 1x (à vista) na taxa de cartão pois não temos esse metadado gravado por recebimento individual no momento
           const historicalFee = calculateFeeValue(p.valor, p.metodo, 1);
           totalNet += (p.valor - historicalFee);
       });
 
       const remaining = Math.max(0, total - totalPaid);
       const progress = (totalPaid / total) * 100;
-      const isPaid = remaining <= 0.01; // Tolerância de centavos
       
       return { 
           total, 
           paid: totalPaid, 
           netReceived: totalNet,
           remaining, 
-          progress,
-          isPaid
+          progress 
       };
   }, [selectedSale, calculateFeeValue]);
 
@@ -126,12 +121,14 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
     const amount = parseCurrency(amountToPayStr);
     if (amount <= 0 || !method || !selectedSale || !saleStats) return;
     
-    if (amount > saleStats.remaining + 0.05) { // Tolerância de 5 centavos
+    if (amount > saleStats.remaining + 0.01) {
         alert("O valor informado é maior que o saldo devedor desta venda.");
         return;
     }
 
     setLoading(true);
+    // Nota: O serviço atual não grava parcelas por recebimento parcial, 
+    // mas o cálculo da taxa visual aqui já reflete a escolha do lojista.
     const success = await mockService.processCrediarioPayment(
         client.id, 
         amount,
@@ -188,47 +185,37 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                         <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center text-red-600 dark:text-red-400 mb-2">
                             <Wallet size={32} />
                         </div>
-                        <h3 className="text-xl font-bold text-zinc-800 dark:text-white">Selecione uma venda</h3>
-                        <p className="text-zinc-500 text-sm">Visualizando histórico de crediário de <strong>{client.nome}</strong></p>
+                        <h3 className="text-xl font-bold text-zinc-800 dark:text-white">Qual venda deseja quitar?</h3>
+                        <p className="text-zinc-500 text-sm">Selecione uma das vendas em aberto de <strong>{client.nome}</strong></p>
                     </div>
                     
                     <div className="space-y-3">
                         {crediarioSales.map(sale => {
                             const paid = sale.pagamentos_crediario?.reduce((sum, p) => sum + p.valor, 0) || 0;
-                            const remaining = Math.max(0, sale.valor_total - paid);
+                            const remaining = sale.valor_total - paid;
                             const progress = (paid / sale.valor_total) * 100;
-                            const isFullyPaid = remaining <= 0.05;
 
                             return (
                                 <button 
                                     key={sale.id}
                                     onClick={() => { setSelectedSale(sale); setStep('payment-details'); }}
-                                    className={`w-full p-5 border rounded-2xl bg-white dark:bg-zinc-900 transition-all flex flex-col gap-4 group shadow-sm hover:shadow-md ${
-                                        isFullyPaid 
-                                        ? 'border-zinc-100 dark:border-zinc-800' 
-                                        : 'border-zinc-200 dark:border-zinc-800 hover:border-red-500 dark:hover:border-red-500'
-                                    }`}
+                                    className="w-full p-5 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-white dark:bg-zinc-900 hover:border-red-500 dark:hover:border-red-500 transition-all flex flex-col gap-4 group shadow-sm hover:shadow-md"
                                 >
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-3">
                                             <div className="p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg text-zinc-400">
                                                 <Receipt size={20} />
                                             </div>
-                                            <div className="text-left">
-                                                <div className="flex items-center gap-2">
-                                                    <p className="text-sm font-bold text-zinc-900 dark:text-white">Venda #{sale.ui_id || sale.id.slice(0,8)}</p>
-                                                    {isFullyPaid && <Badge variant="success" className="text-[8px] h-4">Quitada</Badge>}
-                                                </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-zinc-900 dark:text-white">Venda #{sale.ui_id || sale.id.slice(0,8)}</p>
                                                 <p className="text-[10px] text-zinc-400 uppercase font-bold flex items-center gap-1">
                                                     <Calendar size={10} /> {new Date(sale.data_venda).toLocaleDateString('pt-BR')}
                                                 </p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-xs text-zinc-400 font-bold uppercase mb-0.5">{isFullyPaid ? 'Total da Venda' : 'Saldo Devedor'}</p>
-                                            <p className={`text-lg font-black ${isFullyPaid ? 'text-zinc-500' : 'text-red-600 dark:text-red-400'}`}>
-                                                {formatCurrency(isFullyPaid ? sale.valor_total : remaining)}
-                                            </p>
+                                            <p className="text-xs text-zinc-400 font-bold uppercase mb-0.5">Saldo Devedor</p>
+                                            <p className="text-lg font-black text-red-600 dark:text-red-400">{formatCurrency(remaining)}</p>
                                         </div>
                                     </div>
                                     
@@ -238,17 +225,17 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                                             <span>{Math.floor(progress)}%</span>
                                         </div>
                                         <div className="w-full h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                                            <div className={`h-full rounded-full transition-all duration-500 ${isFullyPaid ? 'bg-emerald-500' : 'bg-red-500'}`} style={{ width: `${progress}%` }} />
+                                            <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
                                         </div>
                                     </div>
                                 </button>
                             );
                         })}
                         {crediarioSales.length === 0 && (
-                            <div className="py-16 text-center text-zinc-400 italic space-y-3 animate-fade-in">
+                            <div className="py-16 text-center text-zinc-400 italic space-y-3">
                                 <Info size={48} className="mx-auto opacity-10" />
-                                <p>Este cliente não possui vendas marcadas como "Crediário".</p>
-                                <Button variant="secondary" size="sm" onClick={onClose} className="mt-4">Voltar para o histórico</Button>
+                                <p>Este cliente não possui vendas de crediário pendentes.</p>
+                                <Button variant="secondary" size="sm" onClick={onClose}>Voltar para o histórico</Button>
                             </div>
                         )}
                     </div>
@@ -285,9 +272,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
 
                             <div className="space-y-2">
                                 <div className="flex justify-between items-end">
-                                    <Badge variant={saleStats.isPaid ? "success" : "warning"} className="text-[10px] font-black uppercase">
-                                        {saleStats.isPaid ? 'Venda Quitada' : `Falta Receber: ${formatCurrency(saleStats.remaining)}`}
-                                    </Badge>
+                                    <Badge variant="warning" className="text-[10px] font-black uppercase">Falta Receber: {formatCurrency(saleStats.remaining)}</Badge>
                                     <span className="text-sm font-black text-zinc-900 dark:text-white">{Math.floor(saleStats.progress)}% quitado</span>
                                 </div>
                                 <div className="w-full h-3 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden p-0.5">
@@ -336,6 +321,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                             <div className="space-y-2">
                                 {selectedSale.pagamentos_crediario && selectedSale.pagamentos_crediario.length > 0 ? (
                                     selectedSale.pagamentos_crediario.map((pay) => {
+                                        // Para o histórico usamos a regra simplificada (1x)
                                         const feeValue = calculateFeeValue(pay.valor, pay.metodo, 1);
 
                                         return (
@@ -372,135 +358,120 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                         </div>
                     </div>
 
-                    {/* COLUNA DIREITA: FORMULÁRIO OU AVISO DE QUITAÇÃO */}
+                    {/* COLUNA DIREITA: FORMULÁRIO DE RECEBIMENTO */}
                     <div className="lg:col-span-5 space-y-6">
                         <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 shadow-xl sticky top-4">
-                            
-                            {saleStats.isPaid ? (
-                                <div className="py-10 flex flex-col items-center text-center animate-fade-in">
-                                    <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-900/20 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-4">
-                                        <CheckCircle2 size={48} />
-                                    </div>
-                                    <h3 className="text-xl font-black text-zinc-800 dark:text-white uppercase tracking-tight">Venda Quitada</h3>
-                                    <p className="text-sm text-zinc-500 mt-2 px-4">Esta venda foi totalmente paga e não possui saldo devedor.</p>
-                                    <Button variant="outline" className="mt-8 w-full" onClick={() => setStep('select-sale')}>
-                                        Selecionar outra venda
-                                    </Button>
-                                </div>
-                            ) : (
-                                <>
-                                    <h3 className="text-sm font-black text-zinc-800 dark:text-white uppercase tracking-widest mb-6 flex items-center gap-2">
-                                        <DollarSign size={18} className="text-emerald-600" /> Registrar Recebimento
-                                    </h3>
+                            <h3 className="text-sm font-black text-zinc-800 dark:text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+                                <DollarSign size={18} className="text-emerald-600" /> Registrar Recebimento
+                            </h3>
 
-                                    <div className="space-y-6">
-                                        {/* Input de Valor */}
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Quanto o cliente está pagando hoje?</label>
-                                            <div className="relative">
-                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-zinc-400">R$</span>
-                                                <input 
-                                                    type="text" 
-                                                    inputMode="numeric"
-                                                    value={amountToPayStr}
-                                                    onChange={handleCurrencyChange}
-                                                    className="w-full pl-12 pr-4 py-4 text-2xl font-black bg-zinc-50 dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 rounded-2xl focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-0 outline-none transition-all text-zinc-900 dark:text-white"
-                                                    placeholder="0,00"
-                                                    autoFocus
-                                                />
-                                                <button 
-                                                    onClick={() => setAmountToPayStr(saleStats.remaining.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits:2}))}
-                                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-2 py-1 rounded hover:opacity-80 transition-opacity"
-                                                >
-                                                    VALOR TOTAL
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Métodos de Pagamento */}
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Forma de Recebimento</label>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {METHODS.map(m => (
-                                                    <button 
-                                                        key={m} 
-                                                        onClick={() => { setMethod(m); setInstallments(1); }} 
-                                                        className={`p-3 border rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
-                                                            method === m 
-                                                            ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900 shadow-md' 
-                                                            : 'border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
-                                                        }`}
-                                                    >
-                                                        {m === 'Pix' && <span className="text-base">💠</span>}
-                                                        {m.includes('Cartão') && <CreditCard size={16} />}
-                                                        {m === 'Dinheiro' && <DollarSign size={16} />}
-                                                        <span className="truncate">{m}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Seletor de Parcelas */}
-                                        {method === 'Cartão de Crédito' && (
-                                            <div className="space-y-2 animate-fade-in">
-                                                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Parcelamento</label>
-                                                <div className="relative">
-                                                    <select 
-                                                        value={installments} 
-                                                        onChange={(e) => setInstallments(Number(e.target.value))} 
-                                                        className="w-full p-3 border border-zinc-200 dark:border-zinc-700 rounded-xl bg-zinc-50 dark:bg-zinc-800 text-sm font-bold text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 appearance-none"
-                                                    >
-                                                        {[1,2,3,4,5].map(i => {
-                                                            const currentAmount = parseCurrency(amountToPayStr);
-                                                            return (
-                                                                <option key={i} value={i}>
-                                                                    {i}x de {formatCurrency(currentAmount / i)} sem juros
-                                                                </option>
-                                                            );
-                                                        })}
-                                                    </select>
-                                                    <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Resumo Final Previsto */}
-                                        {parseCurrency(amountToPayStr) > 0 && (
-                                            <div className="p-4 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-900/20 space-y-2">
-                                                <div className="flex justify-between items-center text-xs text-zinc-500">
-                                                    <span>Novo Saldo Devedor:</span>
-                                                    <span className="font-bold text-zinc-900 dark:text-zinc-100">
-                                                        {formatCurrency(Math.max(0, saleStats.remaining - parseCurrency(amountToPayStr)))}
-                                                    </span>
-                                                </div>
-                                                {calculateFeeValue(parseCurrency(amountToPayStr), method, installments) > 0 && (
-                                                    <div className="flex justify-between items-center text-[10px] text-red-500 font-bold border-t border-emerald-100 dark:border-emerald-800 pt-2">
-                                                        <span className="flex items-center gap-1"><PieChart size={12} /> Taxa da Operadora ({method === 'Cartão de Crédito' && installments > 1 ? 'Parcelado' : 'À Vista'}):</span>
-                                                        <span>-{formatCurrency(calculateFeeValue(parseCurrency(amountToPayStr), method, installments))}</span>
-                                                    </div>
-                                                )}
-                                                <div className="flex justify-between items-center text-[10px] text-emerald-600 font-bold border-t border-emerald-100 dark:border-emerald-800 pt-2">
-                                                    <span className="flex items-center gap-1"><Banknote size={12} /> Líquido desta transação:</span>
-                                                    <span>{formatCurrency(parseCurrency(amountToPayStr) - calculateFeeValue(parseCurrency(amountToPayStr), method, installments))}</span>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <Button 
-                                            variant="success" 
-                                            className="w-full h-16 text-lg font-black gap-3 shadow-xl shadow-emerald-500/10 active:scale-[0.98] transition-transform rounded-2xl" 
-                                            disabled={!method || loading || !amountToPayStr || parseCurrency(amountToPayStr) <= 0} 
-                                            onClick={handleSave}
+                            <div className="space-y-6">
+                                {/* Input de Valor */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Quanto o cliente está pagando hoje?</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-zinc-400">R$</span>
+                                        <input 
+                                            type="text" 
+                                            inputMode="numeric"
+                                            value={amountToPayStr}
+                                            onChange={handleCurrencyChange}
+                                            className="w-full pl-12 pr-4 py-4 text-2xl font-black bg-zinc-50 dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 rounded-2xl focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-0 outline-none transition-all text-zinc-900 dark:text-white"
+                                            placeholder="0,00"
+                                            autoFocus
+                                        />
+                                        <button 
+                                            onClick={() => setAmountToPayStr(saleStats.remaining.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits:2}))}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-2 py-1 rounded hover:opacity-80 transition-opacity"
                                         >
-                                            {loading ? <Loader2 className="animate-spin" /> : <><Check size={24} /> Confirmar Recebimento</>}
-                                        </Button>
-                                        
-                                        <p className="text-[10px] text-zinc-400 text-center px-4 leading-relaxed">
-                                            Ao confirmar, o saldo será abatido da dívida do cliente e registrado no histórico desta venda.
-                                        </p>
+                                            VALOR TOTAL
+                                        </button>
                                     </div>
-                                </>
-                            )}
+                                </div>
+
+                                {/* Métodos de Pagamento */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Forma de Recebimento</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {METHODS.map(m => (
+                                            <button 
+                                                key={m} 
+                                                onClick={() => { setMethod(m); setInstallments(1); }} 
+                                                className={`p-3 border rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+                                                    method === m 
+                                                    ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900 shadow-md' 
+                                                    : 'border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                                                }`}
+                                            >
+                                                {m === 'Pix' && <span className="text-base">💠</span>}
+                                                {m.includes('Cartão') && <CreditCard size={16} />}
+                                                {m === 'Dinheiro' && <DollarSign size={16} />}
+                                                <span className="truncate">{m}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Seletor de Parcelas para Cartão de Crédito */}
+                                {method === 'Cartão de Crédito' && (
+                                    <div className="space-y-2 animate-fade-in">
+                                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Parcelamento</label>
+                                        <div className="relative">
+                                            <select 
+                                                value={installments} 
+                                                onChange={(e) => setInstallments(Number(e.target.value))} 
+                                                className="w-full p-3 border border-zinc-200 dark:border-zinc-700 rounded-xl bg-zinc-50 dark:bg-zinc-800 text-sm font-bold text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 appearance-none"
+                                            >
+                                                {[1,2,3,4,5].map(i => {
+                                                    const currentAmount = parseCurrency(amountToPayStr);
+                                                    return (
+                                                        <option key={i} value={i}>
+                                                            {i}x de {formatCurrency(currentAmount / i)} sem juros
+                                                        </option>
+                                                    );
+                                                })}
+                                            </select>
+                                            {/* Fix: Added ChevronDown import from lucide-react */}
+                                            <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Resumo Final Previsto */}
+                                {parseCurrency(amountToPayStr) > 0 && (
+                                    <div className="p-4 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-900/20 space-y-2">
+                                        <div className="flex justify-between items-center text-xs text-zinc-500">
+                                            <span>Novo Saldo Devedor:</span>
+                                            <span className="font-bold text-zinc-900 dark:text-zinc-100">
+                                                {formatCurrency(Math.max(0, saleStats.remaining - parseCurrency(amountToPayStr)))}
+                                            </span>
+                                        </div>
+                                        {calculateFeeValue(parseCurrency(amountToPayStr), method, installments) > 0 && (
+                                            <div className="flex justify-between items-center text-[10px] text-red-500 font-bold border-t border-emerald-100 dark:border-emerald-800 pt-2">
+                                                <span className="flex items-center gap-1"><PieChart size={12} /> Taxa da Operadora ({method === 'Cartão de Crédito' && installments > 1 ? 'Parcelado' : 'À Vista'}):</span>
+                                                <span>-{formatCurrency(calculateFeeValue(parseCurrency(amountToPayStr), method, installments))}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between items-center text-[10px] text-emerald-600 font-bold border-t border-emerald-100 dark:border-emerald-800 pt-2">
+                                            <span className="flex items-center gap-1"><Banknote size={12} /> Líquido desta transação:</span>
+                                            <span>{formatCurrency(parseCurrency(amountToPayStr) - calculateFeeValue(parseCurrency(amountToPayStr), method, installments))}</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <Button 
+                                    variant="success" 
+                                    className="w-full h-16 text-lg font-black gap-3 shadow-xl shadow-emerald-500/10 active:scale-[0.98] transition-transform rounded-2xl" 
+                                    disabled={!method || loading || !amountToPayStr || parseCurrency(amountToPayStr) <= 0} 
+                                    onClick={handleSave}
+                                >
+                                    {loading ? <Loader2 className="animate-spin" /> : <><Check size={24} /> Confirmar Recebimento</>}
+                                </Button>
+                                
+                                <p className="text-[10px] text-zinc-400 text-center px-4 leading-relaxed">
+                                    Ao confirmar, o saldo será abatido da dívida do cliente e registrado no histórico desta venda.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
