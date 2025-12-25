@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { 
   TrendingUp, DollarSign, Tag, 
-  Calendar, ShoppingBag, HelpCircle, Filter, CreditCard, Undo2, Archive, CheckCircle2, AlertTriangle, Gift, BookOpen, Info, ArrowUpRight
+  Calendar, ShoppingBag, HelpCircle, Filter, CreditCard, Undo2, Archive, CheckCircle2, AlertTriangle, Gift, BookOpen, Info, ArrowUpRight, ArrowRight
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { mockService, PaymentFees } from '../services/mockService';
@@ -331,8 +331,8 @@ export const ManagementReportPage: React.FC = () => {
   return (
     <div className="space-y-8 animate-fade-in-up pb-10">
       
-      {/* Header com Filtros de Data */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+      {/* Header com Seletor de Período Otimizado */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
           <h2 className="text-2xl font-bold text-zinc-800 dark:text-white">
              Relatório Gerencial
@@ -340,52 +340,43 @@ export const ManagementReportPage: React.FC = () => {
           <p className="text-zinc-500 dark:text-zinc-400">Análise cruzada de operação, financeiro e estoque.</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 bg-white dark:bg-zinc-900 p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
-           <div className="flex flex-col">
-             <label className="text-[10px] uppercase font-bold text-zinc-500 dark:text-zinc-400 mb-1 ml-1">Início</label>
-             <div className="relative">
-                <Calendar size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
-                <input 
-                  type="date" 
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none"
-                />
-             </div>
-           </div>
-           <div className="flex flex-col">
-             <label className="text-[10px] uppercase font-bold text-zinc-500 dark:text-zinc-400 mb-1 ml-1">Fim</label>
-             <div className="relative">
-                <Calendar size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
-                <input 
-                  type="date" 
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none"
-                />
-             </div>
-           </div>
-           <div className="flex items-end">
-              <button 
-                onClick={() => {}} 
-                className="h-[34px] px-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-md transition-colors"
-                title="Atualizar"
-              >
-                <Filter size={16} />
-              </button>
-           </div>
+        {/* Filtro de Período Tipo 'Range' Unificado */}
+        <div className="flex flex-col gap-1.5 w-full md:w-auto">
+          <span className="text-[10px] uppercase font-bold text-zinc-500 dark:text-zinc-400 ml-1">Selecionar Período de Análise</span>
+          <div className="flex items-center bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden divide-x divide-zinc-100 dark:divide-zinc-800 w-full md:w-auto transition-all">
+            <div className="relative flex items-center px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group">
+              <Calendar size={16} className="text-zinc-400 mr-2 group-hover:text-zinc-600 dark:group-hover:text-zinc-300" />
+              <input 
+                type="date" 
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-transparent text-sm font-bold text-zinc-900 dark:text-white outline-none cursor-pointer"
+              />
+            </div>
+            <div className="px-3 flex items-center justify-center text-zinc-300 dark:text-zinc-700">
+               <ArrowRight size={14} />
+            </div>
+            <div className="relative flex items-center px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group">
+              <input 
+                type="date" 
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-transparent text-sm font-bold text-zinc-900 dark:text-white outline-none cursor-pointer"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
       {isFuturePeriod && (
-          <div className="bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/50 p-4 rounded-xl flex items-start gap-4 animate-fade-in shadow-sm">
-             <div className="bg-purple-100 dark:bg-purple-800 p-2 rounded-lg text-purple-600 dark:text-purple-300">
-                <ArrowUpRight size={20} />
+          <div className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 p-5 rounded-2xl flex items-start gap-5 animate-fade-in shadow-sm">
+             <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-xl text-zinc-600 dark:text-zinc-300 shadow-inner">
+                <ArrowUpRight size={24} />
              </div>
              <div>
-                <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-300">Projeção de Fluxo de Caixa</h4>
-                <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1 leading-relaxed">
-                   O período selecionado está no futuro. Os valores abaixo representam a <strong>previsão de entrada no banco</strong> das parcelas de cartão de crédito e crediário de vendas já realizadas no passado.
+                <h4 className="text-base font-bold text-zinc-800 dark:text-white">Projeção de Fluxo de Caixa</h4>
+                <p className="text-sm text-zinc-600 dark:text-zinc-300 mt-1.5 leading-relaxed">
+                   O período selecionado está no futuro. Os valores abaixo representam a <strong>previsão de entrada no banco</strong> das parcelas de cartão de crédito e crediário de vendas já realizadas no passado que vencem neste intervalo.
                 </p>
              </div>
           </div>
