@@ -383,8 +383,8 @@ export const ManagementReportPage: React.FC = () => {
                 <ArrowUpRight size={20} />
              </div>
              <div>
-                <h4 className="text-sm font-bold text-purple-900 dark:text-purple-300">Projeção de Fluxo de Caixa</h4>
-                <p className="text-xs text-purple-700 dark:text-purple-400 mt-1 leading-relaxed">
+                <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-300">Projeção de Fluxo de Caixa</h4>
+                <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1 leading-relaxed">
                    O período selecionado está no futuro. Os valores abaixo representam a <strong>previsão de entrada no banco</strong> das parcelas de cartão de crédito e crediário de vendas já realizadas no passado.
                 </p>
              </div>

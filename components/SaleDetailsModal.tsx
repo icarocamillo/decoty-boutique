@@ -441,9 +441,19 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                         </div>
                       </>
                     ) : (
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">Total Pago:</span>
-                        <span className={`font-bold text-xl text-zinc-900 dark:text-white ${currentSale.status === 'cancelled' ? 'line-through decoration-red-500 decoration-2' : ''}`}>{formatCurrency(currentTotalNet)}</span>
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex justify-between items-center w-full">
+                          <span className="font-semibold text-zinc-700 dark:text-zinc-300">Total Pago:</span>
+                          <span className={`font-bold text-xl text-zinc-900 dark:text-white ${currentSale.status === 'cancelled' ? 'line-through decoration-red-500 decoration-2' : ''}`}>{formatCurrency(currentTotalNet)}</span>
+                        </div>
+                        {currentSale.metodo_pagamento === 'Cartão de Crédito' && (currentSale.parcelas || 1) > 1 && (
+                          <div className="flex justify-between items-center w-full py-1.5 px-3 bg-zinc-100 dark:bg-zinc-800/40 rounded-lg border border-zinc-200 dark:border-zinc-700/50 animate-fade-in">
+                             <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-tight">Parcelas:</span>
+                             <span className="text-sm font-black text-zinc-700 dark:text-zinc-200">
+                                {currentSale.parcelas}x de {formatCurrency(currentTotalNet / (currentSale.parcelas || 1))}
+                             </span>
+                          </div>
+                        )}
                       </div>
                     )}
                 </div>
