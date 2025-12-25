@@ -56,15 +56,15 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
     return userId || 'Sistema';
   };
 
-  const calculateFeeValue = useCallback((amount: number, methodName: string, numInstallments: number) => {
-      if (!fees) return 0;
+  const getFeeInfo = useCallback((amount: number, methodName: string, numInstallments: number) => {
+      if (!fees) return { value: 0, percent: 0 };
       let percent = 0;
       if (methodName === 'Cartão de Débito') {
         percent = fees.debit;
       } else if (methodName === 'Cartão de Crédito') {
-        percent = numInstallments === 1 ? fees.credit_spot : fees.credit_installment;
+        percent = numInstallments > 1 ? fees.credit_installment : fees.credit_spot;
       }
-      return amount * (percent / 100);
+      return { value: amount * (percent / 100), percent };
   }, [fees]);
 
   // Vendas de crediário - AGORA INCLUI AS PAGAS PARA HISTÓRICO
@@ -82,9 +82,8 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
 
       selectedSale.pagamentos_crediario?.forEach(p => {
           totalPaid += p.valor;
-          // Para o histórico, o parcelamento do cartão usado naquele pagamento específico
-          const historicalFee = calculateFeeValue(p.valor, p.metodo, (p as any).parcelas || 1);
-          totalNet += (p.valor - historicalFee);
+          const { value: historicalFeeValue } = getFeeInfo(p.valor, p.metodo, (p as any).parcelas || 1);
+          totalNet += (p.valor - historicalFeeValue);
       });
 
       const remaining = Math.max(0, total - totalPaid);
@@ -99,7 +98,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
           progress,
           isPaid
       };
-  }, [selectedSale, calculateFeeValue]);
+  }, [selectedSale, getFeeInfo]);
 
   const handleCurrencyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, "");
@@ -285,7 +284,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                             <div className="space-y-2">
                                 {selectedSale.pagamentos_crediario && selectedSale.pagamentos_crediario.length > 0 ? (
                                     selectedSale.pagamentos_crediario.map((pay) => {
-                                        const feeValue = calculateFeeValue(pay.valor, pay.metodo, (pay as any).parcelas || 1);
+                                        const { value: feeValue, percent: feePercent } = getFeeInfo(pay.valor, pay.metodo, (pay as any).parcelas || 1);
                                         return (
                                             <div key={pay.id} className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/30 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-700">
                                                 <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center text-emerald-500 shadow-sm border border-zinc-100 dark:border-zinc-700 shrink-0">
@@ -294,7 +293,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-baseline gap-2">
                                                         <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">{formatCurrency(pay.valor)}</p>
-                                                        {feeValue > 0 && <span className="text-[10px] font-medium text-red-500 flex items-center gap-0.5"><PieChart size={10} /> -{formatCurrency(feeValue)}</span>}
+                                                        {feeValue > 0 && <span className="text-[10px] font-medium text-red-500 flex items-center gap-0.5"><PieChart size={10} /> -{formatCurrency(feeValue)} ({feePercent}%)</span>}
                                                     </div>
                                                     <p className="text-[10px] text-zinc-500 flex items-center gap-1">
                                                         <Calendar size={10} /> {new Date(pay.data).toLocaleDateString('pt-BR')} às {new Date(pay.data).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}
@@ -413,7 +412,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                                             </div>
                                             <div className="flex justify-between items-center text-[10px] text-emerald-600 font-bold border-t border-emerald-100 dark:border-emerald-800 pt-2">
                                                 <span className="flex items-center gap-1"><Banknote size={12} /> Líquido estimado:</span>
-                                                <span>{formatCurrency(parseCurrency(amountToPayStr) - calculateFeeValue(parseCurrency(amountToPayStr), method, installments))}</span>
+                                                <span>{formatCurrency(parseCurrency(amountToPayStr) - getFeeInfo(parseCurrency(amountToPayStr), method, installments).value)}</span>
                                             </div>
                                         </div>
                                     )}
