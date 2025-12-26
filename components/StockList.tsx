@@ -8,7 +8,7 @@ import { StockAdjustmentModal } from './StockAdjustmentModal';
 import { Pagination } from './ui/Pagination';
 import { SIZES_LIST } from '../constants';
 import { formatDateStandard, formatProductId } from '../utils';
-import { mockService } from '../services/mockService';
+import { backendService } from '../services/backendService';
 import { useNavigate } from 'react-router-dom';
 
 interface StockListProps {
@@ -47,8 +47,8 @@ export const StockList: React.FC<StockListProps> = ({ entries, products, onUpdat
         setDataLoading(true);
         try {
             const [usersData, salesData] = await Promise.all([
-                mockService.getUsers(),
-                mockService.getRecentSales()
+                backendService.getUsers(),
+                backendService.getRecentSales()
             ]);
             
             setProfiles(usersData);
@@ -73,7 +73,7 @@ export const StockList: React.FC<StockListProps> = ({ entries, products, onUpdat
   useEffect(() => {
     const fetchBrands = async () => {
       try {
-        const suppliers = await mockService.getSuppliers();
+        const suppliers = await backendService.getSuppliers();
         const supplierBrands = suppliers
           .map(s => s.fantasy_name)
           .filter((name): name is string => !!name && name.trim() !== '');

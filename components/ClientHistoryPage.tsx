@@ -1,7 +1,7 @@
 
 import { useParams, useNavigate } from 'react-router-dom';
 import { Client, Sale, StockEntry, UserProfile, Product } from '../types';
-import { mockService } from '../services/mockService';
+import { backendService } from '../services/backendService';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { ArrowLeft, ShoppingBag, Calendar, CreditCard, User, Mail, Phone, Shirt, Loader2, Undo2, History, Gift, Plus, BookOpen, Wallet, Clock, Tag, ChevronRight } from 'lucide-react';
@@ -37,11 +37,11 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
     if (!clientId) return;
     try {
       const [clientsData, allSales, clientStock, usersData, productsData] = await Promise.all([
-        mockService.getClients(),
-        mockService.getClientSales(clientId),
-        mockService.getClientStockHistory(clientId),
-        mockService.getUsers(),
-        mockService.getProducts()
+        backendService.getClients(),
+        backendService.getClientSales(clientId),
+        backendService.getClientStockHistory(clientId),
+        backendService.getUsers(),
+        backendService.getProducts()
       ]);
 
       const foundClient = clientsData.find(c => c.id === clientId);
@@ -145,7 +145,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
     const userId = user?.id || '';
     
     try {
-        const success = await mockService.returnProvadorItem(entry, userId);
+        const success = await backendService.returnProvadorItem(entry, userId);
         if (success) {
             alert("Item retornado ao estoque com sucesso!");
             if (onUpdate) onUpdate();

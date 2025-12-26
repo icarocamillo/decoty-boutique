@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Gift, Plus, Minus, ArrowRight, Loader2, Save, Wallet } from 'lucide-react';
 import { Button } from './ui/Button';
-import { mockService } from '../services/mockService';
+import { backendService } from '../services/backendService';
 
 interface GiftCardAdjustmentModalProps {
   isOpen: boolean;
@@ -73,7 +73,7 @@ export const GiftCardAdjustmentModal: React.FC<GiftCardAdjustmentModalProps> = (
       // Se for remover, mandamos o valor negativo para o serviço
       const amountToSend = operation === 'add' ? inputAmount : -inputAmount;
       
-      const success = await mockService.addClientBalance(clientId, amountToSend);
+      const success = await backendService.addClientBalance(clientId, amountToSend);
       
       if (success) {
         onSuccess();

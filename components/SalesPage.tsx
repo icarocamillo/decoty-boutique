@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Sale, ChartDataPoint } from '../types';
-import { mockService } from '../services/mockService';
+import { backendService } from '../services/backendService';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { SalesChart } from './SalesChart';
@@ -43,7 +43,7 @@ export const SalesPage: React.FC<SalesPageProps> = ({ onUpdate }) => {
   const loadSales = async () => {
     setLoading(true);
     try {
-      const data = await mockService.getSalesByPeriod(startDate, endDate);
+      const data = await backendService.getSalesByPeriod(startDate, endDate);
       setSales(data);
     } catch (error) {
       console.error("Failed to load sales report", error);

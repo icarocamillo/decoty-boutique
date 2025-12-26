@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Plus, Trash2, ShoppingCart, Search, Package, User, ArrowRight, Filter, Check, CreditCard, DollarSign, Wallet, AlertCircle, ArrowLeft, Ticket, UserPlus, Gift, Handshake, Info, Minus, RefreshCw, List } from 'lucide-react';
 import { Product, CartItem, Client } from '../types';
-import { mockService, PaymentDiscounts, PaymentFees } from '../services/mockService';
+import { backendService, PaymentDiscounts, PaymentFees } from '../services/backendService';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { useNavigate } from 'react-router-dom';
@@ -69,11 +69,11 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
       document.body.style.overflow = 'hidden';
       setLoading(true);
       Promise.all([
-        mockService.getProducts(),
-        mockService.getClients(),
-        mockService.getPaymentDiscounts(),
-        mockService.getPaymentFees(),
-        mockService.getSuppliers()
+        backendService.getProducts(),
+        backendService.getClients(),
+        backendService.getPaymentDiscounts(),
+        backendService.getPaymentFees(),
+        backendService.getSuppliers()
       ])
       .then(([productsData, clientsData, discData, feesData, suppliersData]) => {
         setProducts(productsData);
@@ -214,7 +214,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
     const sellerId = user?.id || '';
 
     setIsSubmitting(true);
-    const success = await mockService.createSale(
+    const success = await backendService.createSale(
        cart, { name: clientName, id: selectedClient?.id, cpf: selectedClient?.cpf }, 
        selectedPaymentMethod, installments, extraDiscount, { porcentagem: feePercent, valor: feeValue },
        sellerId, giftCardUsedAmount

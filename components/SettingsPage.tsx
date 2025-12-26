@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Lock, RefreshCw, Check, Settings, ShieldAlert, Database, CreditCard, Percent, DollarSign, Wallet, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
-import { mockService, PaymentDiscounts, PaymentFees } from '../services/mockService';
+import { backendService, PaymentDiscounts, PaymentFees } from '../services/backendService';
 import { isSupabaseConfigured } from '../services/supabaseClient';
 import { generateHash } from '../utils';
 
@@ -37,9 +37,9 @@ export const SettingsPage: React.FC = () => {
   const loadSettings = async () => {
      try {
        const [hash, discData, feeData] = await Promise.all([
-         mockService.getStoreAccessHash(),
-         mockService.getPaymentDiscounts(),
-         mockService.getPaymentFees()
+         backendService.getStoreAccessHash(),
+         backendService.getPaymentDiscounts(),
+         backendService.getPaymentFees()
        ]);
        
        setCurrentHash(hash);
@@ -74,9 +74,9 @@ export const SettingsPage: React.FC = () => {
      try {
        // Gera a hash SHA-256 e normaliza para minúsculas
        const hash = await generateHash(cleanPassword);
-       
-       // Salva no banco (mockService agora usa key='store_access_hash')
-       const success = await mockService.updateStoreAccessHash(hash);
+
+       // Salva no banco (backendService agora usa key='store_access_hash')
+       const success = await backendService.updateStoreAccessHash(hash);
        
        if (success) {
           setCurrentHash(hash);
@@ -136,8 +136,8 @@ export const SettingsPage: React.FC = () => {
 
     try {
       const [s1, s2] = await Promise.all([
-        mockService.updatePaymentDiscounts(numericDiscounts),
-        mockService.updatePaymentFees(numericFees)
+        backendService.updatePaymentDiscounts(numericDiscounts),
+        backendService.updatePaymentFees(numericFees)
       ]);
 
       if (s1 && s2) {

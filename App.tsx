@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate, Outlet } from 'react-router-dom';
 import { Plus, UserPlus, Package, Archive, ShoppingCart, Users, PieChart, Truck } from 'lucide-react';
-import { mockService } from './services/mockService';
+import { backendService } from './services/backendService';
 import { Sale, ChartDataPoint, Client, Product, StockEntry, Supplier } from './types';
 import { Button } from './components/ui/Button';
 import { NewSaleModal } from './components/NewSaleModal';
@@ -72,13 +72,13 @@ const AppLayout: React.FC = () => {
   const fetchDashboardData = useCallback(async () => {
     try {
       const [sales, chart, clientData, productData, stockData, supplierData, brand] = await Promise.all([
-        mockService.getRecentSales(),
-        mockService.getDashboardChartData(),
-        mockService.getClients(),
-        mockService.getProducts(),
-        mockService.getStockEntries(),
-        mockService.getSuppliers(),
-        mockService.getTopSellingBrand()
+        backendService.getRecentSales(),
+        backendService.getDashboardChartData(),
+        backendService.getClients(),
+        backendService.getProducts(),
+        backendService.getStockEntries(),
+        backendService.getSuppliers(),
+        backendService.getTopSellingBrand()
       ]);
       setRecentSales(sales);
       setChartData(chart);

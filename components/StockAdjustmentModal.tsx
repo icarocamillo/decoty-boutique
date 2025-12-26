@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Search, Package, Save, AlertCircle, ChevronDown, ArrowDownCircle, Filter, Plus, Minus, User, Shirt, Trash2, Check, RefreshCw, List, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Product, Client } from '../types';
-import { mockService } from '../services/mockService';
+import { backendService } from '../services/backendService';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { SIZES_LIST } from '../constants';
@@ -57,7 +57,7 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
       document.body.style.overflow = 'hidden';
       const fetchBrands = async () => {
         try {
-          const suppliers = await mockService.getSuppliers();
+          const suppliers = await backendService.getSuppliers();
           const supplierBrands = suppliers
             .map(s => s.fantasy_name)
             .filter((name): name is string => !!name && name.trim() !== '');
@@ -68,7 +68,7 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
         }
       };
       fetchBrands();
-      mockService.getClients().then(setClients);
+      backendService.getClients().then(setClients);
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -200,7 +200,7 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
             const currentStock = item.product.quantidade_estoque;
             const reduction = parseInt(item.amount) || 0;
             const finalStock = currentStock - reduction;
-            return (mockService as any).updateProductStock(
+            return (backendService as any).updateProductStock(
                 item.product.id, 
                 finalStock, 
                 finalReasonFormatted, 

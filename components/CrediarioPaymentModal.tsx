@@ -2,7 +2,7 @@
 import { X, BookOpen, Check, Loader2, DollarSign, CreditCard, Wallet, Calendar, Receipt, ArrowLeft, ChevronRight, ChevronDown, Package, Info, Percent, History, Clock, TrendingUp, User as UserIcon, PieChart, Banknote, CheckCircle2 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
-import { mockService, PaymentFees } from '../services/mockService';
+import { backendService, PaymentFees } from '../services/backendService';
 import { Client, Sale, SaleItem, UserProfile } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -40,8 +40,8 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
       setLoading(false);
       
       Promise.all([
-          mockService.getUsers(),
-          mockService.getPaymentFees()
+          backendService.getUsers(),
+          backendService.getPaymentFees()
       ]).then(([usersData, feesData]) => {
           setUsers(usersData);
           setFees(feesData);
@@ -122,7 +122,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
     }
 
     setLoading(true);
-    const success = await mockService.processCrediarioPayment(
+    const success = await backendService.processCrediarioPayment(
         client.id, 
         amount,
         selectedSale.id,

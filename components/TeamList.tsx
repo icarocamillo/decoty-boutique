@@ -6,7 +6,7 @@ import { Button } from './ui/Button';
 import { User, ShieldCheck, Mail, Hash, UserX, UserCheck, Users, Lock, Loader2, AlertTriangle } from 'lucide-react';
 import { isSupabaseConfigured } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { mockService } from '../services/mockService';
+import { backendService } from '../services/backendService';
 import { UserProfile } from '../types';
 
 export const TeamList: React.FC = () => {
@@ -21,7 +21,7 @@ export const TeamList: React.FC = () => {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const data = await mockService.getUsers();
+      const data = await backendService.getUsers();
       setUsers(data);
     } catch (error) {
       console.error("Erro ao carregar time", error);
@@ -45,7 +45,7 @@ export const TeamList: React.FC = () => {
       const newStatus = !isCurrentlyActive;
       
       // Chamada ao Service
-      const success = await mockService.updateUserStatus(targetUserId, newStatus);
+      const success = await backendService.updateUserStatus(targetUserId, newStatus);
       
       if (success) {
         setUsers(prev => prev.map(u => u.id === targetUserId ? { ...u, active: newStatus } : u));
@@ -63,7 +63,7 @@ export const TeamList: React.FC = () => {
       return;
     }
 
-    const success = await mockService.updateUserRole(targetUserId, newRole);
+    const success = await backendService.updateUserRole(targetUserId, newRole);
 
     if (success) {
       setUsers(prev => prev.map(u => u.id === targetUserId ? { ...u, role: newRole as any } : u));

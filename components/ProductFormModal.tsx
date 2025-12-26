@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Package, Check, Loader2, Tag, Layers, Droplet, Barcode, Hash, Info, DollarSign, ArrowRight, Plus, Minus, AlertCircle } from 'lucide-react';
 import { Button } from './ui/Button';
-import { mockService } from '../services/mockService';
+import { backendService } from '../services/backendService';
 import { ProductSize, Product } from '../types';
 import { SIZES_LIST } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
@@ -56,7 +56,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
     if (isOpen) {
       const fetchBrands = async () => {
         try {
-          const suppliers = await mockService.getSuppliers();
+          const suppliers = await backendService.getSuppliers();
           const supplierBrands = suppliers
             .map(s => s.fantasy_name)
             .filter((name): name is string => !!name && name.trim() !== '');
@@ -208,9 +208,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
     try {
       let success = false;
       if (productToEdit) {
-         success = await mockService.updateProduct({ ...payload, id: productToEdit.id, ui_id: productToEdit.ui_id } as any, userId);
+         success = await backendService.updateProduct({ ...payload, id: productToEdit.id, ui_id: productToEdit.ui_id } as any, userId);
       } else {
-        success = await mockService.createProduct(payload as any, userId);
+        success = await backendService.createProduct(payload as any, userId);
       }
       if (success) { onSuccess(); onClose(); }
       else { alert(`Erro ao processar produto.`); }

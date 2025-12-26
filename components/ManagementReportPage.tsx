@@ -9,7 +9,7 @@ import {
   Calendar, ShoppingBag, HelpCircle, Filter, CreditCard, Undo2, Archive, CheckCircle2, AlertTriangle, Gift, BookOpen, Info, ArrowUpRight, ArrowRight
 } from 'lucide-react';
 import { Card } from './ui/Card';
-import { mockService, PaymentFees } from '../services/mockService';
+import { backendService, PaymentFees } from '../services/backendService';
 import { Sale, Product, StockEntry, Client } from '../types';
 
 // Tooltip Component Interno
@@ -66,12 +66,12 @@ export const ManagementReportPage: React.FC = () => {
         const historyStartStr = historyStart.toISOString().split('T')[0];
 
         const [salesData, receiptsData, productsData, stockData, clientsData, feesData] = await Promise.all([
-          mockService.getSalesByPeriod(historyStartStr, endDate), 
-          mockService.getReceiptsByPeriod(historyStartStr, endDate),
-          mockService.getProducts(),
-          mockService.getStockEntries(),
-          mockService.getClients(),
-          mockService.getPaymentFees()
+          backendService.getSalesByPeriod(historyStartStr, endDate), 
+          backendService.getReceiptsByPeriod(historyStartStr, endDate),
+          backendService.getProducts(),
+          backendService.getStockEntries(),
+          backendService.getClients(),
+          backendService.getPaymentFees()
         ]);
         setSales(salesData);
         setReceipts(receiptsData);

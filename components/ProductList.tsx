@@ -7,7 +7,7 @@ import { Badge } from './ui/Badge';
 import { ProductFormModal } from './ProductFormModal';
 import { SIZES_LIST } from '../constants';
 import { Pagination } from './ui/Pagination';
-import { mockService } from '../services/mockService';
+import { backendService } from '../services/backendService';
 import { formatProductId } from '../utils';
 
 interface ProductListProps {
@@ -46,7 +46,7 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) 
   useEffect(() => {
     const fetchBrands = async () => {
       try {
-        const suppliers = await mockService.getSuppliers();
+        const suppliers = await backendService.getSuppliers();
         const supplierBrands = suppliers
           .map(s => s.fantasy_name)
           .filter((name): name is string => !!name && name.trim() !== '');

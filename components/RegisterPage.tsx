@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/Button';
 import { Mail, Lock, Loader2, AlertCircle, UserCheck, ShieldCheck, User, Eye, EyeOff } from 'lucide-react';
-import { mockService } from '../services/mockService';
+import { backendService } from '../services/backendService';
 import { generateHash } from '../utils';
 
 export const RegisterPage: React.FC = () => {
@@ -46,7 +46,7 @@ export const RegisterPage: React.FC = () => {
 
     try {
       // 1. Busca a hash autorizada do banco (chave='store_access_hash' na coluna 'value')
-      const storedHash = await mockService.getStoreAccessHash();
+      const storedHash = await backendService.getStoreAccessHash();
       
       if (!storedHash) {
           console.error("Segurança: Falha ao recuperar 'store_access_hash' do banco de dados.");

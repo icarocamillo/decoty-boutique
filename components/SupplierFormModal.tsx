@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Truck, User, Mail, Phone, Loader2, MapPin, Building, Check, StickyNote, Tag } from 'lucide-react';
 import { Button } from './ui/Button';
-import { mockService } from '../services/mockService';
+import { backendService } from '../services/backendService';
 import { Supplier } from '../types';
 
 interface SupplierFormModalProps {
@@ -110,12 +110,12 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, on
       let success = false;
       
       if (supplierToEdit) {
-        success = await mockService.updateSupplier({
+        success = await backendService.updateSupplier({
           ...formData,
           id: supplierToEdit.id
         });
       } else {
-        success = await mockService.createSupplier(formData);
+        success = await backendService.createSupplier(formData);
       }
       
       if (success) {

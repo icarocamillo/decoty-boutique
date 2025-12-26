@@ -4,7 +4,7 @@ import { X, User, CreditCard, Tag, Package, Receipt, Link, AlertTriangle, Mail, 
 import { Sale, Client, SaleItem, UserProfile, PaymentFees } from '../types';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
-import { mockService } from '../services/mockService';
+import { backendService } from '../services/backendService';
 import { formatDateStandard } from '../utils';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -202,10 +202,10 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
 
   useEffect(() => {
     if (isOpen) {
-        mockService.getUsers().then(setUsers);
-        mockService.getPaymentFees().then(setFeesConfig);
+        backendService.getUsers().then(setUsers);
+        backendService.getPaymentFees().then(setFeesConfig);
         if (currentSale?.cliente_id) {
-            mockService.getClients().then(clients => {
+            backendService.getClients().then(clients => {
                 const found = clients.find(c => c.id === currentSale.cliente_id);
                 setClientDetails(found || null);
             });
@@ -284,7 +284,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   const handleStartLinking = async () => {
       setIsLinkingMode(true);
       if (clientsList.length === 0) {
-          const loadedClients = await mockService.getClients();
+          const loadedClients = await backendService.getClients();
           setClientsList(loadedClients);
       }
   };
@@ -299,7 +299,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
       if (!currentSale) return;
       setIsLinkingLoading(true);
       try {
-          const success = await mockService.linkClientToSale(currentSale.id, client);
+          const success = await backendService.linkClientToSale(currentSale.id, client);
           if (success) {
               setCurrentSale(prev => prev ? ({ ...prev, cliente_id: client.id, cliente_nome: client.nome, cliente_cpf: client.cpf }) : null);
               setClientDetails(client);
@@ -315,7 +315,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
     const userId = currentUser?.id;
     if (!userId) { alert("Erro: Sessão do usuário não identificada."); setIsCancelling(false); return; }
     try {
-        await mockService.returnSaleItems(currentSale.id, selectedItems, currentSale.cliente_id, userId);
+        await backendService.returnSaleItems(currentSale.id, selectedItems, currentSale.cliente_id, userId);
         alert("Devolução processada com sucesso!");
         if (onSaleCancelled) onSaleCancelled();
         onClose();

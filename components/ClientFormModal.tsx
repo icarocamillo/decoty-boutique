@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, UserPlus, User, Mail, Phone, Loader2, MapPin, Smartphone, Megaphone, Check, CreditCard, Shirt, AlertCircle } from 'lucide-react';
 import { Button } from './ui/Button';
-import { mockService } from '../services/mockService';
+import { backendService } from '../services/backendService';
 import { Client } from '../types';
 
 interface ClientFormModalProps {
@@ -38,7 +38,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
   // Carrega lista de clientes para validação de duplicidade
   useEffect(() => {
     if (isOpen) {
-      mockService.getClients().then(setAllClients);
+      backendService.getClients().then(setAllClients);
     }
   }, [isOpen]);
 
@@ -176,13 +176,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
     try {
       let success = false;
       if (clientToEdit) {
-        success = await mockService.updateClient({
+        success = await backendService.updateClient({
           ...payload,
           id: clientToEdit.id,
           data_cadastro: clientToEdit.data_cadastro
         });
       } else {
-        success = await mockService.createClient(payload);
+        success = await backendService.createClient(payload);
       }
       
       if (success) {

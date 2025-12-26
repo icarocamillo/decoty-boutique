@@ -124,7 +124,7 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
     return sales.map(s => ({ ...s, pagamentos_crediario: [] }));
 };
 
-export const mockService = {
+export const backendService = {
   getClients: async (): Promise<Client[]> => {
     if (isSupabaseConfigured()) {
       const { data, error } = await supabase.from('clients').select('*').order('nome');
@@ -200,7 +200,7 @@ export const mockService = {
 
         const isFullyPaid = totalPaidAccumulated >= roundMoney(sale.valor_total);
         await supabase.from('sales').update({ status_pagamento: isFullyPaid ? 'pago' : 'pendente' }).eq('id', vendaId);
-        await mockService.updateClientCrediario(clientId, amount);
+        await backendService.updateClientCrediario(clientId, amount);
         return true;
     }
     return false;
@@ -219,7 +219,7 @@ export const mockService = {
     if (isSupabaseConfigured()) {
         const { data, error } = await supabase.from('products').insert([product]).select().single();
         if (!error && data) {
-            await mockService.logStockEntry({
+            await backendService.logStockEntry({
                 produto_id: data.id, 
                 produto_nome: `${data.nome} - ${data.marca}`,
                 quantidade: data.quantidade_estoque,
@@ -239,7 +239,7 @@ export const mockService = {
         const diff = product.quantidade_estoque - oldStock;
         const { error } = await supabase.from('products').update(product).eq('id', product.id);
         if (!error && diff !== 0) {
-             await mockService.logStockEntry({
+             await backendService.logStockEntry({
                 produto_id: product.id,
                 produto_nome: `${product.nome} - ${product.marca}`,
                 quantidade: diff,
@@ -312,7 +312,7 @@ export const mockService = {
             const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
             if (prod) {
                 await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque - item.quantidade }).eq('id', item.produto_id);
-                await mockService.logStockEntry({
+                await backendService.logStockEntry({
                     produto_id: item.produto_id,
                     produto_nome: `${item.nome} - ${item.marca}`,
                     quantidade: -item.quantidade,
@@ -383,7 +383,7 @@ export const mockService = {
     }
     const startStr = dates[0].toISOString().split('T')[0];
     const endStr = dates[6].toISOString().split('T')[0];
-    const sales = await mockService.getSalesByPeriod(startStr, endStr);
+    const sales = await backendService.getSalesByPeriod(startStr, endStr);
     
     return dates.map(date => {
         const dayTotal = sales
@@ -397,7 +397,7 @@ export const mockService = {
   },
 
   getTopSellingBrand: async (): Promise<string> => {
-      const sales = await mockService.getRecentSales();
+      const sales = await backendService.getRecentSales();
       const brandCounts: Record<string, number> = {};
       sales.forEach(s => {
           if (s.status !== 'cancelled' && s.items) {
@@ -431,7 +431,7 @@ export const mockService = {
   },
 
   updateProductStock: async (productId: string, newQuantity: number, reason: string, clientInfo: {id: string, name: string} | undefined, userId: string) => {
-      const products = await mockService.getProducts();
+      const products = await backendService.getProducts();
       const product = products.find(p => p.id === productId);
       if (!product) return;
       const diff = newQuantity - product.quantidade_estoque;
@@ -443,7 +443,7 @@ export const mockService = {
           setLocalData(LS_KEYS.PRODUCTS, updated);
       }
 
-      await mockService.logStockEntry({
+      await backendService.logStockEntry({
           produto_id: productId,
           produto_nome: `${product.nome} - ${product.marca}`,
           quantidade: diff,
@@ -576,7 +576,7 @@ export const mockService = {
                   const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
                   if (prod) {
                       await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id);
-                      await mockService.logStockEntry({
+                      await backendService.logStockEntry({
                           produto_id: item.produto_id,
                           produto_nome: `${item.nome_produto} - ${item.marca}`,
                           quantidade: item.quantidade,
@@ -604,7 +604,7 @@ export const mockService = {
            if (prod) {
                await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id);
                await supabase.from('sale_items').update({ status: 'returned' }).eq('id', item.id);
-               await mockService.logStockEntry({
+               await backendService.logStockEntry({
                    produto_id: item.produto_id,
                    produto_nome: `${item.nome_produto} - ${item.marca}`,
                    quantidade: item.quantidade,
@@ -683,7 +683,7 @@ export const mockService = {
           setLocalData(LS_KEYS.PRODUCTS, updated);
       }
 
-      await mockService.logStockEntry({
+      await backendService.logStockEntry({
           produto_id: targetProductId,
           produto_nome: entry.produto_nome,
           quantidade: Math.abs(entry.quantidade), 
