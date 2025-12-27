@@ -5,7 +5,7 @@ import { backendService } from '../services/backendService';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { SalesChart } from './SalesChart';
-import { Search, Calendar, Filter, Download, ArrowUp, ArrowDown, ArrowUpDown, User, ShoppingBag } from 'lucide-react';
+import { Search, Calendar, Filter, Download, ArrowUp, ArrowDown, ArrowUpDown, User, ShoppingBag, Undo2 } from 'lucide-react';
 import { SaleDetailsModal } from './SaleDetailsModal';
 import { Pagination } from './ui/Pagination';
 import { Badge } from './ui/Badge';
@@ -308,17 +308,18 @@ export const SalesPage: React.FC<SalesPageProps> = ({ onUpdate }) => {
                 {currentSales.map((sale) => {
                   const { weekDay, dateTime } = formatDateStandard(sale.data_venda);
                   const isCancelled = sale.status === 'cancelled';
+                  const isAllReturned = sale.items && sale.items.length > 0 && sale.items.every(i => i.status === 'returned');
                   const currentTotal = calculateCurrentTotal(sale);
                   return (
-                    <tr key={sale.id} onClick={() => setSelectedSale(sale)} className={`cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors ${isCancelled ? 'bg-red-50/20 dark:bg-red-900/10' : ''}`}>
+                    <tr key={sale.id} onClick={() => setSelectedSale(sale)} className={`cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors ${isCancelled || isAllReturned ? 'bg-red-50/20 dark:bg-red-900/10' : ''}`}>
                       <td className="px-4 py-3 font-medium text-zinc-900 dark:text-white">{cleanId(sale)}</td>
-                      <td className={`px-4 py-3 text-zinc-700 dark:text-zinc-300 ${isCancelled ? 'opacity-60' : ''}`}>
+                      <td className={`px-4 py-3 text-zinc-700 dark:text-zinc-300 ${isCancelled || isAllReturned ? 'opacity-60' : ''}`}>
                         <div className="flex items-center gap-2">
                           <User size={14} className="text-zinc-400" />
                           <span className="truncate max-w-[120px] font-bold" title={sale.cliente_nome}>{sale.cliente_nome || 'Não informado'}</span>
                         </div>
                       </td>
-                      <td className={`px-4 py-3 text-zinc-600 dark:text-zinc-400 ${isCancelled ? 'line-through opacity-60' : ''}`}>
+                      <td className={`px-4 py-3 text-zinc-600 dark:text-zinc-400 ${isCancelled || isAllReturned ? 'line-through opacity-60' : ''}`}>
                          <span className="truncate block max-w-[150px]" title={sale.produtos_resumo}>{sale.produtos_resumo || '-'}</span>
                       </td>
                       <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
@@ -328,15 +329,21 @@ export const SalesPage: React.FC<SalesPageProps> = ({ onUpdate }) => {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center">
-                         {isCancelled ? <Badge variant="destructive" className="scale-90">Cancelada</Badge> : <Badge variant="success" className="scale-90">Concluída</Badge>}
+                         {isCancelled ? (
+                            <Badge variant="destructive" className="scale-90">Cancelada</Badge>
+                         ) : isAllReturned ? (
+                            <Badge variant="warning" className="scale-90 gap-1"><Undo2 size={10} /> Devolvida</Badge>
+                         ) : (
+                            <Badge variant="success" className="scale-90">Concluída</Badge>
+                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${isCancelled ? 'bg-zinc-50 text-zinc-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'}`}>
+                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${isCancelled || isAllReturned ? 'bg-zinc-50 text-zinc-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'}`}>
                           <ShoppingBag size={12} />
                           {sale.items ? sale.items.filter(i => i.status === 'sold').reduce((acc, item) => acc + item.quantidade, 0) : (sale.item_count || 0)}
                         </div>
                       </td>
-                      <td className={`px-4 py-3 text-right font-medium text-zinc-900 dark:text-white ${isCancelled ? 'line-through opacity-60' : ''}`}>
+                      <td className={`px-4 py-3 text-right font-medium text-zinc-900 dark:text-white ${isCancelled || isAllReturned ? 'line-through opacity-60' : ''}`}>
                         {formatCurrency(currentTotal)}
                       </td>
                     </tr>

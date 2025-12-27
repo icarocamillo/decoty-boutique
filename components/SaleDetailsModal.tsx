@@ -258,19 +258,22 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   const { weekDay, dateTime } = formatDateStandard(currentSale.data_venda);
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-  const soldItemsSubtotal = currentSale.items?.filter(i => i.status === 'sold').reduce((acc, i) => acc + i.subtotal, 0) || 0;
-  const currentTotalNet = currentSale.status === 'cancelled' ? 0 : Math.max(0, soldItemsSubtotal - (currentSale.desconto_extra || 0) - (currentSale.uso_vale_presente || 0));
+  // Alteração solicitada: Subtotal Bruto agora mostra a soma dos Preços Unitários * Qtd de itens não devolvidos
+  const soldItemsGrossSubtotal = currentSale.items?.filter(i => i.status === 'sold').reduce((acc, i) => acc + (i.preco_unitario * i.quantidade), 0) || 0;
+  
+  // O Total Líquido Final da venda continua sendo o que o lojista realmente recebeu (após descontos e vales)
+  const soldItemsNetSubtotal = currentSale.items?.filter(i => i.status === 'sold').reduce((acc, i) => acc + i.subtotal, 0) || 0;
+  const currentTotalNet = currentSale.status === 'cancelled' ? 0 : Math.max(0, soldItemsNetSubtotal - (currentSale.desconto_extra || 0) - (currentSale.uso_vale_presente || 0));
+  
   const totalPaymentDiscount = currentSale.items?.filter(i => i.status === 'sold').reduce((acc, item) => acc + (item.desconto || 0), 0) || 0;
   const totalExtraDiscount = currentSale.desconto_extra || 0;
   const giftCardUsed = currentSale.uso_vale_presente || 0;
 
   const isCrediario = currentSale.metodo_pagamento === 'Crediário';
   
-  // Taxa Final: Se for crediário usa a consolidada, senão usa a gravada na venda
   const taxaExibicao = isCrediario ? (consolidatedFees?.valor || 0) : (currentSale.taxas_aplicadas?.valor || 0);
   const valorLiquidoReal = currentSale.valor_liquido_lojista || (currentTotalNet - taxaExibicao);
   
-  // No caso de crediário, o líquido é sobre o que já foi PAGO
   const totalPaidInCrediario = currentSale.pagamentos_crediario?.reduce((acc, p) => acc + p.valor, 0) || 0;
   const liquidoRealCrediario = Math.max(0, totalPaidInCrediario - (consolidatedFees?.valor || 0));
   const valorFaltante = Math.max(0, currentTotalNet - totalPaidInCrediario);
@@ -280,6 +283,8 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   const matchedUser = users.find(u => u.id === sellerId);
   const displaySeller = matchedUser ? `${matchedUser.name} - ${matchedUser.email}` : 'Sistema';
   const displayId = currentSale.ui_id ? `#${currentSale.ui_id}` : currentSale.id.replace('s', '#');
+
+  const isAllReturned = currentSale.items && currentSale.items.length > 0 && currentSale.items.every(i => i.status === 'returned');
 
   const handleStartLinking = async () => {
       setIsLinkingMode(true);
@@ -335,8 +340,14 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">{weekDay}, {dateTime}</p>
                 <span className="text-zinc-300 dark:text-zinc-600">—</span>
                 <div className="flex items-center gap-1.5">
-                    {currentSale.status === 'cancelled' ? <Badge variant="destructive" className="text-[10px] px-1.5 h-4">Cancelada</Badge> : <Badge variant="success" className="text-[10px] px-1.5 h-4">Concluída</Badge>}
-                    {currentSale.status !== 'cancelled' && (currentSale.status_pagamento === 'pago' ? <Badge variant="success" className="text-[10px] px-1.5 h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[10px] px-1.5 h-4 gap-1"><DollarSign size={8} /> Pagamento pendente</Badge>)}
+                    {currentSale.status === 'cancelled' ? (
+                        <Badge variant="destructive" className="text-[10px] px-1.5 h-4">Cancelada</Badge>
+                    ) : isAllReturned ? (
+                        <Badge variant="warning" className="text-[10px] px-1.5 h-4 gap-1"><Undo2 size={8} /> Devolvida</Badge>
+                    ) : (
+                        <Badge variant="success" className="text-[10px] px-1.5 h-4">Concluída</Badge>
+                    )}
+                    {currentSale.status !== 'cancelled' && !isAllReturned && (currentSale.status_pagamento === 'pago' ? <Badge variant="success" className="text-[10px] px-1.5 h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[10px] px-1.5 h-4 gap-1"><DollarSign size={8} /> Pagamento pendente</Badge>)}
                 </div>
               </div>
             </div>
@@ -418,7 +429,12 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                     <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-400 uppercase mb-3 flex items-center gap-2"><CreditCard size={14} /> Resumo Financeiro</h3>
                     <div className="flex flex-col gap-2">
                       <div className="flex justify-between text-sm"><span className="text-zinc-600 dark:text-zinc-400">Método de Venda:</span><span className="font-bold text-zinc-900 dark:text-white">{currentSale.metodo_pagamento}</span></div>
-                      <div className="flex justify-between text-sm"><span className="text-zinc-600 dark:text-zinc-400">Subtotal Bruto:</span><span className={`text-zinc-900 dark:text-white ${currentSale.status === 'cancelled' ? 'line-through opacity-60' : ''}`}>{formatCurrency(soldItemsSubtotal)}</span></div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-zinc-600 dark:text-zinc-400">Subtotal Bruto:</span>
+                        <span className={`text-zinc-900 dark:text-white ${currentSale.status === 'cancelled' || isAllReturned ? 'line-through opacity-60' : ''}`}>
+                          {formatCurrency(soldItemsGrossSubtotal)}
+                        </span>
+                      </div>
                       {totalPaymentDiscount > 0 && <div className="flex justify-between text-sm text-green-600 dark:text-emerald-400"><span>Desconto Pagamento:</span><span>- {formatCurrency(totalPaymentDiscount)}</span></div>}
                       {totalExtraDiscount > 0 && <div className="flex justify-between text-sm text-blue-600 dark:text-blue-400"><span>Desconto Extra:</span><span>- {formatCurrency(totalExtraDiscount)}</span></div>}
                       {giftCardUsed > 0 && <div className="flex justify-between text-sm text-amber-600 dark:text-amber-400"><span className="flex items-center gap-1"><Gift size={12} /> Vale Presente:</span><span>- {formatCurrency(giftCardUsed)}</span></div>}
@@ -429,22 +445,22 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                       <>
                         <div className="flex justify-between items-center">
                           <span className="font-semibold text-zinc-700 dark:text-zinc-300 text-xs uppercase">Total da Venda:</span>
-                          <span className={`font-bold text-lg text-zinc-900 dark:text-white ${currentSale.status === 'cancelled' ? 'line-through opacity-60' : ''}`}>{formatCurrency(currentTotalNet)}</span>
+                          <span className={`font-bold text-lg text-zinc-900 dark:text-white ${currentSale.status === 'cancelled' || isAllReturned ? 'line-through opacity-60' : ''}`}>{formatCurrency(currentTotalNet)}</span>
                         </div>
                         <div className="flex justify-between items-center p-2 bg-red-50/50 dark:bg-red-950/20 rounded-lg border border-red-100 dark:border-red-900/30">
                           <span className="font-bold text-red-700 dark:text-red-400 text-xs uppercase">A Receber:</span>
-                          <span className={`font-black text-xl text-red-600 dark:text-red-500 ${currentSale.status === 'cancelled' ? 'line-through' : ''}`}>{formatCurrency(valorFaltante)}</span>
+                          <span className={`font-black text-xl text-red-600 dark:text-red-500 ${currentSale.status === 'cancelled' || isAllReturned ? 'line-through' : ''}`}>{formatCurrency(valorFaltante)}</span>
                         </div>
                         <div className="flex justify-between items-center p-2 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
                           <span className="font-bold text-emerald-700 dark:text-emerald-400 text-xs uppercase">Total Pago:</span>
-                          <span className={`font-black text-xl text-emerald-600 dark:text-emerald-500 ${currentSale.status === 'cancelled' ? 'line-through' : ''}`}>{formatCurrency(totalPaidInCrediario)}</span>
+                          <span className={`font-black text-xl text-emerald-600 dark:text-emerald-500 ${currentSale.status === 'cancelled' || isAllReturned ? 'line-through' : ''}`}>{formatCurrency(totalPaidInCrediario)}</span>
                         </div>
                       </>
                     ) : (
                       <div className="flex flex-col gap-1.5">
                         <div className="flex justify-between items-center w-full">
                           <span className="font-semibold text-zinc-700 dark:text-zinc-300">Total Pago:</span>
-                          <span className={`font-bold text-xl text-zinc-900 dark:text-white ${currentSale.status === 'cancelled' ? 'line-through decoration-red-500 decoration-2' : ''}`}>{formatCurrency(currentTotalNet)}</span>
+                          <span className={`font-bold text-xl text-zinc-900 dark:text-white ${currentSale.status === 'cancelled' || isAllReturned ? 'line-through decoration-red-500 decoration-2' : ''}`}>{formatCurrency(currentTotalNet)}</span>
                         </div>
                         {currentSale.metodo_pagamento === 'Cartão de Crédito' && (currentSale.parcelas || 1) > 1 && (
                           <div className="flex justify-between items-center w-full py-1.5 px-3 bg-zinc-100 dark:bg-zinc-800/40 rounded-lg border border-zinc-200 dark:border-zinc-700/50 animate-fade-in">
@@ -504,7 +520,8 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                           <td className="px-4 py-3 text-center">
                              {!isReturned && currentSale.status !== 'cancelled' && (item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[9px] h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[9px] h-4 px-1.5 gap-1"><DollarSign size={8} /> Pendente</Badge>)}
                           </td>
-                          <td className="px-4 py-3 text-right font-bold text-zinc-900 dark:text-zinc-100">{formatCurrency(item.subtotal)}</td>
+                          {/* Alteração solicitada: Subtotal do item agora mostra o valor bruto unitário (como qty é 1 no unrolledItems, preco_unitario é o suficiente) */}
+                          <td className="px-4 py-3 text-right font-bold text-zinc-900 dark:text-zinc-100">{formatCurrency(item.preco_unitario * item.quantidade)}</td>
                         </tr>
                       );
                     })}
@@ -513,27 +530,30 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
             </div>
             {/* Mobile View Itens */}
             <div className="flex flex-col gap-3 sm:hidden">
-              {unrolledItems.map((item) => (
-                <div key={item.virtualId} className="bg-zinc-50 dark:bg-zinc-800/30 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700">
-                    <div className="flex justify-between items-start">
-                        <span className="font-bold text-sm text-zinc-900 dark:text-white">{item.nome_produto}</span>
-                        <Badge variant="outline" className="text-[9px] dark:text-zinc-300 border-zinc-200 dark:border-zinc-700">{item.tamanho}</Badge>
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                        <span className="text-xs text-zinc-700 dark:text-zinc-200 font-bold">{formatCurrency(item.subtotal)}</span>
-                        <div className="flex items-center gap-2">
-                           <span className="text-[10px] text-zinc-500 dark:text-zinc-400">Qtd: {item.quantidade}</span>
-                           {item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[8px]">Pago</Badge> : <Badge variant="warning" className="text-[8px]">Pendente</Badge>}
-                        </div>
-                    </div>
-                </div>
-              ))}
+              {unrolledItems.map((item) => {
+                const isReturned = item.status === 'returned';
+                return (
+                  <div key={item.virtualId} className={`bg-zinc-50 dark:bg-zinc-800/30 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale' : ''}`}>
+                      <div className="flex justify-between items-start">
+                          <span className="font-bold text-sm text-zinc-900 dark:text-white">{item.nome_produto}</span>
+                          <Badge variant="outline" className="text-[9px] dark:text-zinc-300 border-zinc-200 dark:border-zinc-700">{item.tamanho}</Badge>
+                      </div>
+                      <div className="flex justify-between items-center mt-2">
+                          <span className="text-xs text-zinc-700 dark:text-zinc-200 font-bold">{formatCurrency(item.preco_unitario * item.quantidade)}</span>
+                          <div className="flex items-center gap-2">
+                             <span className="text-[10px] text-zinc-500 dark:text-zinc-400">Qtd: {item.quantidade}</span>
+                             {isReturned ? <Badge variant="destructive" className="text-[8px]">Devolvido</Badge> : (item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[8px]">Pago</Badge> : <Badge variant="warning" className="text-[8px]">Pendente</Badge>)}
+                          </div>
+                      </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
 
         <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800 flex justify-between shrink-0">
-          <div>{currentSale.status !== 'cancelled' && <Button type="button" variant="destructive" onClick={() => setIsReturnModalOpen(true)} disabled={isCancelling} className="gap-2 shadow-sm"><Undo2 size={16} /> Devolver Itens</Button>}</div>
+          <div>{currentSale.status !== 'cancelled' && !isAllReturned && <Button type="button" variant="destructive" onClick={() => setIsReturnModalOpen(true)} disabled={isCancelling} className="gap-2 shadow-sm"><Undo2 size={16} /> Devolver Itens</Button>}</div>
           <Button onClick={onClose} variant="primary" className="px-8 shadow-sm">Fechar</Button>
         </div>
       </div>

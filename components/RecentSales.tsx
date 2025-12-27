@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo } from 'react';
 import { Sale } from '../types';
-import { ShoppingBag, User, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, Calendar, Clock, Package, DollarSign, Check } from 'lucide-react';
+import { ShoppingBag, User, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, Calendar, Clock, Package, DollarSign, Check, Undo2 } from 'lucide-react';
 import { SaleDetailsModal } from './SaleDetailsModal';
 import { Badge } from './ui/Badge';
 import { formatDateStandard } from '../utils';
@@ -101,6 +102,7 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
         {sortedSales.map((sale) => {
           const { weekDay, dateTime } = formatDateStandard(sale.data_venda);
           const isCancelled = sale.status === 'cancelled';
+          const isAllReturned = sale.items && sale.items.length > 0 && sale.items.every(i => i.status === 'returned');
           const displayedItemCount = sale.items 
             ? sale.items.filter(i => i.status === 'sold').reduce((acc, item) => acc + item.quantidade, 0) 
             : (sale.item_count || 0);
@@ -111,7 +113,7 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
               key={sale.id} 
               onClick={() => setSelectedSale(sale)}
               className={`text-left p-4 rounded-xl border bg-white dark:bg-zinc-900 shadow-sm active:scale-[0.98] transition-all flex flex-col gap-3 ${
-                isCancelled ? 'border-red-100 dark:border-red-900/30' : 'border-zinc-100 dark:border-zinc-800'
+                isCancelled || isAllReturned ? 'border-red-100 dark:border-red-900/30' : 'border-zinc-100 dark:border-zinc-800'
               }`}
             >
               <div className="flex justify-between items-start">
@@ -142,6 +144,8 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   {isCancelled ? (
                     <Badge variant="destructive" className="text-[10px]">Cancelada</Badge>
+                  ) : isAllReturned ? (
+                    <Badge variant="warning" className="text-[10px] gap-1"><Undo2 size={10} /> Devolvida</Badge>
                   ) : (
                     <>
                       <Badge variant="success" className="text-[10px]">Concluída</Badge>
@@ -171,7 +175,7 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
               </div>
 
               <div className="flex justify-between items-center mt-1">
-                <span className={`text-lg font-black ${isCancelled ? 'text-zinc-400 line-through' : 'text-zinc-900 dark:text-white'}`}>
+                <span className={`text-lg font-black ${isCancelled || isAllReturned ? 'text-zinc-400 line-through' : 'text-zinc-900 dark:text-white'}`}>
                   {formatCurrency(currentTotal)}
                 </span>
                 <ChevronRight size={16} className="text-zinc-300" />
@@ -214,6 +218,7 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
             {sortedSales.map((sale) => {
               const { weekDay, dateTime } = formatDateStandard(sale.data_venda);
               const isCancelled = sale.status === 'cancelled';
+              const isAllReturned = sale.items && sale.items.length > 0 && sale.items.every(i => i.status === 'returned');
               const displayedItemCount = sale.items 
                 ? sale.items.filter(i => i.status === 'sold').reduce((acc, item) => acc + item.quantidade, 0) 
                 : (sale.item_count || 0);
@@ -223,7 +228,7 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
                 <tr 
                   key={sale.id} 
                   onClick={() => setSelectedSale(sale)}
-                  className={`cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors ${isCancelled ? 'bg-red-50/20 dark:bg-red-900/10' : ''}`}
+                  className={`cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors ${isCancelled || isAllReturned ? 'bg-red-50/20 dark:bg-red-900/10' : ''}`}
                 >
                   <td className="px-4 py-3 font-medium text-zinc-900 dark:text-white">
                     {cleanId(sale)}
@@ -234,7 +239,7 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
                       <span className="text-zinc-500 dark:text-zinc-500">{dateTime}</span>
                     </div>
                   </td>
-                  <td className={`px-4 py-3 ${isCancelled ? 'opacity-60 text-zinc-500' : 'text-zinc-700 dark:text-zinc-300'}`}>
+                  <td className={`px-4 py-3 ${isCancelled || isAllReturned ? 'opacity-60 text-zinc-500' : 'text-zinc-700 dark:text-zinc-300'}`}>
                     <div className="flex items-center gap-2 group/client">
                       <User size={14} className="text-zinc-400 group-hover/client:text-emerald-600 transition-colors" />
                       <span 
@@ -260,23 +265,29 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${isCancelled ? 'bg-zinc-50 text-zinc-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'}`}>
+                    <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${isCancelled || isAllReturned ? 'bg-zinc-50 text-zinc-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'}`}>
                       <ShoppingBag size={12} />
                       {displayedItemCount}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center">
-                     {isCancelled ? <Badge variant="destructive" className="scale-90">Cancelada</Badge> : <Badge variant="success" className="scale-90">Concluída</Badge>}
+                     {isCancelled ? (
+                        <Badge variant="destructive" className="scale-90">Cancelada</Badge>
+                     ) : isAllReturned ? (
+                        <Badge variant="warning" className="scale-90 gap-1"><Undo2 size={10} /> Devolvida</Badge>
+                     ) : (
+                        <Badge variant="success" className="scale-90">Concluída</Badge>
+                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
-                     {!isCancelled && (
+                     {!isCancelled && !isAllReturned && (
                          sale.status_pagamento === 'pago' 
                           ? <Badge variant="success" className="text-[9px] h-5 gap-1 px-2"><Check size={10} /> Pago</Badge> 
                           : <Badge variant="warning" className="text-[9px] h-5 gap-1 px-2"><DollarSign size={10} /> Pendente</Badge>
                      )}
-                     {isCancelled && <span className="text-zinc-300 dark:text-zinc-700">-</span>}
+                     {(isCancelled || isAllReturned) && <span className="text-zinc-300 dark:text-zinc-700">-</span>}
                   </td>
-                  <td className={`px-4 py-3 text-right font-medium text-zinc-900 dark:text-white ${isCancelled ? 'line-through opacity-60' : ''}`}>
+                  <td className={`px-4 py-3 text-right font-medium text-zinc-900 dark:text-white ${isCancelled || isAllReturned ? 'line-through opacity-60' : ''}`}>
                     {formatCurrency(currentTotal)}
                   </td>
                 </tr>
