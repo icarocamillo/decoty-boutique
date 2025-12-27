@@ -5,7 +5,7 @@ import { backendService } from '../services/backendService';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { SalesChart } from './SalesChart';
-import { Search, Calendar, Filter, Download, ArrowUp, ArrowDown, ArrowUpDown, User, ShoppingBag, Undo2 } from 'lucide-react';
+import { Search, Calendar, Filter, Download, ArrowUp, ArrowDown, ArrowUpDown, User, ShoppingBag, Undo2, Check, DollarSign } from 'lucide-react';
 import { SaleDetailsModal } from './SaleDetailsModal';
 import { Pagination } from './ui/Pagination';
 import { Badge } from './ui/Badge';
@@ -296,6 +296,7 @@ export const SalesPage: React.FC<SalesPageProps> = ({ onUpdate }) => {
                     <div className="flex items-center">Data <SortIcon columnKey="data_venda" /></div>
                   </th>
                   <th className="px-4 py-3 font-medium text-center">Status</th>
+                  <th className="px-4 py-3 font-medium text-center">Pagamento</th>
                   <th className="px-4 py-3 font-medium text-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('item_count')}>
                      <div className="flex items-center justify-center">Itens <SortIcon columnKey="item_count" /></div>
                   </th>
@@ -309,6 +310,9 @@ export const SalesPage: React.FC<SalesPageProps> = ({ onUpdate }) => {
                   const { weekDay, dateTime } = formatDateStandard(sale.data_venda);
                   const isCancelled = sale.status === 'cancelled';
                   const isAllReturned = sale.items && sale.items.length > 0 && sale.items.every(i => i.status === 'returned');
+                  const soldItems = sale.items?.filter(i => i.status === 'sold') || [];
+                  const isActuallyPaid = soldItems.length > 0 && soldItems.every(i => i.status_pagamento === 'pago');
+                  
                   const currentTotal = calculateCurrentTotal(sale);
                   return (
                     <tr key={sale.id} onClick={() => setSelectedSale(sale)} className={`cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors ${isCancelled || isAllReturned ? 'bg-red-50/20 dark:bg-red-900/10' : ''}`}>
@@ -336,6 +340,14 @@ export const SalesPage: React.FC<SalesPageProps> = ({ onUpdate }) => {
                          ) : (
                             <Badge variant="success" className="scale-90">Concluída</Badge>
                          )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                         {!isCancelled && !isAllReturned && (
+                             isActuallyPaid 
+                              ? <Badge variant="success" className="text-[9px] h-5 gap-1 px-2"><Check size={10} /> Pago</Badge> 
+                              : <Badge variant="warning" className="text-[9px] h-5 gap-1 px-2"><DollarSign size={10} /> Pendente</Badge>
+                         )}
+                         {(isCancelled || isAllReturned) && <span className="text-zinc-300 dark:text-zinc-700">-</span>}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${isCancelled || isAllReturned ? 'bg-zinc-50 text-zinc-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'}`}>

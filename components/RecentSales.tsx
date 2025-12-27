@@ -103,6 +103,9 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
           const { weekDay, dateTime } = formatDateStandard(sale.data_venda);
           const isCancelled = sale.status === 'cancelled';
           const isAllReturned = sale.items && sale.items.length > 0 && sale.items.every(i => i.status === 'returned');
+          const soldItems = sale.items?.filter(i => i.status === 'sold') || [];
+          const isActuallyPaid = soldItems.length > 0 && soldItems.every(i => i.status_pagamento === 'pago');
+          
           const displayedItemCount = sale.items 
             ? sale.items.filter(i => i.status === 'sold').reduce((acc, item) => acc + item.quantidade, 0) 
             : (sale.item_count || 0);
@@ -149,7 +152,7 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
                   ) : (
                     <>
                       <Badge variant="success" className="text-[10px]">Concluída</Badge>
-                      {sale.status_pagamento === 'pago' ? (
+                      {isActuallyPaid ? (
                         <Badge variant="success" className="text-[8px] px-1.5 h-4 gap-1"><Check size={8} /> Pago</Badge>
                       ) : (
                         <Badge variant="warning" className="text-[8px] px-1.5 h-4 gap-1"><DollarSign size={8} /> Pendente</Badge>
@@ -219,6 +222,9 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
               const { weekDay, dateTime } = formatDateStandard(sale.data_venda);
               const isCancelled = sale.status === 'cancelled';
               const isAllReturned = sale.items && sale.items.length > 0 && sale.items.every(i => i.status === 'returned');
+              const soldItems = sale.items?.filter(i => i.status === 'sold') || [];
+              const isActuallyPaid = soldItems.length > 0 && soldItems.every(i => i.status_pagamento === 'pago');
+              
               const displayedItemCount = sale.items 
                 ? sale.items.filter(i => i.status === 'sold').reduce((acc, item) => acc + item.quantidade, 0) 
                 : (sale.item_count || 0);
@@ -281,7 +287,7 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => 
                   </td>
                   <td className="px-4 py-3 text-center">
                      {!isCancelled && !isAllReturned && (
-                         sale.status_pagamento === 'pago' 
+                         isActuallyPaid 
                           ? <Badge variant="success" className="text-[9px] h-5 gap-1 px-2"><Check size={10} /> Pago</Badge> 
                           : <Badge variant="warning" className="text-[9px] h-5 gap-1 px-2"><DollarSign size={10} /> Pendente</Badge>
                      )}

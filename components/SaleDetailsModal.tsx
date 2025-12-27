@@ -259,13 +259,14 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
   // Alteração solicitada: Subtotal Bruto agora mostra a soma dos Preços Unitários * Qtd de itens não devolvidos
-  const soldItemsGrossSubtotal = currentSale.items?.filter(i => i.status === 'sold').reduce((acc, i) => acc + (i.preco_unitario * i.quantidade), 0) || 0;
+  const soldItems = currentSale.items?.filter(i => i.status === 'sold') || [];
+  const soldItemsGrossSubtotal = soldItems.reduce((acc, i) => acc + (i.preco_unitario * i.quantidade), 0) || 0;
   
   // O Total Líquido Final da venda continua sendo o que o lojista realmente recebeu (após descontos e vales)
-  const soldItemsNetSubtotal = currentSale.items?.filter(i => i.status === 'sold').reduce((acc, i) => acc + i.subtotal, 0) || 0;
+  const soldItemsNetSubtotal = soldItems.reduce((acc, i) => acc + i.subtotal, 0) || 0;
   const currentTotalNet = currentSale.status === 'cancelled' ? 0 : Math.max(0, soldItemsNetSubtotal - (currentSale.desconto_extra || 0) - (currentSale.uso_vale_presente || 0));
   
-  const totalPaymentDiscount = currentSale.items?.filter(i => i.status === 'sold').reduce((acc, item) => acc + (item.desconto || 0), 0) || 0;
+  const totalPaymentDiscount = soldItems.reduce((acc, item) => acc + (item.desconto || 0), 0) || 0;
   const totalExtraDiscount = currentSale.desconto_extra || 0;
   const giftCardUsed = currentSale.uso_vale_presente || 0;
 
@@ -285,6 +286,9 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   const displayId = currentSale.ui_id ? `#${currentSale.ui_id}` : currentSale.id.replace('s', '#');
 
   const isAllReturned = currentSale.items && currentSale.items.length > 0 && currentSale.items.every(i => i.status === 'returned');
+  
+  // Lógica para determinar se a venda está "Visualmente" paga com base nos itens vendidos
+  const isActuallyPaid = soldItems.length > 0 && soldItems.every(i => i.status_pagamento === 'pago');
 
   const handleStartLinking = async () => {
       setIsLinkingMode(true);
@@ -347,7 +351,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                     ) : (
                         <Badge variant="success" className="text-[10px] px-1.5 h-4">Concluída</Badge>
                     )}
-                    {currentSale.status !== 'cancelled' && !isAllReturned && (currentSale.status_pagamento === 'pago' ? <Badge variant="success" className="text-[10px] px-1.5 h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[10px] px-1.5 h-4 gap-1"><DollarSign size={8} /> Pagamento pendente</Badge>)}
+                    {currentSale.status !== 'cancelled' && !isAllReturned && (isActuallyPaid ? <Badge variant="success" className="text-[10px] px-1.5 h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[10px] px-1.5 h-4 gap-1"><DollarSign size={8} /> Pagamento pendente</Badge>)}
                 </div>
               </div>
             </div>
@@ -424,7 +428,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
 
             {/* CARD FINANCEIRO */}
             <div className="flex flex-col gap-4">
-              <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-lg border border-zinc-100 dark:border-zinc-800 h-full flex flex-col justify-between shadow-sm">
+              <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 h-full flex flex-col justify-between shadow-sm">
                 <div>
                     <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-400 uppercase mb-3 flex items-center gap-2"><CreditCard size={14} /> Resumo Financeiro</h3>
                     <div className="flex flex-col gap-2">
@@ -487,7 +491,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                    </div>
                    <div className="border-t border-red-200 dark:border-red-900/30 pt-1 mt-1 flex justify-between items-baseline">
                       <span className="text-[10px] font-bold text-zinc-700 dark:text-zinc-300 uppercase">Líquido Lojista {isCrediario && '(sobre o pago)'}:</span>
-                      <span className="text-sm font-black text-zinc-900 dark:text-white">{formatCurrency(isCrediario ? liquidoRealCrediario : valorLiquidoReal)}</span>
+                      <span className="text-sm font-black text-zinc-900 dark:text-white">{formatCurrency(isActuallyPaid ? valorLiquidoReal : (isCrediario ? liquidoRealCrediario : valorLiquidoReal))}</span>
                    </div>
                 </div>
               )}
