@@ -232,23 +232,27 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
     return list;
   }, [currentSale?.items]);
 
-  // --- LÓGICA DE TAXAS CONSOLIDADAS PARA CREDIÁRIO ---
+  // --- LÓGICA DE TAXAS CONSOLIDADAS BASEADA NO HISTÓRICO DE RECEBIMENTOS ---
   const consolidatedFees = useMemo(() => {
       if (!currentSale || currentSale.metodo_pagamento !== 'Crediário' || !feesConfig) return null;
 
       let totalFeeValue = 0;
+      let totalNetValue = 0;
       const history = currentSale.pagamentos_crediario || [];
 
       history.forEach(p => {
           let percent = 0;
           if (p.metodo === 'Cartão de Débito') percent = feesConfig.debit;
-          else if (p.metodo === 'Cartão de Crédito') percent = feesConfig.credit_spot; // Consideramos à vista para recebimentos parciais
+          else if (p.metodo === 'Cartão de Crédito') percent = feesConfig.credit_spot; 
 
-          totalFeeValue += (p.valor * (percent / 100));
+          const fee = (p.valor * (percent / 100));
+          totalFeeValue += fee;
+          totalNetValue += (p.valor - fee);
       });
 
       return {
-          valor: totalFeeValue,
+          valorTaxas: totalFeeValue,
+          valorLiquido: totalNetValue,
           count: history.length
       };
   }, [currentSale, feesConfig]);
@@ -258,11 +262,11 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   const { weekDay, dateTime } = formatDateStandard(currentSale.data_venda);
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-  // Alteração solicitada: Subtotal Bruto agora mostra a soma dos Preços Unitários * Qtd de itens não devolvidos
+  // Subtotal Bruto: Itens que permanecem vendidos
   const soldItems = currentSale.items?.filter(i => i.status === 'sold') || [];
   const soldItemsGrossSubtotal = soldItems.reduce((acc, i) => acc + (i.preco_unitario * i.quantidade), 0) || 0;
   
-  // O Total Líquido Final da venda continua sendo o que o lojista realmente recebeu (após descontos e vales)
+  // Total Líquido Final esperado da venda
   const soldItemsNetSubtotal = soldItems.reduce((acc, i) => acc + i.subtotal, 0) || 0;
   const currentTotalNet = currentSale.status === 'cancelled' ? 0 : Math.max(0, soldItemsNetSubtotal - (currentSale.desconto_extra || 0) - (currentSale.uso_vale_presente || 0));
   
@@ -272,11 +276,13 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
 
   const isCrediario = currentSale.metodo_pagamento === 'Crediário';
   
-  const taxaExibicao = isCrediario ? (consolidatedFees?.valor || 0) : (currentSale.taxas_aplicadas?.valor || 0);
-  const valorLiquidoReal = currentSale.valor_liquido_lojista || (currentTotalNet - taxaExibicao);
+  // Taxa de exibição: Se for crediário, pega a soma das taxas dos pagamentos parciais. Se não, a taxa da venda original.
+  const taxaExibicao = isCrediario ? (consolidatedFees?.valorTaxas || 0) : (currentSale.taxas_aplicadas?.valor || 0);
+  
+  // Lucro Líquido Real: Recalculado sempre para evitar valores fantasmas do banco de dados
+  const valorLiquidoReal = currentTotalNet - taxaExibicao;
   
   const totalPaidInCrediario = currentSale.pagamentos_crediario?.reduce((acc, p) => acc + p.valor, 0) || 0;
-  const liquidoRealCrediario = Math.max(0, totalPaidInCrediario - (consolidatedFees?.valor || 0));
   const valorFaltante = Math.max(0, currentTotalNet - totalPaidInCrediario);
 
   const isUnregistered = currentSale.cliente_nome === 'Cliente não cadastrado' || !currentSale.cliente_id;
@@ -479,7 +485,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                 </div>
               </div>
 
-              {/* CUSTOS DA OPERAÇÃO (CONSOLIDADO PARA CREDIÁRIO) */}
+              {/* CUSTOS DA OPERAÇÃO (CONSOLIDADO PELO HISTÓRICO) */}
               {taxaExibicao > 0 && (
                 <div className="bg-red-50/50 dark:bg-red-900/10 p-3 rounded-lg border border-red-100 dark:border-red-900/30 animate-fade-in">
                    <h3 className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase mb-2 flex items-center gap-1">
@@ -491,7 +497,9 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                    </div>
                    <div className="border-t border-red-200 dark:border-red-900/30 pt-1 mt-1 flex justify-between items-baseline">
                       <span className="text-[10px] font-bold text-zinc-700 dark:text-zinc-300 uppercase">Líquido Lojista {isCrediario && '(sobre o pago)'}:</span>
-                      <span className="text-sm font-black text-zinc-900 dark:text-white">{formatCurrency(isActuallyPaid ? valorLiquidoReal : (isCrediario ? liquidoRealCrediario : valorLiquidoReal))}</span>
+                      <span className="text-sm font-black text-zinc-900 dark:text-white">
+                        {formatCurrency(isCrediario ? (consolidatedFees?.valorLiquido || 0) : valorLiquidoReal)}
+                      </span>
                    </div>
                 </div>
               )}
@@ -524,7 +532,6 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                           <td className="px-4 py-3 text-center">
                              {!isReturned && currentSale.status !== 'cancelled' && (item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[9px] h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[9px] h-4 px-1.5 gap-1"><DollarSign size={8} /> Pendente</Badge>)}
                           </td>
-                          {/* Alteração solicitada: Subtotal do item agora mostra o valor bruto unitário (como qty é 1 no unrolledItems, preco_unitario é o suficiente) */}
                           <td className="px-4 py-3 text-right font-bold text-zinc-900 dark:text-zinc-100">{formatCurrency(item.preco_unitario * item.quantidade)}</td>
                         </tr>
                       );
