@@ -67,6 +67,23 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
       return { value: amount * (percent / 100), percent };
   }, [fees]);
 
+  /**
+   * Calcula o valor total atual e efetivo da venda, 
+   * considerando apenas itens vendidos (não devolvidos).
+   */
+  const calculateEffectiveSaleTotal = useCallback((sale: Sale) => {
+    if (sale.status === 'cancelled') return 0;
+    
+    const soldItemsSubtotal = sale.items
+      ?.filter(i => i.status === 'sold')
+      .reduce((acc, i) => acc + i.subtotal, 0) || 0;
+    
+    if (soldItemsSubtotal === 0) return 0;
+
+    // Subtrai descontos extras e uso de vale-presente do subtotal dos itens vendidos
+    return Math.max(0, soldItemsSubtotal - (sale.desconto_extra || 0) - (sale.uso_vale_presente || 0));
+  }, []);
+
   // Vendas de crediário - AGORA INCLUI AS PAGAS PARA HISTÓRICO
   const crediarioSales = useMemo(() => {
     return sales.filter(s => s.metodo_pagamento === 'Crediário' && s.status === 'completed')
@@ -75,7 +92,8 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
 
   const saleStats = useMemo(() => {
       if (!selectedSale) return null;
-      const total = selectedSale.valor_total;
+      
+      const total = calculateEffectiveSaleTotal(selectedSale);
       
       let totalPaid = 0;
       let totalNet = 0;
@@ -87,7 +105,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
       });
 
       const remaining = Math.max(0, total - totalPaid);
-      const progress = (totalPaid / total) * 100;
+      const progress = total > 0 ? (totalPaid / total) * 100 : 0;
       const isPaid = selectedSale.status_pagamento === 'pago' || remaining < 0.01;
       
       return { 
@@ -98,7 +116,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
           progress,
           isPaid
       };
-  }, [selectedSale, getFeeInfo]);
+  }, [selectedSale, getFeeInfo, calculateEffectiveSaleTotal]);
 
   const handleCurrencyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, "");
@@ -181,10 +199,14 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                     
                     <div className="space-y-3">
                         {crediarioSales.map(sale => {
+                            const effectiveTotal = calculateEffectiveSaleTotal(sale);
                             const paid = sale.pagamentos_crediario?.reduce((sum, p) => sum + p.valor, 0) || 0;
-                            const remaining = Math.max(0, sale.valor_total - paid);
-                            const progress = (paid / sale.valor_total) * 100;
+                            const remaining = Math.max(0, effectiveTotal - paid);
+                            const progress = effectiveTotal > 0 ? (paid / effectiveTotal) * 100 : 0;
                             const isFullyPaid = sale.status_pagamento === 'pago' || remaining < 0.01;
+
+                            // Se a venda não tem mais itens vendidos (todos devolvidos), o saldo é 0
+                            if (effectiveTotal === 0 && !isFullyPaid) return null;
 
                             return (
                                 <button 
@@ -210,7 +232,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                                         <div className="text-right">
                                             <p className="text-xs text-zinc-400 font-bold uppercase mb-0.5">{isFullyPaid ? 'Valor Pago' : 'Saldo Devedor'}</p>
                                             <p className={`text-lg font-black ${isFullyPaid ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                {formatCurrency(isFullyPaid ? sale.valor_total : remaining)}
+                                                {formatCurrency(isFullyPaid ? effectiveTotal : remaining)}
                                             </p>
                                         </div>
                                     </div>
@@ -251,7 +273,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                             
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-bold text-zinc-500 uppercase">Total da Venda</p>
+                                    <p className="text-[10px] font-bold text-zinc-500 uppercase">Total Efetivo</p>
                                     <p className="text-xl font-black text-zinc-900 dark:text-white">{formatCurrency(saleStats.total)}</p>
                                 </div>
                                 <div className="space-y-1">
@@ -309,7 +331,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                                         );
                                     }).reverse()
                                 ) : (
-                                    <div className="py-8 text-center bg-zinc-50/50 dark:bg-zinc-800/20 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
+                                    <div className="py-8 text-center bg-zinc-50/50 dark:bg-zinc-800/20 rounded-xl border border-dashed border-zinc-200 border-zinc-800">
                                         <p className="text-xs text-zinc-400 italic">Nenhum pagamento registrado.</p>
                                     </div>
                                 )}
