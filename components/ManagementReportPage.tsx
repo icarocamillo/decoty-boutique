@@ -114,8 +114,21 @@ export const ManagementReportPage: React.FC = () => {
     let totalCrediarioPending = 0; 
     let totalCancelledSalesCount = 0;
     let totalReturnedItemsCount = 0;
+    
+    // Categorias de Descontos
+    let totalDiscountPix = 0;
+    let totalDiscountDebit = 0;
+    let totalDiscountCreditSpot = 0;
+    let totalDiscountExtra = 0;
+    let totalDiscountGiftCard = 0;
     let totalDiscountOverall = 0;
+
+    // Categorias de Taxas
+    let totalFeeDebit = 0;
+    let totalFeeCreditSpot = 0;
+    let totalFeeCreditInstallment = 0;
     let totalFees = 0;
+
     let totalRealRevenue = 0; 
     let totalVendaBrutaEfetiva = 0; 
     let totalCustoVendas = 0; 
@@ -124,8 +137,6 @@ export const ManagementReportPage: React.FC = () => {
     const paymentMethodMap: Record<string, number> = {};
     const brandSalesMap: Record<string, number> = {}; 
     const brandRevenueMap: Record<string, number> = {}; 
-    const discountsByMethod: Record<string, number> = {}; 
-    const feesByMethod: Record<string, number> = {}; 
 
     // --- 1. PROCESSAR VENDAS ---
     sales.forEach(sale => {
@@ -155,10 +166,11 @@ export const ManagementReportPage: React.FC = () => {
       const hasSoldItems = soldItems.length > 0;
 
       if (!isCancelled && hasSoldItems) {
-          // Cálculo de valores da venda para rateio
           const saleRawGross = soldItems.reduce((acc, i) => acc + (i.preco_unitario * i.quantidade), 0);
-          const saleDiscounts = soldItems.reduce((acc, i) => acc + (i.desconto || 0), 0) + (extraDiscountPerItem * soldItems.length) + (giftCardPerItem * soldItems.length);
-          const saleCashNet = saleRawGross - saleDiscounts; // Valor final que o cliente pagou
+          const itemDiscountsSum = soldItems.reduce((acc, i) => acc + (i.desconto || 0), 0);
+          const extraDiscountsSum = extraDiscountPerItem * soldItems.length;
+          const giftCardDiscountsSum = giftCardPerItem * soldItems.length;
+          const saleCashNet = saleRawGross - itemDiscountsSum - extraDiscountsSum - giftCardDiscountsSum;
 
           if (method === 'Cartão de Crédito') {
               const installments = sale.parcelas || 1;
@@ -168,20 +180,31 @@ export const ManagementReportPage: React.FC = () => {
                   const settlementDate = new Date(saleDate);
                   settlementDate.setDate(settlementDate.getDate() + (30 * i));
 
-                  const instRawGross = saleRawGross / installments;
-                  const instDiscount = saleDiscounts / installments;
-                  const instCash = saleCashNet / installments;
+                  const instRatio = 1 / installments;
+                  const instRawGross = saleRawGross * instRatio;
+                  const instItemDiscount = itemDiscountsSum * instRatio;
+                  const instExtraDiscount = extraDiscountsSum * instRatio;
+                  const instGiftCard = giftCardDiscountsSum * instRatio;
+                  const instCash = saleCashNet * instRatio;
                   const instFee = instCash * (feePercent / 100);
                   const instNet = instCash - instFee;
 
                   if (settlementDate >= sDate && settlementDate <= eDate) {
                       totalVendaBrutaEfetiva += instRawGross;
-                      totalDiscountOverall += instDiscount;
                       totalRealRevenue += instNet;
+                      
+                      // Segmentação de Taxas
                       totalFees += instFee;
+                      if (installments === 1) totalFeeCreditSpot += instFee;
+                      else totalFeeCreditInstallment += instFee;
+                      
+                      // Somar descontos proporcionais
+                      if (installments === 1) totalDiscountCreditSpot += instItemDiscount;
+                      totalDiscountExtra += instExtraDiscount;
+                      totalDiscountGiftCard += instGiftCard;
+                      totalDiscountOverall += (instItemDiscount + instExtraDiscount + instGiftCard);
+
                       paymentMethodMap[method] = roundCurrency((paymentMethodMap[method] || 0) + instNet);
-                      feesByMethod[method] = roundCurrency((feesByMethod[method] || 0) + instFee);
-                      discountsByMethod[method] = roundCurrency((discountsByMethod[method] || 0) + instDiscount);
                   } 
                   else if (settlementDate > eDate && settlementDate <= nextMonthBoundary) {
                       totalCreditNextMonth += instNet;
@@ -201,13 +224,21 @@ export const ManagementReportPage: React.FC = () => {
                   const saleFinalNet = saleCashNet - saleFeeValue;
 
                   totalVendaBrutaEfetiva += saleRawGross;
-                  totalDiscountOverall += saleDiscounts;
                   totalRealRevenue += saleFinalNet;
+                  
+                  // Segmentação de Taxas
                   totalFees += saleFeeValue;
+                  if (method === 'Cartão de Débito') totalFeeDebit += saleFeeValue;
+
+                  // Somar descontos
+                  if (method === 'Pix') totalDiscountPix += itemDiscountsSum;
+                  else if (method === 'Cartão de Débito') totalDiscountDebit += itemDiscountsSum;
+                  
+                  totalDiscountExtra += extraDiscountsSum;
+                  totalDiscountGiftCard += giftCardDiscountsSum;
+                  totalDiscountOverall += (itemDiscountsSum + extraDiscountsSum + giftCardDiscountsSum);
                   
                   paymentMethodMap[method] = roundCurrency((paymentMethodMap[method] || 0) + saleFinalNet);
-                  feesByMethod[method] = roundCurrency((feesByMethod[method] || 0) + saleFeeValue);
-                  discountsByMethod[method] = roundCurrency((discountsByMethod[method] || 0) + saleDiscounts);
               }
           }
       } else if (isSaleInPeriod && isCancelled) {
@@ -239,8 +270,10 @@ export const ManagementReportPage: React.FC = () => {
         const giftCardPerItem = (parentSale.uso_vale_presente || 0) / totalSaleItemsCount;
 
         const saleRawGross = soldItems.reduce((acc, i) => acc + (i.preco_unitario * i.quantidade), 0);
-        const saleDiscounts = soldItems.reduce((acc, i) => acc + (i.desconto || 0), 0) + (extraDiscountPerItem * soldItems.length) + (giftCardPerItem * soldItems.length);
-        const saleCashNet = saleRawGross - saleDiscounts;
+        const itemDiscountsSum = soldItems.reduce((acc, i) => acc + (i.desconto || 0), 0);
+        const extraDiscountsSum = extraDiscountPerItem * soldItems.length;
+        const giftCardDiscountsSum = giftCardPerItem * soldItems.length;
+        const saleCashNet = saleRawGross - itemDiscountsSum - extraDiscountsSum - giftCardDiscountsSum;
 
         if (saleCashNet <= 0) return;
 
@@ -249,10 +282,11 @@ export const ManagementReportPage: React.FC = () => {
         const parcelas = Number(rec.parcelas || 1);
         const receiptDate = new Date(rec.data_recebimento);
 
-        // Fator de proporção do recebimento em relação ao total da venda
         const ratio = rawVal / saleCashNet;
         const equivalentRawGross = saleRawGross * ratio;
-        const equivalentDiscount = saleDiscounts * ratio;
+        const equivalentItemDiscount = itemDiscountsSum * ratio;
+        const equivalentExtraDiscount = extraDiscountsSum * ratio;
+        const equivalentGiftCard = giftCardDiscountsSum * ratio;
 
         if (method === 'Cartão de Crédito') {
             const feePercent = calculateSingleReceiptFee(100, method, parcelas) / 100;
@@ -261,20 +295,31 @@ export const ManagementReportPage: React.FC = () => {
                 const settlementDate = new Date(receiptDate);
                 settlementDate.setDate(settlementDate.getDate() + (30 * i));
 
-                const instRawGross = equivalentRawGross / parcelas;
-                const instDiscount = equivalentDiscount / parcelas;
-                const instCash = rawVal / parcelas;
+                const instRatio = 1 / parcelas;
+                const instRawGross = equivalentRawGross * instRatio;
+                const instItemDiscount = equivalentItemDiscount * instRatio;
+                const instExtraDiscount = equivalentExtraDiscount * instRatio;
+                const instGiftCard = equivalentGiftCard * instRatio;
+                const instCash = rawVal * instRatio;
                 const instFee = instCash * feePercent;
                 const instNet = instCash - instFee;
 
                 if (settlementDate >= sDate && settlementDate <= eDate) {
                     totalVendaBrutaEfetiva += instRawGross;
-                    totalDiscountOverall += instDiscount;
                     totalRealRevenue += instNet;
+                    
+                    // Segmentação de Taxas
                     totalFees += instFee;
+                    if (parcelas === 1) totalFeeCreditSpot += instFee;
+                    else totalFeeCreditInstallment += instFee;
+
+                    // Descontos do recebimento
+                    if (parcelas === 1) totalDiscountCreditSpot += instItemDiscount;
+                    totalDiscountExtra += instExtraDiscount;
+                    totalDiscountGiftCard += instGiftCard;
+                    totalDiscountOverall += (instItemDiscount + instExtraDiscount + instGiftCard);
+
                     paymentMethodMap[method] = roundCurrency((paymentMethodMap[method] || 0) + instNet);
-                    feesByMethod[method] = roundCurrency((feesByMethod[method] || 0) + instFee);
-                    discountsByMethod[method] = roundCurrency((discountsByMethod[method] || 0) + instDiscount);
                 } 
                 else if (settlementDate > eDate && settlementDate <= nextMonthBoundary) {
                     totalCreditNextMonth += instNet;
@@ -286,13 +331,21 @@ export const ManagementReportPage: React.FC = () => {
                 const finalNet = rawVal - feeVal;
 
                 totalVendaBrutaEfetiva += equivalentRawGross;
-                totalDiscountOverall += equivalentDiscount;
                 totalRealRevenue += finalNet;
+                
+                // Segmentação de Taxas
                 totalFees += feeVal;
+                if (method === 'Cartão de Débito') totalFeeDebit += feeVal;
+
+                // Descontos do recebimento
+                if (method === 'Pix') totalDiscountPix += equivalentItemDiscount;
+                else if (method === 'Cartão de Débito') totalDiscountDebit += equivalentItemDiscount;
+                
+                totalDiscountExtra += equivalentExtraDiscount;
+                totalDiscountGiftCard += equivalentGiftCard;
+                totalDiscountOverall += (equivalentItemDiscount + equivalentExtraDiscount + equivalentGiftCard);
                 
                 paymentMethodMap[method] = roundCurrency((paymentMethodMap[method] || 0) + finalNet);
-                feesByMethod[method] = roundCurrency((feesByMethod[method] || 0) + feeVal);
-                discountsByMethod[method] = roundCurrency((discountsByMethod[method] || 0) + equivalentDiscount);
             }
         }
     });
@@ -312,10 +365,16 @@ export const ManagementReportPage: React.FC = () => {
       totalNet: roundCurrency(totalRealRevenue),
       totalReturns: roundCurrency(totalReturns),
       totalDiscountOverall: roundCurrency(totalDiscountOverall),
-      discountsByMethod,
+      discountPix: roundCurrency(totalDiscountPix),
+      discountDebit: roundCurrency(totalDiscountDebit),
+      discountCreditSpot: roundCurrency(totalDiscountCreditSpot),
+      discountExtra: roundCurrency(totalDiscountExtra),
+      discountGiftCard: roundCurrency(totalDiscountGiftCard),
       totalClientBalance: roundCurrency(totalClientBalance),
       totalFees: roundCurrency(totalFees),
-      feesByMethod,
+      feeDebit: roundCurrency(totalFeeDebit),
+      feeCreditSpot: roundCurrency(totalFeeCreditSpot),
+      feeCreditInstallment: roundCurrency(totalFeeCreditInstallment),
       totalCreditNextMonth: roundCurrency(totalCreditNextMonth),
       totalCrediarioPending: roundCurrency(totalCrediarioPending),
       totalSalesCount: sales.filter(s => {
@@ -442,11 +501,11 @@ export const ManagementReportPage: React.FC = () => {
                       <span className="font-bold text-zinc-900 dark:text-white">{formatCurrency(kpis.totalVendaBrutaEfetiva)}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] text-zinc-500">
-                      <span>Total Descontos (Rateado):</span>
+                      <span>Total Descontos:</span>
                       <span className="text-zinc-600">-{formatCurrency(kpis.totalDiscountOverall)}</span>
                     </div>
                     <div className="flex justify-between items-center text-[10px] text-zinc-500">
-                      <span>Taxas Bancárias (Líquidas):</span>
+                      <span>Taxas Bancárias:</span>
                       <span className="text-zinc-500">-{formatCurrency(kpis.totalFees)}</span>
                     </div>
                     <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1"></div>
@@ -478,25 +537,35 @@ export const ManagementReportPage: React.FC = () => {
           <Card className="border-l-4 border-l-zinc-400 dark:border-l-zinc-600">
               <div className="flex flex-col gap-1 h-full justify-between">
                 <div>
-                  <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1 mb-2">
+                  <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1 mb-3">
                     <Tag size={14} /> Total Descontos
-                    <ReportTooltip text="Soma de todos os abatimentos (Item, Extra e Vale Presente) concedidos nas vendas liquidadas no período." />
+                    <ReportTooltip text="Abertura de todos os descontos proporcionais às peças liquidadas (não devolvidas) no período." />
                   </span>
                   
-                  <div className="space-y-1.5 max-h-[80px] overflow-y-auto pr-1 custom-scrollbar">
-                    {Object.entries(kpis.discountsByMethod).map(([method, amount]: [string, number]) => (
-                        <div key={method} className="flex justify-between text-[10px]">
-                          <span className="text-zinc-600 dark:text-zinc-400 truncate max-w-[120px]">{method}:</span>
-                          <span className="text-zinc-500">-{formatCurrency(amount)}</span>
-                        </div>
-                    ))}
+                  <div className="space-y-1.5 pr-1">
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-zinc-600 dark:text-zinc-400 font-medium">PIX:</span>
+                      <span className="text-zinc-500">-{formatCurrency(kpis.discountPix)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-zinc-600 dark:text-zinc-400 font-medium">Cartão de Débito:</span>
+                      <span className="text-zinc-500">-{formatCurrency(kpis.discountDebit)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-zinc-600 dark:text-zinc-400 font-medium">Cartão de Crédito (à vista):</span>
+                      <span className="text-zinc-500">-{formatCurrency(kpis.discountCreditSpot)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-zinc-600 dark:text-zinc-400 font-semibold">
+                      <span className="font-medium">Desconto Extra:</span>
+                      <span>-{formatCurrency(kpis.discountExtra)}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-2">
+                <div className="mt-3">
                   <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-2"></div>
                   <div className="flex justify-between font-bold text-sm text-zinc-800 dark:text-white">
-                      <span>Total</span>
+                      <span>Total Geral</span>
                       <span>{formatCurrency(kpis.totalDiscountOverall)}</span>
                   </div>
                 </div>
@@ -507,22 +576,28 @@ export const ManagementReportPage: React.FC = () => {
           <Card className="border-l-4 border-l-zinc-400 dark:border-l-zinc-600">
               <div className="flex flex-col gap-1 h-full justify-between">
                 <div>
-                  <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1 mb-2">
+                  <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 flex items-center gap-1 mb-3">
                     <CreditCard size={14} /> Total Taxas
-                    <ReportTooltip text="Taxas bancárias efetivamente retidas pelas operadoras nos pagamentos liquidados." />
+                    <ReportTooltip text="Taxas bancárias efetivamente retidas pelas operadoras nos pagamentos liquidados no período." />
                   </span>
                   
-                  <div className="space-y-1.5 max-h-[80px] overflow-y-auto pr-1 custom-scrollbar">
-                    {Object.entries(kpis.feesByMethod).map(([method, amount]: [string, number]) => (
-                        <div key={method} className="flex justify-between text-[10px]">
-                          <span className="text-zinc-600 dark:text-zinc-400 truncate max-w-[120px]">{method}:</span>
-                          <span className="text-zinc-500">-{formatCurrency(amount)}</span>
-                        </div>
-                    ))}
+                  <div className="space-y-1.5 pr-1">
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-zinc-600 dark:text-zinc-400 font-medium">Cartão de Débito:</span>
+                      <span className="text-zinc-500">-{formatCurrency(kpis.feeDebit)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-zinc-600 dark:text-zinc-400 font-medium">Cartão Crédito (à vista):</span>
+                      <span className="text-zinc-500">-{formatCurrency(kpis.feeCreditSpot)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-zinc-600 dark:text-zinc-400 font-medium">Cartão Crédito (parcelado):</span>
+                      <span className="text-zinc-500">-{formatCurrency(kpis.feeCreditInstallment)}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-2">
+                <div className="mt-3">
                   <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-2"></div>
                   <div className="flex justify-between font-bold text-sm text-zinc-800 dark:text-white">
                       <span>Total Taxas</span>
@@ -546,7 +621,7 @@ export const ManagementReportPage: React.FC = () => {
                       <span>Utilizado no Período</span>
                     </div>
                     <h3 className="text-xl font-bold text-amber-600 dark:text-amber-500 leading-tight">
-                      {formatCurrency(kpis.totalClientBalance)}
+                      {formatCurrency(kpis.discountGiftCard)}
                     </h3>
                   </div>
 
