@@ -526,7 +526,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
                 </div>
 
                 {selectedPaymentMethod === 'Crediário' && (
-                    <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs flex gap-2 border border-emerald-100 dark:border-emerald-900/30 animate-fade-in">
+                    <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-lg text-xs flex gap-2 border border-amber-100 dark:border-amber-900/30 animate-fade-in">
                         <Info size={16} className="shrink-0" />
                         <span>O valor será lançado como saldo devedor para o cliente. Descontos automáticos desabilitados.</span>
                     </div>
