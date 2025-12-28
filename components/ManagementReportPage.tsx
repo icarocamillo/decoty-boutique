@@ -115,19 +115,17 @@ export const ManagementReportPage: React.FC = () => {
     let totalCancelledSalesCount = 0;
     let totalReturnedItemsCount = 0;
     
-    // Categorias de Descontos
+    let totalDiscountOverall = 0;
     let totalDiscountPix = 0;
     let totalDiscountDebit = 0;
     let totalDiscountCreditSpot = 0;
     let totalDiscountExtra = 0;
     let totalDiscountGiftCard = 0;
-    let totalDiscountOverall = 0;
 
-    // Categorias de Taxas
+    let totalFeesOverall = 0;
     let totalFeeDebit = 0;
     let totalFeeCreditSpot = 0;
     let totalFeeCreditInstallment = 0;
-    let totalFeesOverall = 0;
 
     let totalRealRevenue = 0; 
     let totalVendaBrutaEfetiva = 0; 
@@ -144,9 +142,6 @@ export const ManagementReportPage: React.FC = () => {
       const method = sale.metodo_pagamento || 'Outros';
       const saleDate = new Date(sale.data_venda);
       const isSaleInPeriod = saleDate >= sDate && saleDate <= eDate;
-
-      const totalSaleItemsCount = sale.items?.length || 1;
-      const extraDiscountPerItem = (sale.desconto_extra || 0) / totalSaleItemsCount;
 
       // 1.1 CMV E OPERACIONAL (Apenas itens VENDIDOS no período)
       if (isSaleInPeriod && !isCancelled && sale.items) {
@@ -166,11 +161,6 @@ export const ManagementReportPage: React.FC = () => {
       const hasItems = allItemsInSale.length > 0;
 
       if (hasItems) {
-          // Valores originais (mesmo que alguns itens tenham sido devolvidos, a taxa do cartão foi sobre o total inicial)
-          const fullRawGross = allItemsInSale.reduce((acc, i) => acc + (i.preco_unitario * i.quantidade), 0);
-          const fullItemDiscounts = allItemsInSale.reduce((acc, i) => acc + (i.desconto || 0), 0);
-          const fullCashNet = fullRawGross - fullItemDiscounts - (sale.desconto_extra || 0) - (sale.uso_vale_presente || 0);
-
           // Valores apenas dos itens mantidos (não devolvidos)
           const soldRawGross = soldItems.reduce((acc, i) => acc + (i.preco_unitario * i.quantidade), 0);
           const soldItemDiscounts = soldItems.reduce((acc, i) => acc + (i.desconto || 0), 0);
@@ -181,18 +171,17 @@ export const ManagementReportPage: React.FC = () => {
 
           if (method === 'Cartão de Crédito') {
               const installments = sale.parcelas || 1;
-              const feePercent = sale.taxas_aplicadas?.porcentagem || 0;
               
+              // Prioridade: Usar a coluna valor_taxa persistida na venda para vendas diretas
+              const totalSaleFee = sale.valor_taxa || (sale.taxas_aplicadas?.valor || 0);
+
               for (let i = 1; i <= installments; i++) {
                   const settlementDate = new Date(saleDate);
                   settlementDate.setDate(settlementDate.getDate() + (30 * i));
 
                   const instRatio = 1 / installments;
-                  
-                  // A taxa bancária é calculada sobre o total da transação original (incluindo o que foi devolvido depois)
-                  const instFee = (fullCashNet * instRatio) * (feePercent / 100);
+                  const instFee = totalSaleFee * instRatio;
 
-                  // A receita bruta e descontos seguem apenas o que não foi cancelado/devolvido
                   const instSoldRawGross = isCancelled ? 0 : (soldRawGross * instRatio);
                   const instSoldItemDisc = isCancelled ? 0 : (soldItemDiscounts * instRatio);
                   const instSoldExtraDisc = isCancelled ? 0 : (soldExtraDiscount * instRatio);
@@ -200,7 +189,6 @@ export const ManagementReportPage: React.FC = () => {
                   const instSoldCash = isCancelled ? 0 : (soldCashNet * instRatio);
 
                   if (settlementDate >= sDate && settlementDate <= eDate) {
-                      // Contabiliza Taxa sempre (mesmo se cancelado/devolvido)
                       totalFeesOverall += instFee;
                       if (installments === 1) totalFeeCreditSpot += instFee;
                       else totalFeeCreditInstallment += instFee;
@@ -216,7 +204,6 @@ export const ManagementReportPage: React.FC = () => {
 
                           paymentMethodMap[method] = roundCurrency((paymentMethodMap[method] || 0) + (instSoldCash - instFee));
                       } else {
-                          // Se cancelado, a receita líquida total sofre a perda da taxa
                           totalRealRevenue -= instFee;
                       }
                   } 
@@ -225,7 +212,6 @@ export const ManagementReportPage: React.FC = () => {
                   }
               }
           } else if (method === 'Crediário') {
-              // No crediário, as taxas são cobradas sobre os recebimentos parciais (ver seção 2)
               if (isSaleInPeriod && !isCancelled) {
                   const totalPaidToDate = sale.pagamentos_crediario?.reduce((sum, p) => sum + Number(p.valor || 0), 0) || 0;
                   const remainingOnThisSale = Math.max(0, soldCashNet - totalPaidToDate);
@@ -234,10 +220,8 @@ export const ManagementReportPage: React.FC = () => {
           } else {
               // Dinheiro, Pix, Débito (Liquidação Imediata)
               if (isSaleInPeriod) {
-                  const feePercent = sale.taxas_aplicadas?.porcentagem || 0;
-                  const saleFullFee = fullCashNet * (feePercent / 100);
+                  const saleFullFee = sale.valor_taxa || (sale.taxas_aplicadas?.valor || 0);
 
-                  // Contabiliza Taxa sempre
                   totalFeesOverall += saleFullFee;
                   if (method === 'Cartão de Débito') totalFeeDebit += saleFullFee;
 
@@ -255,19 +239,18 @@ export const ManagementReportPage: React.FC = () => {
                       
                       paymentMethodMap[method] = roundCurrency((paymentMethodMap[method] || 0) + saleNetRevenue);
                   } else {
-                      // Perda da taxa em venda cancelada à vista
                       totalRealRevenue -= saleFullFee;
                   }
               }
           }
       }
 
-      if (isSaleInPeriod && isCancelled) {
-          totalCancelledSalesCount++;
-      }
+      if (isSaleInPeriod && isCancelled) totalCancelledSalesCount++;
 
       // Detalhamento de Devoluções (Operacional)
       if (isSaleInPeriod && (isCancelled || (sale.items?.some(i => i.status === 'returned')))) {
+          const totalItemsCount = sale.items?.length || 1;
+          const extraDiscountPerItem = (sale.desconto_extra || 0) / totalItemsCount;
           sale.items?.forEach(item => {
               if (item.status === 'returned' || isCancelled) {
                   const itemNetRefund = roundCurrency(item.subtotal - extraDiscountPerItem);
@@ -281,8 +264,6 @@ export const ManagementReportPage: React.FC = () => {
     // --- 2. PROCESSAR RECEBIMENTOS DE CREDIÁRIO ---
     receipts.forEach(rec => {
         const parentSale = salesMap.get(rec.venda_id);
-        // Observação: Deixamos processar o recebimento mesmo que a venda tenha sido cancelada DEPOIS, 
-        // para persistir o registro da taxa bancária que ocorreu no momento do pagamento.
         const isSaleCancelled = !parentSale || parentSale.status === 'cancelled';
 
         const rawVal = Number(rec.valor_pago || 0);
@@ -290,12 +271,11 @@ export const ManagementReportPage: React.FC = () => {
         const parcelas = Number(rec.parcelas || 1);
         const receiptDate = new Date(rec.data_recebimento);
 
-        // Se a venda foi cancelada, não contabilizamos receita/bruto/descontos deste recebimento, mas contabilizamos TAXA
         const soldItems = parentSale?.items?.filter(i => i.status === 'sold') || [];
         const hasSoldItems = soldItems.length > 0 && !isSaleCancelled;
 
         if (method === 'Cartão de Crédito') {
-            const feePercent = calculateSingleReceiptFee(100, method, parcelas) / 100;
+            const feePercent = rec.valor_taxa ? (rec.valor_taxa / rawVal) : (calculateSingleReceiptFee(100, method, parcelas) / 100);
             
             for (let i = 1; i <= parcelas; i++) {
                 const settlementDate = new Date(receiptDate);
@@ -303,10 +283,10 @@ export const ManagementReportPage: React.FC = () => {
 
                 const instRatio = 1 / parcelas;
                 const instCash = rawVal * instRatio;
-                const instFee = instCash * feePercent;
+                // Usa rec.valor_taxa se disponível (melhor precisão histórica)
+                const instFee = rec.valor_taxa ? (rec.valor_taxa * instRatio) : (instCash * (feePercent as number));
 
                 if (settlementDate >= sDate && settlementDate <= eDate) {
-                    // Contabiliza Taxa sempre
                     totalFeesOverall += instFee;
                     if (parcelas === 1) totalFeeCreditSpot += instFee;
                     else totalFeeCreditInstallment += instFee;
@@ -339,7 +319,6 @@ export const ManagementReportPage: React.FC = () => {
 
                         paymentMethodMap[method] = roundCurrency((paymentMethodMap[method] || 0) + instNet);
                     } else {
-                        // Impacto da taxa mesmo sem receita (venda cancelada)
                         totalRealRevenue -= instFee;
                     }
                 } 
@@ -350,9 +329,8 @@ export const ManagementReportPage: React.FC = () => {
         } else {
             // Pix, Débito, Dinheiro no crediário
             if (receiptDate >= sDate && receiptDate <= eDate) {
-                const feeVal = calculateSingleReceiptFee(rawVal, method, 1);
+                const feeVal = rec.valor_taxa || calculateSingleReceiptFee(rawVal, method, 1);
                 
-                // Contabiliza Taxa sempre
                 totalFeesOverall += feeVal;
                 if (method === 'Cartão de Débito') totalFeeDebit += feeVal;
 
@@ -386,7 +364,6 @@ export const ManagementReportPage: React.FC = () => {
                     
                     paymentMethodMap[method] = roundCurrency((paymentMethodMap[method] || 0) + finalNet);
                 } else {
-                    // Taxa sem receita
                     totalRealRevenue -= feeVal;
                 }
             }

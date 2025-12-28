@@ -94,7 +94,7 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
         const saleIds = sales.map(s => s.id);
         const { data: payments, error } = await supabase
             .from('crediario_recebimentos')
-            .select('id, venda_id, valor_pago, metodo_pagamento, responsavel, data_recebimento, parcelas')
+            .select('id, venda_id, valor_pago, valor_taxa, metodo_pagamento, responsavel, data_recebimento, parcelas')
             .in('venda_id', saleIds);
 
         if (error) {
@@ -108,6 +108,7 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
                 .map(p => ({
                     id: p.id,
                     valor: Number(p.valor_pago || 0),
+                    valor_taxa: Number(p.valor_taxa || 0),
                     metodo: p.metodo_pagamento,
                     data: p.data_recebimento,
                     responsavel_nome: p.responsavel,
@@ -171,9 +172,17 @@ export const backendService = {
 
   processCrediarioPayment: async (clientId: string, amount: number, vendaId: string, metodo: string, responsavelId: string, parcelas: number = 1): Promise<boolean> => {
     if (isSupabaseConfigured()) {
+        const currentFees = await backendService.getPaymentFees();
+        let feePercent = 0;
+        if (metodo === 'Cartão de Débito') feePercent = currentFees.debit;
+        else if (metodo === 'Cartão de Crédito') feePercent = parcelas > 1 ? currentFees.credit_installment : currentFees.credit_spot;
+        
+        const valorTaxaCalculada = roundMoney(amount * (feePercent / 100));
+
         const { error: receiptError } = await supabase.from('crediario_recebimentos').insert([{
             venda_id: vendaId,
             valor_pago: amount,
+            valor_taxa: valorTaxaCalculada, 
             metodo_pagamento: metodo, 
             responsavel: responsavelId, 
             data_recebimento: new Date().toISOString(),
@@ -255,12 +264,15 @@ export const backendService = {
   createSale: async (cart: CartItem[], client: {id?: string, name: string, cpf?: string}, method: string, installments: number, extraDiscount: number, feesSnapshot: any, userId: string, giftCardUsed: number): Promise<boolean> => {
     const totalValue = cart.reduce((acc, item) => acc + item.subtotal, 0) - extraDiscount - giftCardUsed;
     const isCrediario = method === 'Crediário';
-    const feeValueTotal = feesSnapshot?.valor || 0;
+    
+    // Para vendas diretas, gravamos a taxa FIXA agora
+    const fixedFeeValue = isCrediario ? 0 : (feesSnapshot?.valor || 0);
 
     const saleData = {
         data_venda: new Date().toISOString(),
         valor_total: totalValue,
-        valor_liquido_lojista: totalValue - feeValueTotal, 
+        valor_taxa: fixedFeeValue, // Gravando snapshot da taxa na tabela sales
+        valor_liquido_lojista: totalValue - fixedFeeValue, 
         cliente_id: client.id || null,
         cliente_nome: client.name,
         cliente_cpf: client.cpf || null,
@@ -603,7 +615,7 @@ export const backendService = {
            const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
            if (prod) {
                await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id);
-               await supabase.from('sale_items').update({ status: 'returned' }).eq('id', item.id);
+               await supabase.from('sale_items').update({ status_pagamento: 'pendente', status: 'returned' }).eq('id', item.id);
                await backendService.logStockEntry({
                    produto_id: item.produto_id,
                    produto_nome: `${item.nome_produto} - ${item.marca}`,

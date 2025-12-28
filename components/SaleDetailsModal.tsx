@@ -234,18 +234,23 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
 
   // --- LÓGICA DE TAXAS CONSOLIDADAS BASEADA NO HISTÓRICO DE RECEBIMENTOS ---
   const consolidatedFees = useMemo(() => {
-      if (!currentSale || currentSale.metodo_pagamento !== 'Crediário' || !feesConfig) return null;
+      if (!currentSale || currentSale.metodo_pagamento !== 'Crediário') return null;
 
       let totalFeeValue = 0;
       let totalNetValue = 0;
       const history = currentSale.pagamentos_crediario || [];
 
       history.forEach(p => {
-          let percent = 0;
-          if (p.metodo === 'Cartão de Débito') percent = feesConfig.debit;
-          else if (p.metodo === 'Cartão de Crédito') percent = feesConfig.credit_spot; 
+          // PRIORIDADE 1: Usar o valor da taxa já gravado no banco (Snapshot imutável)
+          let fee = p.valor_taxa || 0;
+          
+          if (p.valor_taxa === undefined && feesConfig) {
+              let percent = 0;
+              if (p.metodo === 'Cartão de Débito') percent = feesConfig.debit;
+              else if (p.metodo === 'Cartão de Crédito') percent = feesConfig.credit_spot; 
+              fee = (p.valor * (percent / 100));
+          }
 
-          const fee = (p.valor * (percent / 100));
           totalFeeValue += fee;
           totalNetValue += (p.valor - fee);
       });
@@ -276,10 +281,14 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
 
   const isCrediario = currentSale.metodo_pagamento === 'Crediário';
   
-  // Taxa de exibição: Se for crediário, pega a soma das taxas dos pagamentos parciais. Se não, a taxa da venda original.
-  const taxaExibicao = isCrediario ? (consolidatedFees?.valorTaxas || 0) : (currentSale.taxas_aplicadas?.valor || 0);
+  // NOVA LÓGICA DE TAXA:
+  // Se for crediário = soma das taxas dos recebimentos parciais.
+  // Se não = usa a coluna valor_taxa persistida na venda (ou fallback para o objeto antigo se for legado).
+  const taxaExibicao = isCrediario 
+    ? (consolidatedFees?.valorTaxas || 0) 
+    : (currentSale.valor_taxa || currentSale.taxas_aplicadas?.valor || 0);
   
-  // Lucro Líquido Real: Recalculado sempre para evitar valores fantasmas do banco de dados
+  // Lucro Líquido Real: Recalculado sempre para evitar valores fantasmas
   const valorLiquidoReal = currentTotalNet - taxaExibicao;
   
   const totalPaidInCrediario = currentSale.pagamentos_crediario?.reduce((acc, p) => acc + p.valor, 0) || 0;
@@ -376,7 +385,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                    {!isLinkingMode ? (
                        <>
                            <div className="flex items-start gap-4">
-                              <div className="h-14 w-14 rounded-full bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center text-zinc-500 dark:text-zinc-400 shrink-0 border border-zinc-200 dark:border-zinc-600 shadow-inner"><User size={28} /></div>
+                              <div className="h-14 w-14 rounded-full bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center text-zinc-500 dark:text-zinc-400 shrink-0 border border-zinc-200 dark:border-zinc-700 shadow-inner"><User size={28} /></div>
                               <div className="min-w-0 flex-1">
                                  <p className={`text-xl font-bold text-zinc-900 dark:text-white leading-tight ${currentSale.cliente_id ? 'hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer underline decoration-dotted transition-colors' : ''}`} onClick={() => { if (currentSale.cliente_id) { navigate(`/clients/${currentSale.cliente_id}/history`); onClose(); } }}>{currentSale.cliente_nome || 'Cliente Balcão'}</p>
                                  <div className="flex flex-col gap-2 mt-3">
@@ -485,14 +494,14 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                 </div>
               </div>
 
-              {/* CUSTOS DA OPERAÇÃO (CONSOLIDADO PELO HISTÓRICO) */}
+              {/* CUSTOS DA OPERAÇÃO (CONSOLIDADO PELO HISTÓRICO OU snapshot) */}
               {taxaExibicao > 0 && (
                 <div className="bg-red-50/50 dark:bg-red-900/10 p-3 rounded-lg border border-red-100 dark:border-red-900/30 animate-fade-in">
                    <h3 className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase mb-2 flex items-center gap-1">
                       <PieChart size={12} /> {isCrediario ? `Taxas Acumuladas (${consolidatedFees?.count} recebimentos)` : 'Custos da Operação'}
                    </h3>
                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-zinc-600 dark:text-zinc-400">{isCrediario ? 'Total Taxas Bancárias' : `Taxa Aplicada (${currentSale.taxas_aplicadas?.porcentagem}%)`}</span>
+                      <span className="text-zinc-600 dark:text-zinc-400">{isCrediario ? 'Total Taxas Bancárias' : `Taxa Aplicada (${currentSale.taxas_aplicadas?.porcentagem || '?'}%)`}</span>
                       <span className="text-red-600 dark:text-red-400 font-black">- {formatCurrency(taxaExibicao)}</span>
                    </div>
                    <div className="border-t border-red-200 dark:border-red-900/30 pt-1 mt-1 flex justify-between items-baseline">

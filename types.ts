@@ -38,6 +38,7 @@ export interface CrediarioPayment {
   id: string;
   data: string;
   valor: number;
+  valor_taxa: number; // Snapshot da taxa bancária no momento do pagamento
   metodo: string;
   responsavel_nome: string;
 }
@@ -47,6 +48,7 @@ export interface Sale {
   ui_id?: number; 
   data_venda: string;
   valor_total: number;
+  valor_taxa?: number; // Nova coluna: Snapshot da taxa para vendas não-crediário
   items?: SaleItem[]; 
   item_count?: number; 
   cliente_id?: string;
@@ -65,7 +67,7 @@ export interface Sale {
     valor: number;
   }; 
   valor_liquido_lojista?: number;
-  pagamentos_crediario?: CrediarioPayment[]; // Histórico de pagamentos parciais
+  pagamentos_crediario?: CrediarioPayment[]; 
 }
 
 export interface CartItem {
@@ -111,7 +113,7 @@ export interface Client {
   pode_provador?: boolean; 
   saldo_vale_presente?: number; 
   saldo_devedor_crediario?: number; 
-  itens_pendentes_provador?: number; // Nova coluna de cache de performance
+  itens_pendentes_provador?: number; 
   endereco?: ClientAddress;
   data_cadastro: string;
 }

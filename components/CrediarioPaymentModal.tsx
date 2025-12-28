@@ -105,8 +105,14 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
 
       selectedSale.pagamentos_crediario?.forEach(p => {
           totalPaid += p.valor;
-          const { value: historicalFeeValue } = getFeeInfo(p.valor, p.metodo, (p as any).parcelas || 1);
-          totalNet += (p.valor - historicalFeeValue);
+          // PRIORIDADE: Usar a taxa que foi gravada fisicamente no banco de dados (Snapshot)
+          // FALLBACK: Só calcular se for um registro antigo que não tem valor_taxa
+          let feeValue = p.valor_taxa;
+          if (p.valor_taxa === undefined) {
+             const info = getFeeInfo(p.valor, p.metodo, (p as any).parcelas || 1);
+             feeValue = info.value;
+          }
+          totalNet += (p.valor - (feeValue || 0));
       });
 
       const remaining = Math.max(0, total - totalPaid);
@@ -316,7 +322,18 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                             <div className="space-y-2">
                                 {selectedSale.pagamentos_crediario && selectedSale.pagamentos_crediario.length > 0 ? (
                                     selectedSale.pagamentos_crediario.map((pay) => {
-                                        const { value: feeValue, percent: feePercent } = getFeeInfo(pay.valor, pay.metodo, (pay as any).parcelas || 1);
+                                        // PRIORIDADE: Usar valor de taxa gravado no ato. 
+                                        // FALLBACK: Calcular apenas se não existir (registros legados).
+                                        let feeVal = pay.valor_taxa;
+                                        let feePerc = 0;
+                                        if (pay.valor_taxa === undefined) {
+                                           const info = getFeeInfo(pay.valor, pay.metodo, (pay as any).parcelas || 1);
+                                           feeVal = info.value;
+                                           feePerc = info.percent;
+                                        } else {
+                                           feePerc = (pay.valor_taxa / pay.valor) * 100;
+                                        }
+
                                         return (
                                             <div key={pay.id} className="flex items-center gap-3 sm:gap-4 p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm transition-all hover:shadow-md">
                                                 <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 shadow-inner shrink-0">
@@ -327,10 +344,10 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                                                         <p className="text-sm sm:text-base font-black text-zinc-800 dark:text-zinc-100">
                                                           {formatCurrency(pay.valor)}
                                                         </p>
-                                                        {feeValue > 0 && (
+                                                        {feeVal > 0 && (
                                                           <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-50 dark:bg-red-900/20 rounded-md">
                                                               <span className="text-[10px] sm:text-xs font-bold text-red-600 dark:text-red-400">
-                                                                  - {formatCurrency(feeValue)} ({feePercent.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%)
+                                                                  - {formatCurrency(feeVal)} ({feePerc.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%)
                                                               </span>
                                                           </div>
                                                         )}
