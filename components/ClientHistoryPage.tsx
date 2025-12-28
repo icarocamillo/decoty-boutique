@@ -115,7 +115,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
   const resolveUserName = (userId: string) => {
     const profile = users.find(u => u.id === userId);
     if (profile) return profile.name;
-    if (userId?.length > 30) return 'Usuário';
+    if (userId?.length > 30) return 'Vendedor';
     return userId || 'Sistema';
   };
 
@@ -169,6 +169,30 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
     };
   };
 
+  const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+  // --- LÓGICA DE VALOR GASTO RECALCULADA ---
+  const totalSpent = useMemo(() => {
+    return sales.reduce((acc, sale) => {
+      if (sale.status === 'cancelled') return acc;
+
+      if (sale.metodo_pagamento === 'Crediário') {
+        // No crediário, somamos apenas os pagamentos parciais já realizados
+        const paidAmount = sale.pagamentos_crediario?.reduce((sum, p) => sum + (p.valor || 0), 0) || 0;
+        return acc + paidAmount;
+      } else {
+        // Em vendas diretas, o valor gasto é o total da venda considerando apenas os itens mantidos
+        const soldItemsSubtotal = sale.items
+          ?.filter(i => i.status === 'sold')
+          .reduce((sum, i) => sum + i.subtotal, 0) || 0;
+        
+        // Descontamos o rateio dos descontos extras e vales
+        const effectiveTotal = Math.max(0, soldItemsSubtotal - (sale.desconto_extra || 0) - (sale.uso_vale_presente || 0));
+        return acc + effectiveTotal;
+      }
+    }, 0);
+  }, [sales]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-zinc-500 animate-pulse">
@@ -187,8 +211,6 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
     );
   }
 
-  const totalSpent = sales.reduce((acc, curr) => acc + (curr.status !== 'cancelled' ? curr.valor_total : 0), 0);
-  const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   const totalPurchases = sales.filter(s => s.status !== 'cancelled').length;
   const lastPurchaseDate = sales.length > 0 ? new Date(sales[0].data_venda).toLocaleDateString('pt-BR') : '-';
 
