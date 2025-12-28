@@ -71,7 +71,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
           <div className="py-1">
             <button className="w-full text-left px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2">
               <User size={16} />
-              <span>Meu Perfil</span>
+              <span>Meu Perfil (Em construção)</span>
             </button>
             
             <button 
