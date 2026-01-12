@@ -8,7 +8,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // --- CONTROLE DE CONEXÃO ---
 // Mude para 'false' se quiser desativar o Supabase temporariamente e usar dados fictícios.
 // Mude para 'true' para conectar ao banco de dados real.
-const ENABLE_DB_CONNECTION = true; 
+const ENABLE_DB_CONNECTION = false; 
 
 export const isSupabaseConfigured = () => {
   // Se a constante de controle estiver desligada, retornamos false para forçar o modo Mock

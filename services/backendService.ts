@@ -420,6 +420,33 @@ export const backendService = {
       return sorted.length > 0 ? sorted[0][0] : '-';
   },
 
+  getStoreConfig: async <T>(key: string, defaultValue: T): Promise<T> => {
+      if (isSupabaseConfigured()) {
+          const { data } = await supabase.from('store_config').select('value').eq('key', key).maybeSingle();
+          return data ? JSON.parse(data.value) : defaultValue;
+      }
+      const configs = getLocalData<any[]>(LS_KEYS.STORE_CONFIG, []);
+      const found = configs.find(c => c.key === key);
+      return found ? JSON.parse(found.value) : defaultValue;
+  },
+
+  setStoreConfig: async (key: string, value: any): Promise<boolean> => {
+      if (isSupabaseConfigured()) {
+          const { error } = await supabase.from('store_config').upsert({ key, value: JSON.stringify(value) }, { onConflict: 'key' });
+          return !error;
+      }
+      const configs = getLocalData<any[]>(LS_KEYS.STORE_CONFIG, []);
+      const index = configs.findIndex(c => c.key === key);
+      const strVal = JSON.stringify(value);
+      if (index !== -1) {
+          configs[index].value = strVal;
+      } else {
+          configs.push({ key, value: strVal });
+      }
+      setLocalData(LS_KEYS.STORE_CONFIG, configs);
+      return true;
+  },
+
   getStockEntries: async (): Promise<StockEntry[]> => {
     if (isSupabaseConfigured()) {
         const { data } = await supabase.from('stock_entries').select('*').order('data_entrada', { ascending: false });
@@ -496,36 +523,20 @@ export const backendService = {
 
   getPaymentDiscounts: async (): Promise<PaymentDiscounts> => {
       const defaults = { credit_spot: 0, debit: 0, pix: 0 };
-      if (isSupabaseConfigured()) {
-          const { data } = await supabase.from('store_config').select('value').eq('key', 'payment_discounts').maybeSingle();
-          return data ? JSON.parse(data.value) : defaults;
-      }
-      return defaults;
+      return await backendService.getStoreConfig('payment_discounts', defaults);
   },
 
   updatePaymentDiscounts: async (discounts: PaymentDiscounts): Promise<boolean> => {
-      if (isSupabaseConfigured()) {
-          const { error } = await supabase.from('store_config').upsert({ key: 'payment_discounts', value: JSON.stringify(discounts) }, { onConflict: 'key' });
-          return !error;
-      }
-      return false;
+      return await backendService.setStoreConfig('payment_discounts', discounts);
   },
 
   getPaymentFees: async (): Promise<PaymentFees> => {
       const defaults = { credit_spot: 0, credit_installment: 0, debit: 0 };
-      if (isSupabaseConfigured()) {
-          const { data } = await supabase.from('store_config').select('value').eq('key', 'payment_fees').maybeSingle();
-          return data ? JSON.parse(data.value) : defaults;
-      }
-      return defaults;
+      return await backendService.getStoreConfig('payment_fees', defaults);
   },
 
   updatePaymentFees: async (fees: PaymentFees): Promise<boolean> => {
-      if (isSupabaseConfigured()) {
-          const { error } = await supabase.from('store_config').upsert({ key: 'payment_fees', value: JSON.stringify(fees) }, { onConflict: 'key' });
-          return !error;
-      }
-      return false;
+      return await backendService.setStoreConfig('payment_fees', fees);
   },
 
   getStoreAccessHash: async (): Promise<string> => {
@@ -533,7 +544,12 @@ export const backendService = {
           const { data } = await supabase.from('store_config').select('value').eq('key', 'store_access_hash').maybeSingle();
           return data ? String(data.value || '').trim() : ''; 
       }
-      return '';
+      // Mock Environment
+      const configs = getLocalData<any[]>(LS_KEYS.STORE_CONFIG, []);
+      const found = configs.find(c => c.key === 'store_access_hash');
+      if (found) return found.value;
+      // Default keyword: "123" (SHA-256)
+      return 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3';
   },
 
   updateStoreAccessHash: async (hash: string): Promise<boolean> => {
@@ -541,7 +557,16 @@ export const backendService = {
           const { error } = await supabase.from('store_config').upsert({ key: 'store_access_hash', value: hash }, { onConflict: 'key' });
           return !error;
       }
-      return false;
+      // Mock Environment
+      const configs = getLocalData<any[]>(LS_KEYS.STORE_CONFIG, []);
+      const index = configs.findIndex(c => c.key === 'store_access_hash');
+      if (index !== -1) {
+          configs[index].value = hash;
+      } else {
+          configs.push({ key: 'store_access_hash', value: hash });
+      }
+      setLocalData(LS_KEYS.STORE_CONFIG, configs);
+      return true;
   },
 
   getUsers: async (): Promise<UserProfile[]> => {
@@ -549,7 +574,7 @@ export const backendService = {
           const { data } = await supabase.from('profiles').select('*');
           return (data || []).map((p: any) => ({ id: p.id, name: p.name || 'User', email: p.email || '', role: p.role || 'salesperson', active: p.active }));
       }
-      return [];
+      return getLocalData<UserProfile[]>(LS_KEYS.USERS, []);
   },
 
   updateUserStatus: async (userId: string, active: boolean): Promise<boolean> => {
@@ -557,7 +582,9 @@ export const backendService = {
           const { error } = await supabase.from('profiles').update({ active }).eq('id', userId);
           return !error;
       }
-      return false;
+      const users = getLocalData<any[]>(LS_KEYS.USERS, []);
+      setLocalData(LS_KEYS.USERS, users.map(u => u.id === userId ? { ...u, active } : u));
+      return true;
   },
 
   updateUserRole: async (userId: string, role: string): Promise<boolean> => {
@@ -565,7 +592,9 @@ export const backendService = {
           const { error } = await supabase.from('profiles').update({ role }).eq('id', userId);
           return !error;
       }
-      return false;
+      const users = getLocalData<any[]>(LS_KEYS.USERS, []);
+      setLocalData(LS_KEYS.USERS, users.map(u => u.id === userId ? { ...u, role } : u));
+      return true;
   },
 
   cancelSale: async (saleId: string, userId: string): Promise<boolean> => {
@@ -587,7 +616,7 @@ export const backendService = {
               for (const item of items) {
                   const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
                   if (prod) {
-                      await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id);
+                      await supabase.from('products').update({ Hyde_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id);
                       await backendService.logStockEntry({
                           produto_id: item.produto_id,
                           produto_nome: `${item.nome_produto} - ${item.marca}`,
