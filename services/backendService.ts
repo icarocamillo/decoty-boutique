@@ -616,7 +616,7 @@ export const backendService = {
               for (const item of items) {
                   const { data: prod } = await supabase.from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
                   if (prod) {
-                      await supabase.from('products').update({ Hyde_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id);
+                      await supabase.from('products').update({ quantidade_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id);
                       await backendService.logStockEntry({
                           produto_id: item.produto_id,
                           produto_nome: `${item.nome_produto} - ${item.marca}`,
