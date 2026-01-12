@@ -36,10 +36,10 @@ export const RegisterPage: React.FC = () => {
         return;
     }
 
-    // Validação da palavra chave de segurança
+    // Validação da palavra-chave de segurança
     const keyword = formData.storeCode.trim();
     if (!keyword) {
-        setError("Digite a palavra chave da loja para autorizar o cadastro.");
+        setError("Digite a palavra-chave da loja para autorizar o cadastro.");
         setLoading(false);
         return;
     }
@@ -65,8 +65,8 @@ export const RegisterPage: React.FC = () => {
       console.debug("Comparando Hashes:", { input: normalizedInput.substring(0, 8), stored: normalizedStored.substring(0, 8) });
 
       if (normalizedInput !== normalizedStored) {
-        console.warn("Segurança: Tentativa de cadastro negada - Palavra chave incorreta.");
-        setError("Palavra chave da loja inválida. Solicite a chave correta ao gerente responsável.");
+        console.warn("Segurança: Tentativa de cadastro negada - Palavra-chave incorreta.");
+        setError("Palavra-chave da loja inválida. Solicite a chave correta ao gerente responsável.");
         setLoading(false);
         return;
       }
@@ -77,7 +77,7 @@ export const RegisterPage: React.FC = () => {
       return;
     }
 
-    // Se a palavra chave estiver correta, prossegue com a criação da conta via Supabase Auth
+    // Se a palavra-chave estiver correta, prossegue com a criação da conta via Supabase Auth
     const { error: signUpError } = await signUp(formData.email, formData.password, formData.name, formData.role);
 
     if (signUpError) {
@@ -187,7 +187,7 @@ export const RegisterPage: React.FC = () => {
 
             <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 mt-4">
                 <label className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-1">
-                  <ShieldCheck size={14} /> Palavra chave da Loja
+                  <ShieldCheck size={14} /> Palavra-chave da Loja
                 </label>
                 <div className="relative">
                   <input 

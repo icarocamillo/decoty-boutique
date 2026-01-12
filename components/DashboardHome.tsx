@@ -34,21 +34,23 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
   const { userRole } = useAuth();
   const isManager = userRole === 'manager';
 
+  const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
   return (
     <>
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in-up">
 
-        {/* Card 1: Vendas Hoje */}
+        {/* Card 1: Vendas Hoje - Exibindo Valor Efetivo Real (Líquido de devoluções/cancelamentos) */}
         <Card className="border-l-4 border-l-emerald-600 dark:border-l-emerald-400">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-emerald-100 dark:bg-zinc-800 text-emerald-700 dark:text-emerald-200 rounded-full">
               <DollarSign size={24} />
             </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Vendas Hoje</p>
-              <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(todaySales)}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Vendas Hoje (Líquido)</p>
+              <h3 className="text-2xl font-bold text-zinc-900 dark:text-white truncate">
+                {formatCurrency(todaySales)}
               </h3>
             </div>
           </div>
@@ -63,7 +65,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
             <div>
               <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Vendas (7 dias)</p>
               <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPeriodSales)}
+                {formatCurrency(totalPeriodSales)}
               </h3>
             </div>
           </div>
@@ -78,7 +80,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
             <div>
               <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Média Diária (7 dias)</p>
               <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dailyAverage)}
+                {formatCurrency(dailyAverage)}
               </h3>
             </div>
           </div>
@@ -105,7 +107,7 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
         {/* Chart Section */}
         <Card 
           title="Desempenho de Vendas" 
-          description="Receita diária nos últimos 7 dias" 
+          description="Receita diária nos últimos 7 dias (Líquido de Devoluções)" 
           className="h-[400px]"
           action={
             isManager ? (

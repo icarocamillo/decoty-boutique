@@ -401,9 +401,18 @@ export const backendService = {
         const dayTotal = sales
             .filter(s => {
                 const sDate = new Date(s.data_venda);
-                return sDate.getDate() === date.getDate() && sDate.getMonth() === date.getMonth() && s.status !== 'cancelled';
+                return sDate.getDate() === date.getDate() && sDate.getMonth() === date.getMonth();
             })
-            .reduce((acc, s) => acc + (s.valor_total || 0), 0);
+            .reduce((acc, s) => {
+                if (s.status === 'cancelled') return acc;
+                // Soma apenas o que não foi devolvido para ser condizente com a realidade financeira do gráfico
+                const soldItemsSubtotal = s.items?.filter(i => i.status === 'sold').reduce((sum, i) => sum + i.subtotal, 0) || 0;
+                if (soldItemsSubtotal === 0) return acc;
+                
+                const effectiveSaleTotal = Math.max(0, soldItemsSubtotal - (s.desconto_extra || 0) - (s.uso_vale_presente || 0));
+                return acc + effectiveSaleTotal;
+            }, 0);
+            
         return { dia: date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), total: dayTotal };
     });
   },
@@ -554,7 +563,7 @@ export const backendService = {
 
   updateStoreAccessHash: async (hash: string): Promise<boolean> => {
       if (isSupabaseConfigured()) {
-          const { error } = await supabase.from('store_config').upsert({ key: 'store_access_hash', value: hash }, { onConflict: 'key' });
+          const { error = null } = await supabase.from('store_config').upsert({ key: 'store_access_hash', value: hash }, { onConflict: 'key' });
           return !error;
       }
       // Mock Environment
