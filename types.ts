@@ -128,6 +128,7 @@ export interface Supplier {
   telefone?: string;
   endereco?: string;
   observacoes?: string;
+  tipo_fornecedor?: 'Roupas' | 'Acessórios' | 'Roupas e Acessórios';
 }
 
 export interface StockEntry {

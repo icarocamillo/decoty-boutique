@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Package, Check, Loader2, Tag, Layers, Droplet, Barcode, Hash, Info, DollarSign, ArrowRight, Plus, Minus, AlertCircle } from 'lucide-react';
 import { Button } from './ui/Button';
 import { backendService } from '../services/backendService';
-import { ProductSize, Product } from '../types';
+import { ProductSize, Product, Supplier } from '../types';
 import { SIZES_LIST } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { formatProductId } from '../utils';
@@ -14,21 +15,21 @@ interface ProductFormModalProps {
   productToEdit?: Product | null;
 }
 
-// Categorias segregadas - "Camisetas" renomeada para "Blusas"
+// Categorias segregadas
 const CLOTHING_CATEGORIES = ['Vestidos', 'Blusas', 'Camisas', 'Calças', 'Saias', 'Casacos', 'Jaquetas', 'Bermudas'];
-const JEWELRY_CATEGORIES = ['Pulseira', 'Brinco', 'Colar'];
+const ACCESSORY_CATEGORIES = ['Pulseira', 'Brinco', 'Colar'];
 
 const MATERIALS_CLOTHING = ['Malha', 'Tecido Plano'];
-const MATERIALS_JEWELRY = ['Bijuteria'];
+const MATERIALS_ACCESSORIES = ['Bijuteria'];
 
 // Listas de tamanhos segregadas
 const SIZES_LETTERS: ProductSize[] = ['P', 'M', 'G', 'GG', 'G1'];
 const SIZES_NUMBERS: ProductSize[] = ['40', '42', '44', '46', '48'];
 
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, onSuccess, productToEdit }) => {
-  const { user } = useAuth(); // Usamos o ID do UUID
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [brands, setBrands] = useState<string[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   
   // Validation Errors State
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -48,49 +49,85 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
     ean: ''
   });
 
-  // New State for Stock Adjustment (Only used in Edit Mode)
   const [stockAdjustment, setStockAdjustment] = useState('');
 
-  // Carrega marcas dos fornecedores quando o modal abre
+  // Carrega fornecedores para identificar o tipo por marca
   useEffect(() => {
     if (isOpen) {
-      const fetchBrands = async () => {
+      const fetchSuppliers = async () => {
         try {
-          const suppliers = await backendService.getSuppliers();
-          const supplierBrands = suppliers
-            .map(s => s.fantasy_name)
-            .filter((name): name is string => !!name && name.trim() !== '');
-          const uniqueBrands = Array.from(new Set(supplierBrands)).sort();
-          setBrands(uniqueBrands);
+          const data = await backendService.getSuppliers();
+          setSuppliers(data);
         } catch (error) {
-          console.error("Erro ao carregar marcas dos fornecedores", error);
+          console.error("Erro ao carregar fornecedores", error);
         }
       };
-      fetchBrands();
+      fetchSuppliers();
     }
   }, [isOpen]);
 
+  // Lista de nomes de marcas (fantasia) para o Select
+  const brands = useMemo(() => {
+      const names = suppliers
+        .map(s => s.fantasy_name)
+        .filter((name): name is string => !!name && name.trim() !== '');
+      return Array.from(new Set(names)).sort();
+  }, [suppliers]);
+
+  // Identifica o fornecedor da marca selecionada
+  const selectedSupplier = useMemo(() => {
+    return suppliers.find(s => s.fantasy_name === formData.marca);
+  }, [formData.marca, suppliers]);
+
+  // Define categorias e materiais disponíveis com base no tipo_fornecedor e categoria atual
   const { availableCategories, availableMaterials, isMaterialLocked } = useMemo(() => {
-    if (formData.marca === 'Vicky Bijou') {
+    const type = selectedSupplier?.tipo_fornecedor;
+    const isAccessoryCategory = ACCESSORY_CATEGORIES.includes(formData.categoria);
+
+    // 1. Definir categorias disponíveis (Depende apenas do fornecedor)
+    let cats: string[] = [];
+    if (type === 'Acessórios') cats = ACCESSORY_CATEGORIES;
+    else if (type === 'Roupas') cats = CLOTHING_CATEGORIES;
+    else if (type === 'Roupas e Acessórios') cats = [...CLOTHING_CATEGORIES, ...ACCESSORY_CATEGORIES];
+
+    // 2. Definir materiais e bloqueio (Depende do fornecedor OU da categoria específica)
+    if (type === 'Acessórios' || isAccessoryCategory) {
       return {
-        availableCategories: JEWELRY_CATEGORIES,
-        availableMaterials: MATERIALS_JEWELRY,
+        availableCategories: cats,
+        availableMaterials: MATERIALS_ACCESSORIES,
         isMaterialLocked: true
       };
     }
+    
+    if (type === 'Roupas') {
+      return {
+        availableCategories: cats,
+        availableMaterials: MATERIALS_CLOTHING,
+        isMaterialLocked: false
+      };
+    }
+
+    if (type === 'Roupas e Acessórios') {
+      return {
+        availableCategories: cats,
+        availableMaterials: [...MATERIALS_CLOTHING, ...MATERIALS_ACCESSORIES],
+        isMaterialLocked: false
+      };
+    }
+
     return {
-      availableCategories: CLOTHING_CATEGORIES,
-      availableMaterials: MATERIALS_CLOTHING,
+      availableCategories: cats,
+      availableMaterials: [],
       isMaterialLocked: false
     };
-  }, [formData.marca]);
+  }, [selectedSupplier, formData.categoria]);
 
   const availableSizes = useMemo(() => {
-    if (formData.marca === 'Vicky Bijou') return ['00'];
+    if (formData.tipo_material === 'Bijuteria') return ['00'];
     if (formData.tipo_material === 'Malha') return SIZES_LETTERS;
     if (formData.tipo_material === 'Tecido Plano') return SIZES_NUMBERS;
     return [...SIZES_LETTERS, ...SIZES_NUMBERS];
-  }, [formData.marca, formData.tipo_material]);
+  }, [formData.tipo_material]);
 
   // Reset or Populate form on Open
   useEffect(() => {
@@ -125,19 +162,49 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: false }));
 
     if (name === 'marca') {
-      if (value === 'Vicky Bijou') {
-        setFormData(prev => ({ ...prev, marca: value, tipo_material: 'Bijuteria', categoria: '', tamanho: '00' }));
-        setErrors(prev => ({ ...prev, tamanho: false, tipo_material: false }));
+      const supplier = suppliers.find(s => s.fantasy_name === value);
+      if (supplier?.tipo_fornecedor === 'Acessórios') {
+        setFormData(prev => ({ 
+          ...prev, 
+          marca: value, 
+          tipo_material: 'Bijuteria', 
+          categoria: '', 
+          tamanho: '00' 
+        }));
       } else {
         setFormData(prev => ({
-          ...prev, marca: value,
-          tipo_material: prev.tipo_material === 'Bijuteria' ? '' : prev.tipo_material,
-          categoria: JEWELRY_CATEGORIES.includes(prev.categoria) ? '' : prev.categoria,
-          tamanho: prev.tamanho === '00' ? '' : prev.tamanho
+          ...prev, 
+          marca: value,
+          tipo_material: '',
+          categoria: '',
+          tamanho: ''
+        }));
+      }
+    } else if (name === 'categoria') {
+      const isAccessory = ACCESSORY_CATEGORIES.includes(value);
+      if (isAccessory) {
+        setFormData(prev => ({ 
+          ...prev, 
+          categoria: value, 
+          tipo_material: 'Bijuteria', 
+          tamanho: '00' 
+        }));
+      } else {
+        // Se mudou de acessório para roupa, reseta campos forçados
+        const wasAccessory = ACCESSORY_CATEGORIES.includes(formData.categoria);
+        setFormData(prev => ({ 
+          ...prev, 
+          categoria: value,
+          tipo_material: wasAccessory ? '' : prev.tipo_material,
+          tamanho: wasAccessory ? '' : prev.tamanho
         }));
       }
     } else if (name === 'tipo_material') {
-      setFormData(prev => ({ ...prev, [name]: value, tamanho: '' }));
+      setFormData(prev => ({ 
+        ...prev, 
+        [name]: value, 
+        tamanho: value === 'Bijuteria' ? '00' : '' 
+      }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -202,7 +269,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
       ean: formData.ean
     };
 
-    // MUDANÇA CRÍTICA: Enviamos o ID (UUID)
     const userId = user?.id || '';
 
     try {
@@ -229,7 +295,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
 
   const handleAdjustStockDelta = (delta: number) => {
     const current = parseInt(stockAdjustment) || 0;
-    const next = current + delta; // Aqui permitimos negativo para mostrar o alerta visual
+    const next = current + delta; 
     setStockAdjustment(next.toString());
   };
 
@@ -242,7 +308,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
       <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-5xl overflow-hidden animate-fade-in-up border border-zinc-200 dark:border-zinc-800 flex flex-col max-h-[95vh]">
         <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900 shrink-0">
           <div className="flex items-center gap-2">
-            <div className="bg-zinc-100 dark:bg-zinc-800 p-2 rounded-lg text-zinc-700 dark:text-zinc-200"><Package size={20} /></div>
+            <div className="bg-zinc-100 dark:bg-zinc-800 p-2 rounded-lg text-zinc-700 dark:text-zinc-300"><Package size={20} /></div>
             <div>
                <h2 className="text-lg font-bold text-zinc-800 dark:text-white">{productToEdit ? 'Editar Produto' : 'Novo Produto'}</h2>
                <p className="text-xs text-zinc-500 dark:text-zinc-400">{productToEdit ? 'Atualize as informações do item' : 'Preencha as informações do item'}</p>
@@ -286,7 +352,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
                 </div>
                 <div className="md:col-span-3 space-y-2">
                   <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Tamanho <span className="text-red-500">*</span></label>
-                   <select name="tamanho" value={formData.tamanho} onChange={handleChange} disabled={formData.marca === 'Vicky Bijou'} className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none disabled:cursor-not-allowed ${errors.tamanho ? 'border-red-500 ring-1' : 'border-zinc-300 dark:border-zinc-700'}`}>
+                   <select name="tamanho" value={formData.tamanho} onChange={handleChange} disabled={formData.tipo_material === 'Bijuteria'} className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none disabled:cursor-not-allowed ${errors.tamanho ? 'border-red-500 ring-1' : 'border-zinc-300 dark:border-zinc-700'}`}>
                     <option value="" disabled>Selecione</option>
                     {availableSizes.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>

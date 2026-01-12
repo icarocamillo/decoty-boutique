@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Supplier } from '../types';
-import { Truck, Phone, Mail, MapPin, Search, Pencil, Building, Tag, User, ChevronRight } from 'lucide-react';
+import { Truck, Phone, Mail, MapPin, Search, Pencil, Building, Tag, User, ChevronRight, ShoppingBag } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
@@ -82,7 +82,12 @@ export const SupplierList: React.FC<SupplierListProps> = ({ suppliers, onUpdate 
                       <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-base truncate leading-tight">
                         {supplier.nome_empresa}
                       </h3>
-                      {supplier.cnpj_cpf && <span className="text-[10px] text-zinc-400 font-mono">{supplier.cnpj_cpf}</span>}
+                      <div className="flex items-center gap-2 mt-1">
+                        {supplier.cnpj_cpf && <span className="text-[10px] text-zinc-400 font-mono">{supplier.cnpj_cpf}</span>}
+                        {supplier.tipo_fornecedor && (
+                            <Badge variant="secondary" className="text-[8px] h-3 px-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border-0">{supplier.tipo_fornecedor}</Badge>
+                        )}
+                      </div>
                    </div>
                 </div>
                 {supplier.fantasy_name && (
@@ -148,6 +153,7 @@ export const SupplierList: React.FC<SupplierListProps> = ({ suppliers, onUpdate 
                 <tr>
                   <th className="px-6 py-4 font-medium">Empresa</th>
                   <th className="px-6 py-4 font-medium">Marca (Fantasia)</th>
+                  <th className="px-6 py-4 font-medium">Tipo de Fornecedor</th>
                   <th className="px-6 py-4 font-medium">Contato Principal</th>
                   <th className="px-6 py-4 font-medium">Informações de Contato</th>
                   <th className="px-6 py-4 font-medium text-center">Editar</th>
@@ -182,7 +188,15 @@ export const SupplierList: React.FC<SupplierListProps> = ({ suppliers, onUpdate 
                             <span className="text-zinc-400">-</span>
                          )}
                       </td>
-                      <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">
+                      <td className="px-6 py-4">
+                        {supplier.tipo_fornecedor ? (
+                            <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
+                                <ShoppingBag size={14} className="text-zinc-400" />
+                                <span className="text-sm font-medium">{supplier.tipo_fornecedor}</span>
+                            </div>
+                        ) : '-'}
+                      </td>
+                      <td className="px-6 py-4 text-zinc-600 dark:text-zinc-300">
                          {supplier.nome_contato ? (
                             <span className="font-medium">{supplier.nome_contato}</span>
                          ) : '-'}
@@ -224,7 +238,7 @@ export const SupplierList: React.FC<SupplierListProps> = ({ suppliers, onUpdate 
                 })}
                 {filteredSuppliers.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-500 dark:text-zinc-400">
+                    <td colSpan={6} className="px-6 py-12 text-center text-zinc-500 dark:text-zinc-400">
                       Nenhum fornecedor encontrado.
                     </td>
                   </tr>

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Truck, User, Mail, Phone, Loader2, MapPin, Building, Check, StickyNote, Tag } from 'lucide-react';
+import { X, Truck, User, Mail, Phone, Loader2, MapPin, Building, Check, StickyNote, Tag, ShoppingBag } from 'lucide-react';
 import { Button } from './ui/Button';
 import { backendService } from '../services/backendService';
 import { Supplier } from '../types';
@@ -11,6 +11,8 @@ interface SupplierFormModalProps {
   onSuccess: () => void;
   supplierToEdit?: Supplier | null;
 }
+
+const SUPPLIER_TYPES = ['Roupas', 'Acessórios', 'Roupas e Acessórios'];
 
 export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, onClose, onSuccess, supplierToEdit }) => {
   const [loading, setLoading] = useState(false);
@@ -24,7 +26,8 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, on
     email: '',
     telefone: '',
     endereco: '',
-    observacoes: ''
+    observacoes: '',
+    tipo_fornecedor: '' as any
   });
 
   useEffect(() => {
@@ -38,7 +41,8 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, on
           email: supplierToEdit.email || '',
           telefone: supplierToEdit.telefone || '',
           endereco: supplierToEdit.endereco || '',
-          observacoes: supplierToEdit.observacoes || ''
+          observacoes: supplierToEdit.observacoes || '',
+          tipo_fornecedor: supplierToEdit.tipo_fornecedor || ''
         });
       } else {
         setFormData({
@@ -49,13 +53,14 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, on
           email: '',
           telefone: '',
           endereco: '',
-          observacoes: ''
+          observacoes: '',
+          tipo_fornecedor: ''
         });
       }
     }
   }, [isOpen, supplierToEdit]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -113,9 +118,9 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, on
         success = await backendService.updateSupplier({
           ...formData,
           id: supplierToEdit.id
-        });
+        } as Supplier);
       } else {
-        success = await backendService.createSupplier(formData);
+        success = await backendService.createSupplier(formData as Omit<Supplier, 'id'>);
       }
       
       if (success) {
@@ -187,6 +192,24 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, on
                 </div>
 
                 <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                     <ShoppingBag size={16} className="text-zinc-400" /> Tipo de Fornecedor <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="tipo_fornecedor"
+                    required
+                    value={formData.tipo_fornecedor}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none"
+                  >
+                    <option value="" disabled>Selecione uma opção...</option>
+                    {SUPPLIER_TYPES.map(type => (
+                        <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">CNPJ / CPF</label>
                   <input
                     type="text"
