@@ -107,7 +107,7 @@ export const TeamList: React.FC = () => {
                       }`}
                     >
                       <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 border ${
                             isActive 
                               ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 shadow-inner' 
@@ -115,11 +115,17 @@ export const TeamList: React.FC = () => {
                           }`}>
                             {u.role === 'manager' ? <ShieldCheck size={24} /> : <User size={24} />}
                           </div>
-                          <div className="min-w-0">
-                            <h3 className={`font-bold text-zinc-900 dark:text-white truncate text-base ${!isActive ? 'line-through' : ''}`}>
-                              {u.name}
-                              {isMe && <span className="ml-2 text-[9px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Você</span>}
-                            </h3>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <h3 className={`font-bold text-zinc-900 dark:text-white text-base truncate ${!isActive ? 'line-through' : ''}`}>
+                                    {u.name}
+                                </h3>
+                                {isMe && (
+                                    <span className="shrink-0 text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full font-black uppercase tracking-tight">
+                                        Você
+                                    </span>
+                                )}
+                            </div>
                             <div className="flex items-center gap-1.5 mt-0.5 text-zinc-500 dark:text-zinc-400">
                               <Mail size={12} className="shrink-0" />
                               <span className="text-xs truncate">{u.email}</span>
