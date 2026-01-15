@@ -1,9 +1,16 @@
-# Project variables
-
 # Environment variables
 .env
 .env.*
 !.env.example
+
+# Static Assets (Binary files managed via GitHub directly)
+logo.png
+public/logo.png
+*.png
+*.jpg
+*.jpeg
+*.ico
+*.pdf
 
 # Logs
 logs

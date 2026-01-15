@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
@@ -80,7 +79,7 @@ export const TeamList: React.FC = () => {
         </div>
       </div>
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden border-zinc-200 dark:border-zinc-800">
         {!isSupabaseConfigured() && (
           <div className="p-4 bg-yellow-50 dark:bg-yellow-900/10 border-b border-yellow-100 dark:border-yellow-900/30 text-xs text-yellow-800 dark:text-yellow-400 flex items-center gap-2">
              <Hash size={14} />
@@ -109,17 +108,17 @@ export const TeamList: React.FC = () => {
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border ${
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 border ${
                             isActive 
-                              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700' 
+                              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 shadow-inner' 
                               : 'bg-red-50 dark:bg-red-900/20 text-red-500 border-red-100 dark:border-red-900/20'
                           }`}>
-                            {u.role === 'manager' ? <ShieldCheck size={20} /> : <User size={20} />}
+                            {u.role === 'manager' ? <ShieldCheck size={24} /> : <User size={24} />}
                           </div>
                           <div className="min-w-0">
-                            <h3 className={`font-bold text-zinc-900 dark:text-white truncate ${!isActive ? 'line-through' : ''}`}>
+                            <h3 className={`font-bold text-zinc-900 dark:text-white truncate text-base ${!isActive ? 'line-through' : ''}`}>
                               {u.name}
-                              {isMe && <span className="ml-2 text-[9px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded-full font-black uppercase">Você</span>}
+                              {isMe && <span className="ml-2 text-[9px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Você</span>}
                             </h3>
                             <div className="flex items-center gap-1.5 mt-0.5 text-zinc-500 dark:text-zinc-400">
                               <Mail size={12} className="shrink-0" />
@@ -127,35 +126,38 @@ export const TeamList: React.FC = () => {
                             </div>
                           </div>
                         </div>
-                        <Badge variant={isActive ? "success" : "destructive"} className="text-[9px] h-5 px-1.5">
+                        <Badge variant={isActive ? "success" : "destructive"} className="text-[10px] h-5 px-1.5">
                           {isActive ? 'Ativo' : 'Inativo'}
                         </Badge>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 items-center pt-3 border-t border-zinc-50 dark:border-zinc-800">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Perfil de Acesso</span>
+                      <div className="grid grid-cols-2 gap-3 items-end pt-3 border-t border-zinc-50 dark:border-zinc-800/50">
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Perfil</span>
                           {isMe ? (
                             <Badge variant={u.role === 'manager' ? 'default' : 'secondary'} className="w-fit text-[10px]">
                               {u.role === 'manager' ? 'Gerente' : 'Vendedor'}
                             </Badge>
                           ) : (
-                            <select
-                              value={u.role}
-                              onChange={(e) => handleRoleChange(u.id, e.target.value as any)}
-                              className="bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs py-1.5 pl-2 pr-6 outline-none font-bold text-zinc-700 dark:text-zinc-200 disabled:opacity-50"
-                              disabled={!isActive}
-                            >
-                              <option value="manager">Gerente</option>
-                              <option value="salesperson">Vendedor</option>
-                            </select>
+                            <div className="relative">
+                              <select
+                                value={u.role}
+                                onChange={(e) => handleRoleChange(u.id, e.target.value as any)}
+                                className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-xs py-2 pl-2 pr-6 outline-none font-bold text-zinc-700 dark:text-zinc-200 disabled:opacity-50 appearance-none"
+                                disabled={!isActive}
+                              >
+                                <option value="manager">Gerente</option>
+                                <option value="salesperson">Vendedor</option>
+                              </select>
+                              <ChevronRight className="absolute right-2 top-1/2 -translate-y-1/2 rotate-90 text-zinc-400 pointer-events-none" size={12} />
+                            </div>
                           )}
                         </div>
                         <div className="flex justify-end">
                           <Button 
                             size="sm" 
                             variant={isActive ? "destructive" : "success"}
-                            className="h-10 px-4 gap-2 text-xs font-bold w-full"
+                            className="h-10 px-4 gap-2 text-xs font-bold w-full shadow-sm"
                             onClick={() => handleToggleStatus(u.id)}
                             disabled={isMe}
                           >
@@ -189,12 +191,12 @@ export const TeamList: React.FC = () => {
                         <tr key={user.id} className={`hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors ${!isActive ? 'bg-zinc-50/80 dark:bg-zinc-900/80' : ''}`}>
                           <td className="px-6 py-4">
                             <div className={`flex items-center gap-3 ${!isActive ? 'opacity-50 grayscale' : ''}`}>
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isActive ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400' : 'bg-red-100 dark:bg-red-900/30 text-red-500'}`}>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isActive ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 shadow-inner' : 'bg-red-100 dark:bg-red-900/30 text-red-500'}`}>
                                 {user.role === 'manager' ? <ShieldCheck size={16} /> : <User size={16} />}
                               </div>
                               <div>
                                 <span className={`font-medium block ${isActive ? 'text-zinc-900 dark:text-white' : 'text-zinc-500 line-through'}`}>{user.name}</span>
-                                {isMe && <span className="text-[10px] text-green-600 font-medium">(Você)</span>}
+                                {isMe && <span className="text-[10px] text-green-600 font-bold uppercase tracking-tight">(Você)</span>}
                               </div>
                             </div>
                           </td>
