@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Package, Check, Loader2, Tag, Layers, Droplet, Barcode, Hash, DollarSign, Plus, AlertCircle } from 'lucide-react';
+import { X, Package, Check, Loader2, Tag, Layers, Droplet, Barcode, Hash, DollarSign, Plus, Minus, AlertCircle } from 'lucide-react';
 import { Button } from './ui/Button';
 import { backendService } from '../services/backendService';
 import { ProductSize, Product, Supplier } from '../types';
@@ -40,12 +40,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
     tamanho: '' as ProductSize | '',
     preco_custo: '',
     preco_venda: '',
-    quantidade_estoque: '',
+    quantidade_estoque: '0',
     sku: '',
     ean: ''
   });
 
-  const [stockAdjustment, setStockAdjustment] = useState('');
+  const [stockAdjustment, setStockAdjustment] = useState('0');
 
   useEffect(() => {
     if (isOpen) {
@@ -119,7 +119,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
   useEffect(() => {
     if (isOpen) {
       setErrors({});
-      setStockAdjustment('');
+      setStockAdjustment('0');
       
       if (productToEdit) {
         setFormData({
@@ -201,7 +201,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
 
     setLoading(true);
     const parseCurrency = (val: string) => parseFloat(val.replace(/\./g, '').replace(',', '.'));
-    const finalStock = productToEdit ? (parseInt(formData.quantidade_estoque) || 0) + (parseInt(stockAdjustment) || 0) : (parseInt(formData.quantidade_estoque) || 0);
+    
+    // Garantir inteiros positivos
+    const rawStockQty = parseInt(formData.quantidade_estoque) || 0;
+    const rawAdjustment = parseInt(stockAdjustment) || 0;
+    const finalStock = productToEdit 
+        ? Math.max(0, rawStockQty + rawAdjustment) // Considera ajuste positivo/negativo mas o total de estoque não pode ser < 0
+        : Math.max(0, rawStockQty);
 
     const payload = {
       ...formData,
@@ -224,6 +230,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
       setLoading(false);
     }
   };
+
+  const currentAdjustmentValue = parseInt(productToEdit ? stockAdjustment : formData.quantidade_estoque) || 0;
 
   if (!isOpen) return null;
 
@@ -288,7 +296,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-1"><Hash size={14} className="text-zinc-400" /> SKU</label>
-                      <input type="text" name="sku" value={formData.sku} onChange={handleChange} className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-zinc-500" />
+                      <input type="text" name="sku" value={formData.sku} onChange={handleChange} placeholder="Referência interna" className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-zinc-500" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-1"><Barcode size={14} className="text-zinc-400" /> EAN / Código de Barras</label>
+                      <input type="text" name="ean" value={formData.ean} onChange={handleChange} placeholder="GTIN/EAN-13" className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-zinc-500" />
                     </div>
                   </div>
                 </div>
@@ -305,14 +317,48 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
                       </div>
                       <div className="md:col-span-12 space-y-2">
                           <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{productToEdit ? 'Adicionar ao Estoque' : 'Estoque Inicial'}</label>
-                          <div className="relative flex items-center">
+                          <div className="relative flex items-center group">
+                            {currentAdjustmentValue > 0 && (
+                              <button 
+                                type="button" 
+                                onClick={() => {
+                                  if (productToEdit) {
+                                      setStockAdjustment(s => (Math.max(0, parseInt(s || '0')) - 1).toString());
+                                  } else {
+                                      setFormData(p => ({ ...p, quantidade_estoque: (Math.max(0, parseInt(p.quantidade_estoque || '0')) - 1).toString() }));
+                                  }
+                                }} 
+                                className="absolute left-1.5 h-8 w-8 flex items-center justify-center bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+                              >
+                                <Minus size={14} />
+                              </button>
+                            )}
+
                             <input 
                               type="number" 
+                              step="1"
+                              min="0"
                               value={productToEdit ? stockAdjustment : formData.quantidade_estoque} 
-                              onChange={(e) => productToEdit ? setStockAdjustment(e.target.value) : setFormData(prev => ({ ...prev, quantidade_estoque: e.target.value }))} 
-                              className="w-full h-10 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none text-center font-bold" 
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, "");
+                                productToEdit ? setStockAdjustment(val) : setFormData(prev => ({ ...prev, quantidade_estoque: val }));
+                              }} 
+                              className="w-full h-10 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none text-center font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                             />
-                            <button type="button" onClick={() => productToEdit ? setStockAdjustment(s => (parseInt(s || '0') + 1).toString()) : setFormData(p => ({ ...p, quantidade_estoque: (parseInt(p.quantidade_estoque || '0') + 1).toString() }))} className="absolute right-1.5 h-8 w-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-700 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-600 transition-colors"><Plus size={14} /></button>
+                            
+                            <button 
+                              type="button" 
+                              onClick={() => {
+                                if (productToEdit) {
+                                    setStockAdjustment(s => (Math.max(0, parseInt(s || '0')) + 1).toString());
+                                } else {
+                                    setFormData(p => ({ ...p, quantidade_estoque: (Math.max(0, parseInt(p.quantidade_estoque || '0')) + 1).toString() }));
+                                }
+                              }} 
+                              className="absolute right-1.5 h-8 w-8 flex items-center justify-center bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors z-10"
+                            >
+                              <Plus size={14} />
+                            </button>
                           </div>
                       </div>
                   </div>
