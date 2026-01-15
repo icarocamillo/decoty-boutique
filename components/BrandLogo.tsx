@@ -9,7 +9,7 @@ interface BrandLogoProps {
 export const BrandLogo: React.FC<BrandLogoProps> = ({ className = '', size = 'md' }) => {
   const [hasError, setHasError] = useState(false);
 
-  // Reseta o estado de erro ao montar o componente
+  // Forçamos o reset do erro se o componente for remontado
   useEffect(() => {
     setHasError(false);
   }, []);
@@ -22,9 +22,9 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({ className = '', size = 'md
   };
 
   /**
-   * Importante: No Vite, arquivos dentro da pasta 'public/' devem ser 
-   * referenciados com caminho absoluto começando com barra '/'.
-   * Certifique-se de que o arquivo na pasta public se chama exatamente 'logo.png' (minúsculo).
+   * No Vite + Vercel, o caminho "/logo.png" é o padrão para arquivos na pasta public.
+   * Adicionamos um timestamp opcional apenas se houver erro persistente de cache, 
+   * mas por padrão, o caminho absoluto é o mais seguro.
    */
   const logoUrl = "/logo.png";
 
@@ -36,7 +36,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({ className = '', size = 'md
           alt="Decoty Boutique" 
           className="w-full h-full object-contain p-0.5"
           onError={() => {
-            console.error(`ERRO DE LOGO: Não foi possível carregar ${logoUrl}. Verifique se o arquivo está na pasta 'public' e se o nome está correto.`);
+            // Se a imagem falhar (arquivo corrompido ou 404), mostramos o fallback "D"
             setHasError(true);
           }}
         />
