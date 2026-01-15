@@ -21,7 +21,6 @@ import { SettingsPage } from './components/SettingsPage';
 import { ManagementReportPage } from './components/ManagementReportPage';
 import { ClientHistoryPage } from './components/ClientHistoryPage';
 import { SupplierList } from './components/SupplierList';
-import { BrandLogo } from './components/BrandLogo';
 
 const getInitialTheme = (): boolean => {
   if (typeof window !== 'undefined') {
@@ -31,6 +30,12 @@ const getInitialTheme = (): boolean => {
   }
   return false;
 };
+
+const BrandLogo = () => (
+  <div className="flex items-center justify-center w-11 h-11 rounded-lg bg-zinc-900 dark:bg-zinc-100 shadow-md transition-colors duration-300">
+    <span className="font-rouge text-4xl text-white dark:text-zinc-900 pt-1 select-none">D</span>
+  </div>
+);
 
 const ManagerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { userRole } = useAuth();
