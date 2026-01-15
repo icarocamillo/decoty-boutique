@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/Button';
 import { Mail, Lock, Loader2, AlertCircle, Database, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { isSupabaseConfigured } from '../services/supabaseClient';
+import { BrandLogo } from './BrandLogo';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -35,12 +36,9 @@ export const LoginPage: React.FC = () => {
     const { error: loginError } = await signIn(email, password);
 
     if (loginError) {
-      // Exibe a mensagem exata retornada pelo AuthContext (incluindo o bloqueio de conta)
       setError(loginError.message || 'Erro ao realizar login.');
       setLoading(false);
     } else {
-      // O AuthContext garante que o estado de sessão só é setado se estiver ativo.
-      // A navegação aqui só ocorre se o signIn não retornou erro.
       navigate('/home');
     }
   };
@@ -51,8 +49,8 @@ export const LoginPage: React.FC = () => {
         
         {/* Header Visual */}
         <div className="bg-zinc-900 p-8 text-center">
-           <div className="w-20 h-20 bg-white rounded-xl mx-auto flex items-center justify-center mb-4 shadow-lg">
-              <span className="font-rouge text-7xl text-zinc-900 pt-1">D</span>
+           <div className="mx-auto flex items-center justify-center mb-4">
+              <BrandLogo size="lg" className="bg-white" />
            </div>
            <h1 className="text-5xl font-rouge text-white tracking-wide">Decoty Boutique</h1>
            <p className="text-zinc-400 text-sm mt-1">Moda sofisticada e elegante</p>

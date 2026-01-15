@@ -21,6 +21,7 @@ import { SettingsPage } from './components/SettingsPage';
 import { ManagementReportPage } from './components/ManagementReportPage';
 import { ClientHistoryPage } from './components/ClientHistoryPage';
 import { SupplierList } from './components/SupplierList';
+import { BrandLogo } from './components/BrandLogo';
 
 const getInitialTheme = (): boolean => {
   if (typeof window !== 'undefined') {
@@ -30,12 +31,6 @@ const getInitialTheme = (): boolean => {
   }
   return false;
 };
-
-const BrandLogo = () => (
-  <div className="flex items-center justify-center w-11 h-11 rounded-lg bg-zinc-900 dark:bg-zinc-100 shadow-md transition-colors duration-300">
-    <span className="font-rouge text-4xl text-white dark:text-zinc-900 pt-1 select-none">D</span>
-  </div>
-);
 
 const ManagerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { userRole } = useAuth();
@@ -120,13 +115,13 @@ const AppLayout: React.FC = () => {
       <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-30 transition-colors duration-300 shadow-sm">
         <div className="w-full max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div 
-            className="flex items-center gap-5 cursor-pointer group"
+            className="flex items-center gap-5 cursor-pointer group h-full"
             onClick={() => navigateWithRefresh('/home')}
           >
-            <div className="transform group-hover:scale-105 transition-transform duration-300">
-              <BrandLogo />
+            <div className="transform group-hover:scale-105 transition-transform duration-300 flex items-center h-full">
+              <BrandLogo size="xl" />
             </div>
-            <h1 className="text-3xl font-rouge text-zinc-900 dark:text-white tracking-wide pt-2">
+            <h1 className="text-3xl sm:text-4xl font-rouge text-zinc-900 dark:text-white tracking-wide pt-1">
               Decoty Boutique
             </h1>
           </div>
@@ -255,7 +250,7 @@ const AppLayout: React.FC = () => {
           <div className="flex items-center gap-4">
             <span className="hover:text-zinc-900 dark:hover:text-white cursor-pointer transition-colors">Termos de Uso</span>
             <span className="hover:text-zinc-900 dark:hover:text-white cursor-pointer transition-colors">Suporte</span>
-            <span className="text-xs bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded text-zinc-400 dark:text-zinc-500">v1.3.1</span>
+            <span className="text-xs bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded text-zinc-400 dark:text-zinc-500">v1.3.2</span>
           </div>
         </div>
       </footer>
