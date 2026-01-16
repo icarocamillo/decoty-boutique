@@ -22,6 +22,7 @@ import { ManagementReportPage } from './components/ManagementReportPage';
 import { ClientHistoryPage } from './components/ClientHistoryPage';
 import { SupplierList } from './components/SupplierList';
 import { BrandLogo } from './components/BrandLogo';
+import { ProfilePage } from './components/ProfilePage';
 
 const getInitialTheme = (): boolean => {
   if (typeof window !== 'undefined') {
@@ -234,12 +235,12 @@ const AppLayout: React.FC = () => {
             <Route path="/products" element={<ProductList products={products} onUpdate={fetchDashboardData} />} />
             <Route path="/stock" element={<StockList entries={stockEntries} products={products} onUpdate={fetchDashboardData} />} />
 
-            {/* Vendedores agora também podem ver o relatório de vendas (SalesPage) */}
             <Route path="/sales" element={<SalesPage onUpdate={fetchDashboardData} />} />
             
             <Route path="/team" element={<ManagerRoute><TeamList /></ManagerRoute>} />
             <Route path="/settings" element={<ManagerRoute><SettingsPage /></ManagerRoute>} />
             <Route path="/reports" element={<ManagerRoute><ManagementReportPage /></ManagerRoute>} />
+            <Route path="/profile" element={<ProfilePage />} />
           </Routes>
         )}
       </main>

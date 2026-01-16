@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { User, LogOut, Settings, ChevronDown, Moon, Sun, Users } from 'lucide-react';
+import { User, LogOut, Settings, ChevronDown, Moon, Sun, Users, UserCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -69,9 +69,15 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
           </div>
           
           <div className="py-1">
-            <button className="w-full text-left px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2">
-              <User size={16} />
-              <span>Meu Perfil (Em construção)</span>
+            <button 
+              onClick={() => {
+                navigate('/profile');
+                setIsOpen(false);
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
+            >
+              <UserCircle size={16} />
+              <span>Meu Perfil</span>
             </button>
             
             <button 
@@ -94,7 +100,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
                 className="w-full text-left px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
               >
                 <Users size={16} />
-                <span>Gerenciar Usuários</span>
+                <span>Gerenciar Acessos</span>
               </button>
             )}
 
@@ -107,7 +113,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
                 className="w-full text-left px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
               >
                 <Settings size={16} />
-                <span>Configurações</span>
+                <span>Configurações do Sistema</span>
               </button>
             )}
           </div>

@@ -754,5 +754,47 @@ export const backendService = {
     const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
     setLocalData(LS_KEYS.CLIENTS, clients.map(c => c.id === clientId ? { ...c, saldo_vale_presente: roundMoney((c.saldo_vale_presente || 0) + amount) } : c));
     return true;
+  },
+
+  // --- MÉTODOS DE PERFIL ---
+  updateProfile: async (userId: string, updates: { name?: string, email?: string }): Promise<{ success: boolean, error?: string }> => {
+    if (isSupabaseConfigured()) {
+       // 1. Atualizar e-mail na Auth (se alterado)
+       if (updates.email) {
+          const { error: authError } = await supabase.auth.updateUser({ email: updates.email });
+          if (authError) return { success: false, error: authError.message };
+       }
+
+       // 2. Atualizar nome no Profiles
+       const { error: profileError } = await supabase.from('profiles').update({ name: updates.name }).eq('id', userId);
+       if (profileError) return { success: false, error: profileError.message };
+
+       return { success: true };
+    }
+    // Mock
+    const users = getLocalData<any[]>(LS_KEYS.USERS, []);
+    setLocalData(LS_KEYS.USERS, users.map(u => u.id === userId ? { ...u, ...updates } : u));
+    return { success: true };
+  },
+
+  updatePassword: async (email: string, currentPassword: string, newPassword: string): Promise<{ success: boolean, error?: string }> => {
+    if (isSupabaseConfigured()) {
+       // 1. Validar a senha atual tentando um login silencioso
+       const { error: authError } = await supabase.auth.signInWithPassword({
+         email: email,
+         password: currentPassword
+       });
+
+       if (authError) {
+          return { success: false, error: "A senha atual informada está incorreta." };
+       }
+
+       // 2. Se validou, prossegue com a atualização para a nova senha
+       const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+       if (updateError) return { success: false, error: updateError.message };
+
+       return { success: true };
+    }
+    return { success: true };
   }
 };
