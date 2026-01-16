@@ -56,8 +56,8 @@ O projeto foi construído focando em performance, tipagem estática e segurança
 - **Autenticação:** Supabase Auth + Proteção interna via SHA-256 (Web Crypto API)
 
 **Infraestrutura de Build:**
-Módulo: ESModules (importação direta via ESM.sh)
-Segurança: Criptografia SHA-256 via Web Crypto API para validação de acesso.
+- **Módulo:** ESModules (importação direta via ESM.sh)
+- **Segurança:** Criptografia SHA-256 via Web Crypto API para validação de acesso.
 
 ---
 
