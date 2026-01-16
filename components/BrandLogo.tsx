@@ -22,11 +22,11 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({ className = '', size = 'md
   };
 
   /**
-   * No Vite + Vercel, o caminho "/logo.png" é o padrão para arquivos na pasta public.
+   * No Vite + Vercel, o caminho "/decoty_logo.png" é o padrão para arquivos na pasta public.
    * Adicionamos um timestamp opcional apenas se houver erro persistente de cache, 
    * mas por padrão, o caminho absoluto é o mais seguro.
    */
-  const logoUrl = "/logo.png";
+  const logoUrl = "/decoty_logo.png";
 
   return (
     <div className={`flex items-center justify-center overflow-hidden rounded-xl bg-zinc-950 shadow-lg border border-zinc-800 transition-all duration-300 select-none ${sizeClasses[size]} ${className}`}>
