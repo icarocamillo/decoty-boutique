@@ -1,7 +1,6 @@
 # 🛍️ Decoty Boutique - ERP & PDV Especializado em Moda
 
 ![Project Status](https://img.shields.io/badge/status-v1.3.2%20%7C%20Production%20Ready-success)
-![License](https://img.shields.io/badge/license-MIT-blue)
 ![Stack](https://img.shields.io/badge/stack-React%20%7C%20TypeScript%20%7C%20Supabase-blueviolet)
 
 > **Um sistema de gestão de varejo ponta-a-ponta, focado na integridade financeira e na experiência do usuário.**
@@ -57,8 +56,8 @@ O projeto foi construído focando em performance, tipagem estática e segurança
 - **Autenticação:** Supabase Auth + Proteção interna via SHA-256 (Web Crypto API)
 
 **Infraestrutura de Build:**
-Módulo: ESModules (importação direta via ESM.sh)
-Segurança: Criptografia SHA-256 via Web Crypto API para validação de acesso.
+- **Módulo:** ESModules (importação direta via ESM.sh)
+- **Segurança:** Criptografia SHA-256 via Web Crypto API para validação de acesso.
 
 ---
 
