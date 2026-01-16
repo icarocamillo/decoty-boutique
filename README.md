@@ -1,7 +1,6 @@
 # 🛍️ Decoty Boutique - ERP & PDV Especializado em Moda
 
 ![Project Status](https://img.shields.io/badge/status-v1.3.2%20%7C%20Production%20Ready-success)
-![License](https://img.shields.io/badge/license-MIT-blue)
 ![Stack](https://img.shields.io/badge/stack-React%20%7C%20TypeScript%20%7C%20Supabase-blueviolet)
 
 > **Um sistema de gestão de varejo ponta-a-ponta, focado na integridade financeira e na experiência do usuário.**
