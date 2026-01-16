@@ -1,6 +1,8 @@
 # Environment variables
 .env
 .env.*
+.env.local
+.env.*.local
 !.env.example
 
 # Static Assets (Binary files managed via GitHub directly)
@@ -21,10 +23,13 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
+# Build outputs
 dist
 dist-ssr
 *.local
+
+# Node modules
+node_modules
 
 # Editor directories and files
 .vscode/*
