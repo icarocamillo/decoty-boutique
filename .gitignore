@@ -6,8 +6,8 @@
 !.env.example
 
 # Static Assets (Binary files managed via GitHub directly)
-logo.png
-public/logo.png
+decoty_logo.png
+public/decoty_logo.png
 *.png
 *.jpg
 *.jpeg
