@@ -120,3 +120,14 @@ O projeto foi construído focando em performance, tipagem estática e segurança
 <br> </br>
 <img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/da7a396e-4d2f-4cf7-8d84-6739b83919eb" />
 
+### 📱/💻 Responsividade
+
+- **Descrição:** O sistema é responsivo e se adpta a diferentes tamanho de tabela: PC / Tablet / Celular.
+
+<p align="center">
+  <img width="369" height="800" alt="image" src="https://github.com/user-attachments/assets/20e89d78-1dea-4401-af17-50e563e77413" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://github.com/user-attachments/assets/01f00c45-b79b-4497-972c-33d6c12db243" alt="Demo do projeto" width="369">
+</p>
+
+
