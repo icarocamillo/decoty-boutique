@@ -34,7 +34,7 @@ Sistema completo de gestão de dívidas.
 ### 📊 Relatório de Fluxo de Caixa (Regime de Caixa)
 Dashboard gerencial que cruza CMV (Custo da Mercadoria Vendida), descontos reais, taxas bancárias e devoluções. Entregamos o **Lucro Líquido Real**, separando faturamento bruto de dinheiro disponível.
 
-### ⚡ Vinculação Tardia de Cliente
+### 👤 Vinculação Tardia de Cliente
 Agilidade no balcão: Realize a venda rapidamente e vincule ao cadastro do cliente posteriormente, sem perder o rastro do histórico.
 
 ---
@@ -113,7 +113,7 @@ O projeto foi construído focando em performance, tipagem estática e segurança
 
 ---
 
-### 📝 Modo Claro / Escuro
+### 🔆/🌛 Modo Claro ou Escuro
 
 - **Descrição:** O sistema tem suporte a modo claro e escuro para facilitar a visualização em ambientes iluminados ou melhorar a experiencia de uso em ambientes mais escuros.
 <img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/7e78119c-64ee-41d1-841a-e764164ce536" />
