@@ -63,4 +63,52 @@ O projeto foi construído focando em performance, tipagem estática e segurança
 
 ## 📸 Screenshots
 
-*(Espaço reservado para adicionar imagens da interface - Dashboard, Tela de Vendas, Modo Escuro, etc)*
+**Tela de login:**
+- **Descrição:** Usuário do sistema efetua login ou faz um novo cadastro (sistema verifica se está conectado em produção).
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/1f91cafc-0366-4009-9346-72aa7ae709cc" />
+<br> </br>
+
+**Tela de cadastro:**
+- **Descrição:** Processo de cadastro do usuário no sistema (usuário será informado diretamente pelo gerente sobre qual é a palavra-chave para concluir o cadastro).
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/df6bef84-3cda-4316-baec-c6d16e073b21" />
+<br> </br>
+
+**Tela Home:**
+- **Descrição:** Tela mostra indicadores de venda do dia e da semana e as vendas mais recentes.
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/a225fa97-af29-4a4b-bdd9-2e16492c13cb" />
+<br> </br>
+
+**Tela de Detalhes da Venda:**
+- **Descrição:** Exibe todos os dados da venda, itens, tipo de pagamento, status de pagamento Taxas de maquininha, entre outros dados (tambem é possivel vincular o cliente posteriormente a venda).
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/62fef0ea-6b44-4afe-a7da-5f4ede720420" />
+<br> </br>
+
+**Tela de Movimentação de Estoque:**
+- **Descrição:** Tela mostra todas as movimentações de ENTRADA e SAÍDA das quantidades de estoque de cada item.
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/b2c6bd49-5eff-4b63-bbf0-e0eef10764d6" />
+<br> </br>
+
+**Tela de Listagem de clientes:**
+- **Descrição:** Lista todos os clientes cadastrados no sistema, e mostra alguns dados pertinentes para controle (vale presente e se há pendendencias de crediário/carnê).
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/f0cd4636-fe9a-43c5-9426-70f61ed9cc3e" />
+<br> </br>
+
+**Tela de Detalhes do cliente:**
+- **Descrição:** Nessa tela o usuário pode detalhes do cliente, alterar dados do cliente caso necessário e consultar as peças que estão com o cliente por motivos de provador, realizar o pagamento das vendas de crediário desse cliente, entre outros.
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/10cc1ec8-c083-495a-9b76-210a3dd236f1" />
+<br> </br>
+
+**Fluxo de crediário:**
+- **Descrição:** Usuário do sistema consulta quais são as vendas tipo crediário do cliente para que possa efetuar o pagamento.
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/2adcc430-b2b0-4edf-a9b3-22a035c77737" />
+- **Descrição:** Sistema mostra o "histórico de pagamento" da venda de creiário para que o usuário não perca o controle sobre o saldo vigente.
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/abe913ea-5cb1-437a-aa64-f25572a14ad8" />
+<br> </br>
+
+**Tela de relatório gerencial:**
+- **Descrição:** Dados detalhados de toda a operação, vendas bruto, CMV, lucro líquido, futuras entradas de crédito, devoluções, taxas, entre outros.
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/ee081499-af08-454a-b053-4be30971d777" />
+
+---
+
+### 📝 Modo Claro / Escuro
