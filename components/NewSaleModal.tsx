@@ -194,6 +194,17 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
   const clientBalance = selectedClient?.saldo_vale_presente || 0;
   const giftCardUsedAmount = useGiftCard ? Math.min(clientBalance, subtotalAfterExtra) : 0;
   const finalTotal = Math.max(0, subtotalAfterExtra - giftCardUsedAmount);
+  
+  const getFinalTotalForInstallments = (numInstallments: number) => {
+    const totalDiscount = cart.reduce((acc, item) => {
+      const calc = calculateItemDiscount(item, selectedPaymentMethod, numInstallments);
+      return acc + calc.desconto;
+    }, 0);
+    const subtotalWithPaymentDiscount = subtotalItensOriginal - totalDiscount;
+    const subtotalAfterExtraForI = Math.max(0, subtotalWithPaymentDiscount - extraDiscount);
+    const giftCardUsedAmountForI = useGiftCard ? Math.min(clientBalance, subtotalAfterExtraForI) : 0;
+    return Math.max(0, subtotalAfterExtraForI - giftCardUsedAmountForI);
+  };
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -536,11 +547,14 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
                   <div className="space-y-2 animate-fade-in">
                     <label className="text-[10px] sm:text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Parcelamento</label>
                     <select value={installments} onChange={(e) => setInstallments(Number(e.target.value))} className="w-full p-3 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-sm sm:text-base text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
-                      {[1,2,3,4,5].map(i => (
-                        <option key={i} value={i}>
-                          {i}x de {formatCurrency(finalTotal / i)} sem juros
-                        </option>
-                      ))}
+                      {[1,2,3,4,5].map(i => {
+                        const totalForI = getFinalTotalForInstallments(i);
+                        return (
+                          <option key={i} value={i}>
+                            {i}x de {formatCurrency(totalForI / i)} sem juros
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                 )}
