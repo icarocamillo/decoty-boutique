@@ -1,4 +1,134 @@
-# 🛍️ Decoty Boutique - ERP & PDV Especializado em Moda
+# 🛍️ Decoty Boutique - ERP & POS Specialized in Fashion (🇺🇸)
+
+![Project Status](https://img.shields.io/badge/status-v1.3.2%20%7C%20Production%20Ready-success)
+![Stack](https://img.shields.io/badge/stack-React%20%7C%20TypeScript%20%7C%20Supabase-blueviolet)
+
+> **An end-to-end retail management system focused on financial integrity and user experience.**
+
+## 📖 About the Project
+
+**Decoty Boutique** is not just an inventory manager. It is an ERP (Enterprise Resource Planning) and POS (Point of Sale) system specifically designed for the nuances of fashion retail.
+
+Unlike generic systems, it was built to solve real boutique pain points, such as managing items on consignment (fitting room), granular credit sales control, and real net profit calculation (automatically deducting fees and costs).
+
+The project operates with a modern architecture, Offline-First (via LocalStorage as fallback) and robust synchronization with **Supabase/PostgreSQL**.
+
+## ✨ "Crown Jewels" (Key Features)
+
+### 👗 "Fitting Room" Control
+One of the most strategic features. The system allows customers to take items home to try without completing the sale, temporarily removing them from physical inventory.
+- **Surgical History:** Full traceability of who took what.
+- **Flexible Return:** Partial checkout (purchase) or full return, maintaining inventory integrity.
+
+### 💸 Financial Engine with Fee Snapshots
+To ensure auditable accounting, the system records a "snapshot" of bank fees and costs at the exact moment of the transaction.
+- *Example:* If card fees change tomorrow, yesterday’s sales profit remains unchanged, preserving real financial history.
+
+### 📝 Credit Sales & Amortization Management
+A complete debt management system.
+- Allows partial payments (amortization) for specific sales.
+- Updates outstanding balance and cash flow simultaneously.
+
+### 📊 Cash Flow Report (Cash Basis)
+Management dashboard that combines COGS (Cost of Goods Sold), real discounts, bank fees, and returns. It delivers Real Net Profit, separating gross revenue from actual available cash.
+
+### 👤 Late Customer Linking
+Speed at the counter: complete a sale quickly and link it to a customer later without losing historical traceability.
+
+## 🛠️ Tech Stack
+
+The project was built focusing on performance, static typing, and security.
+
+**Frontend:**
+- **Core:** React 18 + TypeScript
+- **Build Tool:** Vite
+- **Estilização:** Tailwind CSS (with native support for Dark Mode and Hybrid Desktop/Mobile Layout)
+- **Componentes Visuais:** Lucide React (Icons), Recharts (Financial Charts)
+- **Roteamento:** React Router DOM v6
+
+**Backend & Infrastructure:**
+- **BaaS:** Supabase
+- **Database:** PostgreSQL (Ensures referential integrity and strict constraints)
+- **Autenticação:** Supabase Auth + internal protection via SHA-256 (Web Crypto API)
+
+**Build Infrastructure:**
+- **Módulo:** ESModules (direct import via ESM.sh)
+- **Segurança:** SHA-256 encryption via Web Crypto API for access validation.
+
+## 📸 Screenshots
+
+**Login Screen:**
+- **Description:** System user logs in or creates a new account (system checks if it is connected in production).
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/1f91cafc-0366-4009-9346-72aa7ae709cc" />
+<br> </br>
+
+**Registration Screen:**
+- **Description:** User registration process (user will be informed directly by the manager about the keyword required to complete registration).
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/df6bef84-3cda-4316-baec-c6d16e073b21" />
+<br> </br>
+
+**Home Screen:**
+- **Description:** Displays daily and weekly sales indicators and most recent sales.
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/a225fa97-af29-4a4b-bdd9-2e16492c13cb" />
+<br> </br>
+
+**Sales Details Screen:**
+- **Description:** Displays all sale data, items, payment type, payment status, card fees, among others (it is also possible to link the customer after the sale).
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/62fef0ea-6b44-4afe-a7da-5f4ede720420" />
+<br> </br>
+
+**Inventory Movement Screen:**
+- **Description:** Displays all INBOUND and OUTBOUND stock quantity movements for each item.
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/b2c6bd49-5eff-4b63-bbf0-e0eef10764d6" />
+<br> </br>
+
+**Customer List Screen:**
+- **Description:** Lists all registered customers and shows relevant control data (gift card and outstanding credit issues).
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/f0cd4636-fe9a-43c5-9426-70f61ed9cc3e" />
+<br> </br>
+
+**Customer Details Screen:**
+- **Description:** On this screen, the user can view customer details, update customer data if necessary, check items currently with the customer (fitting room), process credit payments and more.
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/10cc1ec8-c083-495a-9b76-210a3dd236f1" />
+<br> </br>
+
+**Credit Flow:**
+- **Description:** System user checks which sales are credit-based for a customer in order to process payment.
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/2adcc430-b2b0-4edf-a9b3-22a035c77737" />
+<br> </br>
+
+- **Description:** System displays the "payment history" of the credit sale so the user does not lose track of the current balance.
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/abe913ea-5cb1-437a-aa64-f25572a14ad8" />
+<br> </br>
+
+**Management Report Screen:**
+- **Description:** Detailed data of the entire operation, gross sales, COGS, net profit, future credit inflows, returns, fees and more.
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/ee081499-af08-454a-b053-4be30971d777" />
+
+---
+
+### 🔆/🌛 Light or Dark Mode
+
+- **Description:** The system supports both light and dark modes to improve visibility in bright environments or enhance usability in darker settings.
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/7e78119c-64ee-41d1-841a-e764164ce536" />
+<br> </br>
+<img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/da7a396e-4d2f-4cf7-8d84-6739b83919eb" />
+
+### 📱/💻 Responsiveness
+
+- **Description:** The system is responsive and adapts to different screen sizes: PC / Tablet / Mobile.
+
+<p align="center">
+  <img width="369" height="800" alt="image" src="https://github.com/user-attachments/assets/20e89d78-1dea-4401-af17-50e563e77413" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://github.com/user-attachments/assets/01f00c45-b79b-4497-972c-33d6c12db243" alt="Demo do projeto" width="369">
+</p>
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+# 🛍️ Decoty Boutique - ERP & PDV Especializado em Moda (🇧🇷)
 
 ![Project Status](https://img.shields.io/badge/status-v1.3.2%20%7C%20Production%20Ready-success)
 ![Stack](https://img.shields.io/badge/stack-React%20%7C%20TypeScript%20%7C%20Supabase-blueviolet)
@@ -13,7 +143,6 @@ Diferente de sistemas genéricos, ele foi construído para resolver dores reais 
 
 O projeto opera com uma arquitetura moderna, **Offline-First** (via LocalStorage como fallback) e sincronização robusta com **Supabase/PostgreSQL**.
 
----
 
 ## ✨ "Joias da Coroa" (Funcionalidades Principais)
 
@@ -37,8 +166,6 @@ Dashboard gerencial que cruza CMV (Custo da Mercadoria Vendida), descontos reais
 ### 👤 Vinculação Tardia de Cliente
 Agilidade no balcão: Realize a venda rapidamente e vincule ao cadastro do cliente posteriormente, sem perder o rastro do histórico.
 
----
-
 ## 🛠️ Tech Stack
 
 O projeto foi construído focando em performance, tipagem estática e segurança.
@@ -58,8 +185,6 @@ O projeto foi construído focando em performance, tipagem estática e segurança
 **Infraestrutura de Build:**
 - **Módulo:** ESModules (importação direta via ESM.sh)
 - **Segurança:** Criptografia SHA-256 via Web Crypto API para validação de acesso.
-
----
 
 ## 📸 Screenshots
 
