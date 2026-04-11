@@ -273,7 +273,7 @@ const App = () => {
          <Route path="/register" element={<RegisterPage />} />
          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
             <Route path="/" element={<Navigate to="/home" replace />} />
-            <Route path="/home" element={null} />
+            <Route path="/home" element={<div />} />
             <Route path="*" element={<Navigate to="/home" replace />} />
          </Route>
        </Routes>
