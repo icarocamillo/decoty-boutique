@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Routes, Route, useNavigate, useLocation, Navigate, Outlet } from 'react-router-dom';
-import { Plus, UserPlus, Package, Archive, ShoppingCart, Users, PieChart, Truck } from 'lucide-react';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { Package, Archive, ShoppingCart, Users, PieChart, Truck } from 'lucide-react';
 import { backendService } from './services/backendService';
 import { Sale, ChartDataPoint, Client, Product, StockEntry, Supplier } from './types';
 import { Button } from './components/ui/Button';
@@ -42,7 +42,7 @@ const ManagerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { userRole, userName } = useAuth(); 
+  const { userRole } = useAuth(); 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => getInitialTheme());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -214,7 +214,8 @@ const AppLayout: React.FC = () => {
           <LoadingScreen />
         ) : (
           <Routes>
-             <Route path="/home" element={
+            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route path="/home" element={
               <DashboardHome 
                 totalPeriodSales={totalPeriodSales}
                 dailyAverage={dailyAverage}
@@ -271,11 +272,7 @@ const App = () => {
        <Routes>
          <Route path="/login" element={<LoginPage />} />
          <Route path="/register" element={<RegisterPage />} />
-         <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-            <Route path="/" element={<Navigate to="/home" replace />} />
-            <Route path="/home" element={<div />} />
-            <Route path="*" element={<Navigate to="/home" replace />} />
-         </Route>
+         <Route path="*" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
        </Routes>
     </AuthProvider>
   );
