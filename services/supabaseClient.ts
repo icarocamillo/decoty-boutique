@@ -1,51 +1,35 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Tipagem segura das variáveis de ambiente
 interface SupabaseEnvVars {
   VITE_SUPABASE_URL: string;
   VITE_SUPABASE_ANON_KEY: string;
 }
 
-// CONTROLE DE CONEXÃO
-// Mude para 'false' se quiser desativar o Supabase temporariamente e usar dados fictícios.
-// Mude para 'true' para conectar ao banco de dados real.
-const ENABLE_DB_CONNECTION = true; 
+const ENABLE_DB_CONNECTION = true;
 
-// VALIDAÇÃO: Garantir que as variáveis existem
 const getEnvVar = (key: keyof SupabaseEnvVars): string => {
   const value = import.meta.env[key];
-  
   if (!value || value === '' || value.includes('seu-projeto')) {
     throw new Error(
-      `Variável de ambiente "${key}" não configurada!\n\n` +
-      `Por favor, crie um arquivo .env na raiz do projeto com:\n` +
-      `${key}=seu-valor-aqui\n\n` +
-      `Veja o arquivo .env.example para referência.`
+      `Variável de ambiente "${key}" não configurada!\n\nPor favor, crie um arquivo .env na raiz do projeto com:\n${key}=seu-valor-aqui\n\nVeja o arquivo .env.example para referência.`
     );
   }
-  
   return value;
 };
 
-// OBTER CREDENCIAIS COM VALIDAÇÃO
 const SUPABASE_URL = getEnvVar('VITE_SUPABASE_URL');
 const SUPABASE_ANON_KEY = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
-// VALIDAÇÃO ADICIONAL: Formato da URL
 if (!SUPABASE_URL.includes('supabase.co')) {
-  throw new Error(
-    'URL do Supabase inválida! Verifique o valor de VITE_SUPABASE_URL no arquivo .env'
-  );
+  throw new Error('URL do Supabase inválida! Verifique o valor de VITE_SUPABASE_URL no arquivo .env');
 }
 
-// FUNÇÃO DE VERIFICAÇÃO (para uso interno no app)
 export const isSupabaseConfigured = (): boolean => {
   try {
-      if (!ENABLE_DB_CONNECTION)
-        return false;
+    if (!ENABLE_DB_CONNECTION) return false;
     return (
-      SUPABASE_URL.length > 0 && 
-      SUPABASE_URL.includes('supabase.co') && 
+      SUPABASE_URL.length > 0 &&
+      SUPABASE_URL.includes('supabase.co') &&
       SUPABASE_ANON_KEY.length > 0
     );
   } catch {
@@ -53,34 +37,51 @@ export const isSupabaseConfigured = (): boolean => {
   }
 };
 
-// CRIAR CLIENTE SUPABASE COM CONFIGURAÇÕES OTIMIZADAS
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    autoRefreshToken: true,   // Renovar token automaticamente
-    persistSession: true,     // Salvar sessão no localStorage
-    detectSessionInUrl: true, // Detectar token na URL (OAuth)
-    flowType: 'pkce'          // Usar PKCE para segurança
-  },
-  global: {
-    headers: {
-      'x-client-info': 'decoty-boutique@1.0.0'
+// ─── Cliente com reconexão automática após inatividade ───────────────────────
+// Problema: após alguns minutos sem uso, a conexão HTTP subjacente é fechada
+// pelo servidor/proxy (Vercel, Cloudflare, etc). As queries seguintes ficam
+// travadas indefinidamente — sem erro, sem resposta, sem timeout natural.
+// Solução: detectar inatividade e recriar o cliente (= F5 na camada de dados).
+
+const INACTIVITY_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutos
+
+const createFreshClient = (): SupabaseClient =>
+  createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce'
+    },
+    global: {
+      headers: { 'x-client-info': 'decoty-boutique@1.0.0' }
     }
+    // IMPORTANTE: nunca chamar .realtime.disconnect()
+    // O Supabase usa esse canal internamente para autoRefreshToken.
+  });
+
+let _supabaseClient: SupabaseClient = createFreshClient();
+let _lastActivityTs = Date.now();
+
+// Use getSupabase() em todo o backendService
+export const getSupabase = (): SupabaseClient => {
+  const now = Date.now();
+  if (now - _lastActivityTs > INACTIVITY_THRESHOLD_MS) {
+    console.log(`[Decoty] Inatividade detectada — recriando cliente Supabase`);
+    _supabaseClient = createFreshClient();
   }
-  // NOTA: NÃO desabilitar realtime — o Supabase usa internamente para autoRefreshToken
-});
+  _lastActivityTs = now;
+  return _supabaseClient;
+};
 
-// LOG DE INICIALIZAÇÃO
-if (isSupabaseConfigured()) {
-  console.log('Supabase Client inicializado');
-}
+// Exporta o cliente estático para o AuthContext (não precisa recriar — sessão persiste no localStorage)
+export const supabase: SupabaseClient = _supabaseClient;
 
-// EXPORTAR CONSTANTES (somente leitura)
 export const SUPABASE_CONFIG = {
   url: SUPABASE_URL,
   hasValidConfig: isSupabaseConfigured()
 } as const;
 
-// LOG DE DEBUG (apenas em desenvolvimento)
 if (import.meta.env.DEV) {
   console.log('🔧 Ambiente:', import.meta.env.MODE);
   console.log('🔗 Supabase URL:', SUPABASE_URL);
