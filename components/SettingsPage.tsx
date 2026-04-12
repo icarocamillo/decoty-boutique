@@ -35,6 +35,7 @@ export const SettingsPage: React.FC = () => {
   }, []);
 
   const loadSettings = async () => {
+  console.log('isSupabaseConfigured:', isSupabaseConfigured()); // ← adiciona isso
      try {
        const [hash, discData, feeData] = await Promise.all([
          backendService.getStoreAccessHash(),
