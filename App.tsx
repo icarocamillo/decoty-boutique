@@ -78,12 +78,7 @@ const AppLayout: React.FC = () => {
       setIsRefreshing(true);
     }
     try {
-      // Timeout de segurança: garante que o finally sempre executa em até 15s
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout ao buscar dados Icaro')), 15000)
-      );
-
-      const fetchPromise = Promise.all([
+      const [sales, chart, clientData, productData, stockData, supplierData, brand] = await Promise.all([
         backendService.getRecentSales(),
         backendService.getDashboardChartData(),
         backendService.getClients(),
@@ -92,9 +87,6 @@ const AppLayout: React.FC = () => {
         backendService.getSuppliers(),
         backendService.getTopSellingBrand()
       ]);
-
-      const [sales, chart, clientData, productData, stockData, supplierData, brand] =
-        await Promise.race([fetchPromise, timeoutPromise]);
 
       setRecentSales(sales);
       setChartData(chart);
@@ -113,11 +105,23 @@ const AppLayout: React.FC = () => {
   }, []);
 
   // ─── Re-fetch na primeira carga e a cada mudança de rota ─────────────────────
-  //     O ProtectedRoute já garante sessão válida antes de renderizar o AppLayout,
-  //     então podemos buscar dados diretamente sem checar authLoading aqui.
   useEffect(() => {
     fetchDashboardData();
   }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Re-fetch ao voltar para a aba após inatividade ───────────────────────────
+  // Quando o usuário deixa a aba parada e volta, o navegador dispara
+  // visibilitychange. Aproveitamos para buscar dados frescos antes que
+  // qualquer interação tente usar uma conexão já encerrada pelo servidor.
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchDashboardData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Navegação ────────────────────────────────────────────────────────────────
   const navigateWithRefresh = (path: string) => {
