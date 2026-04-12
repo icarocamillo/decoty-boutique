@@ -80,7 +80,7 @@ const AppLayout: React.FC = () => {
     try {
       // Timeout de segurança: garante que o finally sempre executa em até 15s
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout ao buscar dados')), 15000)
+        setTimeout(() => reject(new Error('Timeout ao buscar dados Icaro')), 15000)
       );
 
       const fetchPromise = Promise.all([
