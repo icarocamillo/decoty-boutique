@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
+import { getSupabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { Session, User } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -43,17 +43,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const checkAuth = async () => {
       if (isSupabaseConfigured()) {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        const { data: { session: currentSession } } = await getSupabase().auth.getSession();
         
         if (currentSession?.user) {
-           const { data: profile } = await supabase
+           const { data: profile } = await getSupabase()
              .from('profiles')
              .select('name, role, active')
              .eq('id', currentSession.user.id)
              .maybeSingle();
-
+ 
            if (!profile || profile.active === false) {
-              await supabase.auth.signOut();
+              await getSupabase().auth.signOut();
               setSession(null);
               setUser(null);
            } else {
@@ -65,26 +65,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         
         setLoading(false);
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+ 
+        const { data: { subscription } } = getSupabase().auth.onAuthStateChange(async (event, session) => {
           // TOKEN_REFRESHED: token renovado automaticamente — apenas atualiza a sessão,
           // sem rebuscar perfil e sem mexer no loading (evita piscar a tela).
           if (event === 'TOKEN_REFRESHED') {
             if (session) setSession(session);
             return;
           }
-
+ 
           // Quando ocorre um login (ou refresh), validamos o perfil ANTES de definir o estado da aplicação
           if (session?.user) {
-             const { data: profile } = await supabase
+             const { data: profile } = await getSupabase()
                .from('profiles')
                .select('name, role, active')
                .eq('id', session.user.id)
                .maybeSingle();
-
+ 
              if (!profile || profile.active === false) {
                 // Se o usuário logou mas está desativado no banco
-                await supabase.auth.signOut();
+                await getSupabase().auth.signOut();
                 setSession(null);
                 setUser(null);
                 setUserName(null);
@@ -133,12 +133,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     if (isSupabaseConfigured()) {
       // 1. Tenta o login na Auth do Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
       if (error) return { error };
 
       if (data.user) {
          // 2. Imediatamente após o sucesso da senha, verifica o status na tabela profiles
-         const { data: profile } = await supabase
+         const { data: profile } = await getSupabase()
            .from('profiles')
            .select('name, role, active')
            .eq('id', data.user.id)
@@ -146,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
          
          // 3. Bloqueio Mandatário
          if (!profile || profile.active === false) {
-            await supabase.auth.signOut();
+            await getSupabase().auth.signOut();
             // Limpa estados por segurança
             setSession(null);
             setUser(null);
@@ -188,7 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string, name: string, role: string) => {
     if (isSupabaseConfigured()) {
-      const { error } = await supabase.auth.signUp({
+      const { error } = await getSupabase().auth.signUp({
         email,
         password,
         options: {
@@ -207,7 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     if (isSupabaseConfigured()) {
-      await supabase.auth.signOut();
+      await getSupabase().auth.signOut();
     } else {
       localStorage.removeItem(LOCAL_STORAGE_SESSION_KEY);
     }
