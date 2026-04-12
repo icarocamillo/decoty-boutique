@@ -56,27 +56,22 @@ export const isSupabaseConfigured = (): boolean => {
 // CRIAR CLIENTE SUPABASE COM CONFIGURAÇÕES OTIMIZADAS
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    autoRefreshToken: true,      // Renovar token automaticamente
-    persistSession: true,         // Salvar sessão no localStorage
-    detectSessionInUrl: true,     // Detectar token na URL (OAuth)
-    flowType: 'pkce'              // Usar PKCE para segurança
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 1          // Mínimo possível (não usamos realtime)
-    }
+    autoRefreshToken: true,   // Renovar token automaticamente
+    persistSession: true,     // Salvar sessão no localStorage
+    detectSessionInUrl: true, // Detectar token na URL (OAuth)
+    flowType: 'pkce'          // Usar PKCE para segurança
   },
   global: {
     headers: {
       'x-client-info': 'decoty-boutique@1.0.0'
     }
   }
+  // NOTA: NÃO desabilitar realtime — o Supabase usa internamente para autoRefreshToken
 });
 
-// DESABILITAR REALTIME (performance)
+// LOG DE INICIALIZAÇÃO
 if (isSupabaseConfigured()) {
-  supabase.realtime.disconnect();
-  console.log('Supabase Client inicializado (Realtime desabilitado)');
+  console.log('Supabase Client inicializado');
 }
 
 // EXPORTAR CONSTANTES (somente leitura)

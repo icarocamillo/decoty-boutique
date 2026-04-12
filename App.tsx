@@ -22,7 +22,7 @@ import { ClientHistoryPage } from './components/ClientHistoryPage';
 import { SupplierList } from './components/SupplierList';
 import { BrandLogo } from './components/BrandLogo';
 import { ProfilePage } from './components/ProfilePage';
- 
+
 const getInitialTheme = (): boolean => {
   if (typeof window !== 'undefined') {
     const savedTheme = localStorage.getItem('darkMode');
@@ -31,26 +31,27 @@ const getInitialTheme = (): boolean => {
   }
   return false;
 };
- 
+
 const ManagerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { userRole } = useAuth();
   if (userRole !== 'manager') return <Navigate to="/home" replace />;
   return <>{children}</>;
 };
- 
+
 const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
- 
-  // ─── Aguardamos o AuthContext resolver a sessão antes de buscar dados ─────────
-  const { userRole, loading: authLoading } = useAuth();
- 
+
+  const { userRole } = useAuth();
+
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => getInitialTheme());
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
- 
+  const [isLoading, setIsLoading] = useState(true);        // bloqueia tela só na carga inicial
+  const [isRefreshing, setIsRefreshing] = useState(false); // re-fetch silencioso ao navegar
+  const isInitialLoadDone = React.useRef(false);
+
   const isManager = userRole === 'manager';
- 
+
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -58,21 +59,31 @@ const AppLayout: React.FC = () => {
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [topBrand, setTopBrand] = useState<string>('-');
- 
+
   // ─── Tema ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isDarkMode) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
     if (typeof window !== 'undefined') localStorage.setItem('darkMode', String(isDarkMode));
   }, [isDarkMode]);
- 
+
   const toggleTheme = () => setIsDarkMode(prev => !prev);
- 
+
   // ─── Fetch de dados ───────────────────────────────────────────────────────────
   const fetchDashboardData = useCallback(async () => {
-    setIsLoading(true);
+    // Na carga inicial bloqueia a tela; nas navegações subsequentes só atualiza em background
+    if (!isInitialLoadDone.current) {
+      setIsLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
     try {
-      const [sales, chart, clientData, productData, stockData, supplierData, brand] = await Promise.all([
+      // Timeout de segurança: garante que o finally sempre executa em até 15s
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout ao buscar dados')), 15000)
+      );
+
+      const fetchPromise = Promise.all([
         backendService.getRecentSales(),
         backendService.getDashboardChartData(),
         backendService.getClients(),
@@ -81,6 +92,10 @@ const AppLayout: React.FC = () => {
         backendService.getSuppliers(),
         backendService.getTopSellingBrand()
       ]);
+
+      const [sales, chart, clientData, productData, stockData, supplierData, brand] =
+        await Promise.race([fetchPromise, timeoutPromise]);
+
       setRecentSales(sales);
       setChartData(chart);
       setClients(clientData);
@@ -92,39 +107,43 @@ const AppLayout: React.FC = () => {
       console.error('Failed to fetch dashboard data', error);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
+      isInitialLoadDone.current = true;
     }
   }, []);
- 
-  // ─── Re-fetch ao mudar de rota, mas SOMENTE após o AuthContext terminar ───────
-  //     Isso resolve o problema de dados não carregarem após a aba ficar parada,
-  //     sem conflitar com o fluxo de autenticação existente.
+
+  // ─── Re-fetch na primeira carga e a cada mudança de rota ─────────────────────
+  //     O ProtectedRoute já garante sessão válida antes de renderizar o AppLayout,
+  //     então podemos buscar dados diretamente sem checar authLoading aqui.
   useEffect(() => {
-    if (!authLoading) {
-      fetchDashboardData();
-    }
-  }, [location.pathname, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
- 
+    fetchDashboardData();
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ─── Navegação ────────────────────────────────────────────────────────────────
   const navigateWithRefresh = (path: string) => {
     navigate(path);
     // O re-fetch é disparado automaticamente pelo useEffect acima ao mudar pathname
   };
- 
+
   // ─── KPIs ─────────────────────────────────────────────────────────────────────
   const totalPeriodSales = chartData.reduce((acc, curr) => acc + curr.total, 0);
   const todaySales = chartData.length > 0 ? chartData[chartData.length - 1].total : 0;
   const dailyAverage = totalPeriodSales / 7;
- 
+
   const isActive = (path: string) => location.pathname.startsWith(path);
- 
+
   const LoadingScreen = () => (
     <div className="h-64 flex items-center justify-center text-zinc-400 dark:text-zinc-500">
       Carregando...
     </div>
   );
- 
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col transition-colors duration-300">
+      {/* Barra de progresso sutil — aparece apenas nos re-fetches de navegação */}
+      <div className={`fixed top-0 left-0 right-0 z-50 h-0.5 bg-emerald-500 transition-all duration-500 ${isRefreshing ? 'opacity-100' : 'opacity-0'}`}
+        style={{ transform: isRefreshing ? 'scaleX(0.9)' : 'scaleX(1)', transformOrigin: 'left' }}
+      />
       <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-30 transition-colors duration-300 shadow-sm">
         <div className="w-full max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div
@@ -138,11 +157,11 @@ const AppLayout: React.FC = () => {
               Decoty Boutique
             </h1>
           </div>
- 
+
           <UserMenu isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
         </div>
       </header>
- 
+
       <main className="flex-1 w-full max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         <div className={`grid grid-cols-2 sm:grid-cols-3 ${isManager ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-4`}>
           <Button
@@ -153,7 +172,7 @@ const AppLayout: React.FC = () => {
             <ShoppingCart size={24} />
             <span>Realizar Venda</span>
           </Button>
- 
+
           <Button
             variant={isActive('/products') ? 'primary' : 'secondary'}
             className={`h-auto py-3 flex flex-col items-center gap-2 transition-all shadow-sm
@@ -166,7 +185,7 @@ const AppLayout: React.FC = () => {
             <Package size={24} />
             <span>Produtos</span>
           </Button>
- 
+
           <Button
             variant={isActive('/stock') ? 'primary' : 'secondary'}
             className={`h-auto py-3 flex flex-col items-center gap-2 transition-all shadow-sm
@@ -179,7 +198,7 @@ const AppLayout: React.FC = () => {
             <Archive size={24} />
             <span>Estoque</span>
           </Button>
- 
+
           <Button
             variant={isActive('/clients') ? 'primary' : 'secondary'}
             className={`h-auto py-3 flex flex-col items-center gap-2 transition-all shadow-sm
@@ -192,7 +211,7 @@ const AppLayout: React.FC = () => {
             <Users size={24} />
             <span>Clientes</span>
           </Button>
- 
+
           <Button
             variant={isActive('/suppliers') ? 'primary' : 'secondary'}
             className={`h-auto py-3 flex flex-col items-center gap-2 transition-all shadow-sm
@@ -205,7 +224,7 @@ const AppLayout: React.FC = () => {
             <Truck size={24} />
             <span>Fornecedores</span>
           </Button>
- 
+
           {isManager && (
             <Button
               variant={isActive('/reports') ? 'primary' : 'secondary'}
@@ -221,7 +240,7 @@ const AppLayout: React.FC = () => {
             </Button>
           )}
         </div>
- 
+
         {isLoading ? (
           <LoadingScreen />
         ) : (
@@ -240,16 +259,16 @@ const AppLayout: React.FC = () => {
                 onRefresh={fetchDashboardData}
               />
             } />
- 
+
             <Route path="/clients" element={<ClientList clients={clients} onUpdate={fetchDashboardData} entries={stockEntries} />} />
             <Route path="/clients/:clientId/history" element={<ClientHistoryPage onUpdate={fetchDashboardData} />} />
             <Route path="/suppliers" element={<SupplierList suppliers={suppliers} onUpdate={fetchDashboardData} />} />
- 
+
             <Route path="/products" element={<ProductList products={products} onUpdate={fetchDashboardData} />} />
             <Route path="/stock" element={<StockList entries={stockEntries} products={products} onUpdate={fetchDashboardData} />} />
- 
+
             <Route path="/sales" element={<SalesPage onUpdate={fetchDashboardData} />} />
- 
+
             <Route path="/team" element={<ManagerRoute><TeamList /></ManagerRoute>} />
             <Route path="/settings" element={<ManagerRoute><SettingsPage /></ManagerRoute>} />
             <Route path="/reports" element={<ManagerRoute><ManagementReportPage /></ManagerRoute>} />
@@ -257,7 +276,7 @@ const AppLayout: React.FC = () => {
           </Routes>
         )}
       </main>
- 
+
       <footer className="bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 py-6 mt-auto transition-colors duration-300">
         <div className="w-full max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-zinc-500 dark:text-zinc-400">
           <p>&copy; {new Date().getFullYear()} Decoty Boutique. Todos os direitos reservados.</p>
@@ -268,7 +287,7 @@ const AppLayout: React.FC = () => {
           </div>
         </div>
       </footer>
- 
+
       <NewSaleModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -277,7 +296,7 @@ const AppLayout: React.FC = () => {
     </div>
   );
 };
- 
+
 const App = () => {
   return (
     <AuthProvider>
@@ -289,5 +308,5 @@ const App = () => {
     </AuthProvider>
   );
 };
- 
+
 export default App;

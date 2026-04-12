@@ -67,7 +67,7 @@ export const StockList: React.FC<StockListProps> = ({ entries, products, onUpdat
         }
     };
     fetchData();
-  }, [entries]); // Recarrega se as entradas mudarem
+  }, []); // Executa apenas uma vez ao montar — entries vêm via props já atualizadas
 
   // Carrega marcas dos fornecedores
   useEffect(() => {

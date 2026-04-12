@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { Session, User } from '@supabase/supabase-js';
@@ -68,6 +67,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          // TOKEN_REFRESHED: token renovado automaticamente — apenas atualiza a sessão,
+          // sem rebuscar perfil e sem mexer no loading (evita piscar a tela).
+          if (event === 'TOKEN_REFRESHED') {
+            if (session) setSession(session);
+            return;
+          }
+
           // Quando ocorre um login (ou refresh), validamos o perfil ANTES de definir o estado da aplicação
           if (session?.user) {
              const { data: profile } = await supabase
