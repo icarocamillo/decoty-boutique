@@ -37,49 +37,9 @@ export const isSupabaseConfigured = (): boolean => {
   }
 };
 
-// ─── Fetch com retry automático ───────────────────────────────────────────────
-// Quando a conexão HTTP cai por inatividade, a primeira query trava sem resposta.
-// Resolvemos isso com um fetch customizado que detecta o travamento (AbortController)
-// e tenta novamente automaticamente — sem recriar o cliente e sem perder a sessão.
-
-const QUERY_TIMEOUT_MS = 8000;  // 8s sem resposta = conexão travada
-const MAX_RETRIES = 2;
-
-const fetchWithRetry = async (
-  input: RequestInfo | URL,
-  init?: RequestInit,
-  attempt = 0
-): Promise<Response> => {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), QUERY_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(input, {
-      ...init,
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    return response;
-  } catch (err: any) {
-    clearTimeout(timer);
-    const isAborted = err?.name === 'AbortError';
-    const isNetworkError = err?.name === 'TypeError';
-
-    if ((isAborted || isNetworkError) && attempt < MAX_RETRIES) {
-      const delay = (attempt + 1) * 500; // 500ms, 1000ms
-      console.log(`[Decoty] Query travada (tentativa ${attempt + 1}/${MAX_RETRIES}) — retentando em ${delay}ms...`);
-      await new Promise(res => setTimeout(res, delay));
-      return fetchWithRetry(input, init, attempt + 1);
-    }
-
-    throw err;
-  }
-};
-
-// ─── Cliente único com fetch customizado ──────────────────────────────────────
-// Um único cliente para toda a aplicação — sem recriar, sem perder sessão.
-// O retry automático resolve o problema de conexão travada por inatividade.
-
+// Cliente único e simples — sem fetch customizado, sem AbortController.
+// O keep-alive no App.tsx (ping a cada 2 min) mantém a conexão ativa.
+// O visibilitychange no App.tsx faz re-fetch ao voltar para a aba.
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     autoRefreshToken: true,
@@ -88,13 +48,10 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     flowType: 'pkce'
   },
   global: {
-    fetch: fetchWithRetry,
     headers: { 'x-client-info': 'decoty-boutique@1.0.0' }
   }
 });
 
-// getSupabase() mantido para compatibilidade com backendService e AuthContext
-// Retorna sempre o mesmo cliente — não há mais necessidade de recriar
 export const getSupabase = () => supabase;
 
 export const SUPABASE_CONFIG = {
