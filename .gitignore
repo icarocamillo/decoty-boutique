@@ -8,7 +8,7 @@
 # Static Assets (Binary files managed via GitHub directly)
 decoty_logo.png
 public/decoty_logo.png
-*.md
+README.md
 *.png
 *.jpg
 *.jpeg
