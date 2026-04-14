@@ -8,26 +8,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { backendService } from '../services/backendService';
 import { UserProfile } from '../types';
 
-export const TeamList: React.FC = () => {
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const { user: currentUser } = useAuth();
-  const [loading, setLoading] = useState(false);
-  
-  useEffect(() => {
-    loadUsers();
-  }, []);
+import { useData } from '../contexts/DataContext';
 
-  const loadUsers = async () => {
-    setLoading(true);
-    try {
-      const data = await backendService.getUsers();
-      setUsers(data);
-    } catch (error) {
-      console.error("Erro ao carregar time", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+export const TeamList: React.FC = () => {
+  const { users, refreshData, isLoading: loading } = useData();
+  const { user: currentUser } = useAuth();
 
   const handleToggleStatus = async (targetUserId: string) => {
       const targetUser = users.find(u => u.id === targetUserId);
@@ -44,7 +29,7 @@ export const TeamList: React.FC = () => {
       const success = await backendService.updateUserStatus(targetUserId, newStatus);
       
       if (success) {
-        setUsers(prev => prev.map(u => u.id === targetUserId ? { ...u, active: newStatus } : u));
+        refreshData();
       } else {
         alert("Erro ao atualizar status do usuário. Verifique suas permissões.");
       }
@@ -62,7 +47,7 @@ export const TeamList: React.FC = () => {
     const success = await backendService.updateUserRole(targetUserId, newRole);
 
     if (success) {
-      setUsers(prev => prev.map(u => u.id === targetUserId ? { ...u, role: newRole as any } : u));
+      refreshData();
     } else {
       alert("Erro ao atualizar perfil do usuário.");
     }

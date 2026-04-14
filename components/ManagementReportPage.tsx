@@ -11,6 +11,7 @@ import {
 import { Card } from './ui/Card';
 import { backendService, PaymentFees } from '../services/backendService';
 import { Sale, Product, StockEntry, Client } from '../types';
+import { useData } from '../contexts/DataContext';
 
 // Tooltip Component Interno
 const ReportTooltip: React.FC<{ text: string }> = ({ text }) => (
@@ -34,13 +35,17 @@ export const ManagementReportPage: React.FC = () => {
     return new Date().toISOString().split('T')[0];
   });
 
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [receipts, setReceipts] = useState<any[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [globalFees, setGlobalFees] = useState<PaymentFees | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { 
+    salesReport: sales, 
+    receiptsReport: receipts, 
+    products, 
+    stockEntries, 
+    clients, 
+    paymentFees: globalFees, 
+    fetchManagementReport,
+    isRefreshing: loading 
+  } = useData();
+
   const [isDarkMode, setIsDarkMode] = useState(document.documentElement.classList.contains('dark'));
 
   useEffect(() => {
@@ -56,35 +61,8 @@ export const ManagementReportPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const historyStart = new Date(startDate);
-        historyStart.setMonth(historyStart.getMonth() - 12);
-        const historyStartStr = historyStart.toISOString().split('T')[0];
-
-        const [salesData, receiptsData, productsData, stockData, clientsData, feesData] = await Promise.all([
-          backendService.getSalesByPeriod(historyStartStr, endDate), 
-          backendService.getReceiptsByPeriod(historyStartStr, endDate),
-          backendService.getProducts(),
-          backendService.getStockEntries(),
-          backendService.getClients(),
-          backendService.getPaymentFees()
-        ]);
-        setSales(salesData);
-        setReceipts(receiptsData);
-        setProducts(productsData);
-        setStockEntries(stockData);
-        setClients(clientsData);
-        setGlobalFees(feesData);
-      } catch (error) {
-        console.error("Erro ao carregar dados do relatório", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [startDate, endDate]);
+    fetchManagementReport(startDate, endDate);
+  }, [startDate, endDate, fetchManagementReport]);
 
   const roundCurrency = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 

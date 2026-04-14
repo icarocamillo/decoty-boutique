@@ -10,15 +10,12 @@ import { formatDateStandard } from '../utils';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-interface ClientListProps {
-  clients: Client[];
-  onUpdate: () => void;
-  entries?: StockEntry[];
-}
+import { useData } from '../contexts/DataContext';
 
-export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate, entries = [] }) => {
+export const ClientList: React.FC = () => {
   const navigate = useNavigate();
   const { userRole } = useAuth();
+  const { clients, refreshData } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
 
@@ -473,7 +470,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clients, onUpdate, entri
       <ClientFormModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={onUpdate}
+        onSuccess={refreshData}
         clientToEdit={clientToEdit}
       />
     </div>

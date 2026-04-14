@@ -1,20 +1,27 @@
 
 import React, { useState, useMemo } from 'react';
-import { Sale } from '../types';
 import { ShoppingBag, User, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight, Calendar, Clock, Package, DollarSign, Check, Undo2 } from 'lucide-react';
 import { SaleDetailsModal } from './SaleDetailsModal';
 import { Badge } from './ui/Badge';
 import { formatDateStandard } from '../utils';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useData } from '../contexts/DataContext';
+import { Sale } from '../types';
 
 interface RecentSalesProps {
-  sales: Sale[];
+  sales?: Sale[];
   onUpdate?: () => void;
 }
 
 type SortKey = 'id' | 'cliente_nome' | 'produtos_resumo' | 'data_venda' | 'item_count' | 'valor_total' | 'status_pagamento';
 
-export const RecentSales: React.FC<RecentSalesProps> = ({ sales, onUpdate }) => {
+export const RecentSales: React.FC<RecentSalesProps> = ({ sales: propsSales, onUpdate: propsOnUpdate }) => {
+  const { sales: globalSales, clientSales, refreshData: contextOnUpdate } = useData();
+  const { clientId } = useParams<{ clientId: string }>();
+  
+  const sales = propsSales || (clientId ? clientSales : globalSales);
+  const onUpdate = propsOnUpdate || contextOnUpdate;
+  
   const navigate = useNavigate();
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>({ key: 'data_venda', direction: 'desc' });

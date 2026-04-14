@@ -6,33 +6,25 @@ import { Button } from './ui/Button';
 import { SalesChart } from './SalesChart';
 import { RecentSales } from './RecentSales';
 import { ChartDataPoint, Sale } from '../types';
+import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
-interface DashboardHomeProps {
-  totalPeriodSales: number;
-  dailyAverage: number;
-  todaySales: number;
-  topBrand: string;
-  chartData: ChartDataPoint[];
-  recentSales: Sale[];
-  isDarkMode: boolean;
-  onOpenReport: () => void;
-  onRefresh: () => void;
-}
-
-export const DashboardHome: React.FC<DashboardHomeProps> = ({
-  totalPeriodSales,
-  dailyAverage,
-  todaySales,
-  topBrand,
-  chartData,
-  recentSales,
-  isDarkMode,
-  onOpenReport,
-  onRefresh
-}) => {
+export const DashboardHome: React.FC = () => {
   const { userRole } = useAuth();
+  const { 
+    chartData, 
+    sales, 
+    topBrand, 
+    refreshData 
+  } = useData();
+  const navigate = useNavigate();
+  
   const isManager = userRole === 'manager';
+
+  const totalPeriodSales = chartData.reduce((acc, curr) => acc + curr.total, 0);
+  const todaySales = chartData.length > 0 ? chartData[chartData.length - 1].total : 0;
+  const dailyAverage = totalPeriodSales / 7;
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -111,19 +103,19 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
           className="h-[400px]"
           action={
             isManager ? (
-              <Button variant="primary" size="sm" onClick={onOpenReport} className="flex items-center gap-2">
+              <Button variant="primary" size="sm" onClick={() => navigate('/sales')} className="flex items-center gap-2">
                 <FileBarChart size={16} />
                 Relatório de Vendas
               </Button>
             ) : undefined
           }
         >
-          <SalesChart data={chartData} isDarkMode={isDarkMode} />
+          <SalesChart data={chartData} />
         </Card>
 
         {/* Recent Sales Section */}
         <Card title="Últimas Vendas" description="Transações mais recentes de toda a loja">
-          <RecentSales sales={recentSales} onUpdate={onRefresh} />
+          <RecentSales />
         </Card>
       </div>
     </>

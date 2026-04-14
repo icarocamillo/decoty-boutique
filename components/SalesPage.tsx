@@ -11,11 +11,10 @@ import { Pagination } from './ui/Pagination';
 import { Badge } from './ui/Badge';
 import { formatDateStandard } from '../utils';
 
-interface SalesPageProps {
-  onUpdate?: () => void;
-}
+import { useData } from '../contexts/DataContext';
 
-export const SalesPage: React.FC<SalesPageProps> = ({ onUpdate }) => {
+export const SalesPage: React.FC = () => {
+  const { salesReport: sales, fetchSalesReport, isRefreshing: loading, refreshData } = useData();
   // Date State - Default to current month
   const [startDate, setStartDate] = useState(() => {
     const date = new Date();
@@ -26,12 +25,8 @@ export const SalesPage: React.FC<SalesPageProps> = ({ onUpdate }) => {
     return new Date().toISOString().split('T')[0];
   });
 
-  // Data State
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-
   // UI State
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Sale; direction: 'asc' | 'desc' } | null>({ key: 'data_venda', direction: 'desc' });
 
@@ -39,23 +34,10 @@ export const SalesPage: React.FC<SalesPageProps> = ({ onUpdate }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
 
-  // Fetch Sales
-  const loadSales = async () => {
-    setLoading(true);
-    try {
-      const data = await backendService.getSalesByPeriod(startDate, endDate);
-      setSales(data);
-    } catch (error) {
-      console.error("Failed to load sales report", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadSales();
+    fetchSalesReport(startDate, endDate);
     setCurrentPage(1); 
-  }, [startDate, endDate]);
+  }, [startDate, endDate, fetchSalesReport]);
 
   // Reset page on search or filter change
   useEffect(() => {
@@ -385,8 +367,8 @@ export const SalesPage: React.FC<SalesPageProps> = ({ onUpdate }) => {
         onClose={() => setSelectedSale(null)} 
         sale={selectedSale} 
         onSaleCancelled={() => {
-          loadSales();
-          if (onUpdate) onUpdate();
+          fetchSalesReport(startDate, endDate);
+          refreshData();
         }} 
       />
     </div>

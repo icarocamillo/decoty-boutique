@@ -11,27 +11,21 @@ import { formatDateStandard, formatProductId } from '../utils';
 import { backendService } from '../services/backendService';
 import { useNavigate } from 'react-router-dom';
 
-interface StockListProps {
-  entries: StockEntry[];
-  products: Product[];
-  onUpdate: () => void;
-}
+import { useData } from '../contexts/DataContext';
 
 const CATEGORIES = ['Vestidos', 'Blusas', 'Camisas', 'Calças', 'Saias', 'Casacos', 'Jaquetas', 'Bermudas', 'Pulseira', 'Brinco', 'Colar'];
 
-export const StockList: React.FC<StockListProps> = ({ entries, products, onUpdate }) => {
+export const StockList: React.FC = () => {
   const navigate = useNavigate();
+  const { stockEntries: entries, products, suppliers, users: profiles, sales, refreshData, isLoading: dataLoading } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [productToAdjust, setProductToAdjust] = useState<Product | null>(null);
   
   // Estados para mapeamento de IDs para Nomes/Números Reais
-  const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [salesMapping, setSalesMapping] = useState<Record<string, number>>({});
-  const [dataLoading, setDataLoading] = useState(true);
 
   // States for Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [brands, setBrands] = useState<string[]>([]);
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
@@ -41,51 +35,23 @@ export const StockList: React.FC<StockListProps> = ({ entries, products, onUpdat
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
 
-  // Carrega dados de suporte para tradução de IDs
+  // Cria mapa de vendas a partir dos dados do contexto
   useEffect(() => {
-    const fetchData = async () => {
-        setDataLoading(true);
-        try {
-            const [usersData, salesData] = await Promise.all([
-                backendService.getUsers(),
-                backendService.getRecentSales()
-            ]);
-            
-            setProfiles(usersData);
-            
-            // Cria mapa: UUID da venda -> UI_ID numérico
-            const mapping: Record<string, number> = {};
-            salesData.forEach(s => {
-                if (s.ui_id) mapping[s.id] = s.ui_id;
-            });
-            setSalesMapping(mapping);
-            
-        } catch (err) {
-            console.error("Erro ao carregar dados de mapeamento", err);
-        } finally {
-            setDataLoading(false);
-        }
-    };
-    fetchData();
-  }, []); // Executa apenas uma vez ao montar — entries vêm via props já atualizadas
+    const mapping: Record<string, number> = {};
+    sales.forEach(s => {
+      if (s.ui_id) mapping[s.id] = s.ui_id;
+    });
+    setSalesMapping(mapping);
+  }, [sales]);
 
-  // Carrega marcas dos fornecedores
-  useEffect(() => {
-    const fetchBrands = async () => {
-      try {
-        const suppliers = await backendService.getSuppliers();
-        const supplierBrands = suppliers
-          .map(s => s.fantasy_name)
-          .filter((name): name is string => !!name && name.trim() !== '');
-        
-        const uniqueBrands = Array.from(new Set(supplierBrands)).sort();
-        setBrands(uniqueBrands);
-      } catch (error) {
-        console.error("Erro ao carregar marcas", error);
-      }
-    };
-    fetchBrands();
-  }, []);
+  // Marcas dos fornecedores vindas do contexto
+  const brands = useMemo(() => {
+    const supplierBrands = suppliers
+      .map(s => s.fantasy_name)
+      .filter((name): name is string => !!name && name.trim() !== '');
+    
+    return Array.from(new Set(supplierBrands)).sort();
+  }, [suppliers]);
 
   // Reset page on filter change
   useEffect(() => {
@@ -586,8 +552,7 @@ export const StockList: React.FC<StockListProps> = ({ entries, products, onUpdat
       <StockAdjustmentModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={() => { onUpdate(); }} 
-        products={products}
+        onSuccess={refreshData} 
         initialProduct={productToAdjust} 
       />
     </div>

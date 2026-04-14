@@ -5,6 +5,7 @@ import { Button } from './ui/Button';
 import { backendService } from '../services/backendService';
 import { ProductSize, Product, Supplier } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
 import { formatProductId } from '../utils';
 
 interface ProductFormModalProps {
@@ -27,8 +28,8 @@ const SIZES_NUMBERS: ProductSize[] = ['40', '42', '44', '46', '48'];
 
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, onSuccess, productToEdit }) => {
   const { user } = useAuth();
+  const { suppliers } = useData();
   const [loading, setLoading] = useState(false);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   
   const [formData, setFormData] = useState({
@@ -46,20 +47,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
   });
 
   const [stockAdjustment, setStockAdjustment] = useState('0');
-
-  useEffect(() => {
-    if (isOpen) {
-      const fetchSuppliers = async () => {
-        try {
-          const data = await backendService.getSuppliers();
-          setSuppliers(data);
-        } catch (error) {
-          console.error("Erro ao carregar fornecedores", error);
-        }
-      };
-      fetchSuppliers();
-    }
-  }, [isOpen]);
 
   const brands = useMemo(() => {
       const names = suppliers

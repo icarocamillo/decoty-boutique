@@ -7,12 +7,10 @@ import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { SupplierFormModal } from './SupplierFormModal';
 
-interface SupplierListProps {
-  suppliers: Supplier[];
-  onUpdate: () => void;
-}
+import { useData } from '../contexts/DataContext';
 
-export const SupplierList: React.FC<SupplierListProps> = ({ suppliers, onUpdate }) => {
+export const SupplierList: React.FC = () => {
+  const { suppliers, refreshData } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [supplierToEdit, setSupplierToEdit] = useState<Supplier | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -251,7 +249,7 @@ export const SupplierList: React.FC<SupplierListProps> = ({ suppliers, onUpdate 
       <SupplierFormModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={onUpdate}
+        onSuccess={refreshData}
         supplierToEdit={supplierToEdit}
       />
     </div>

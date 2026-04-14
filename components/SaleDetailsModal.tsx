@@ -179,17 +179,23 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
     );
 };
 
+import { useData } from '../contexts/DataContext';
+
 export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onClose, sale, onSaleCancelled }) => {
   const { user: currentUser } = useAuth(); 
   const navigate = useNavigate();
+  const { 
+    users, 
+    paymentFees: feesConfig, 
+    clients: clientsList,
+    refreshData 
+  } = useData();
+  
   const [isCancelling, setIsCancelling] = useState(false);
   const [clientDetails, setClientDetails] = useState<Client | null>(null);
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [feesConfig, setFeesConfig] = useState<PaymentFees | null>(null);
   
   const [isLinkingMode, setIsLinkingMode] = useState(false);
   const [linkSearchTerm, setLinkSearchTerm] = useState('');
-  const [clientsList, setClientsList] = useState<Client[]>([]);
   const [isLinkingLoading, setIsLinkingLoading] = useState(false);
   const [currentSale, setCurrentSale] = useState<Sale | null>(null);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
@@ -201,19 +207,13 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   }, [sale, isOpen]);
 
   useEffect(() => {
-    if (isOpen) {
-        backendService.getUsers().then(setUsers);
-        backendService.getPaymentFees().then(setFeesConfig);
-        if (currentSale?.cliente_id) {
-            backendService.getClients().then(clients => {
-                const found = clients.find(c => c.id === currentSale.cliente_id);
-                setClientDetails(found || null);
-            });
-        }
+    if (isOpen && currentSale?.cliente_id) {
+        const found = clientsList.find(c => c.id === currentSale.cliente_id);
+        setClientDetails(found || null);
     } else {
         setClientDetails(null);
     }
-  }, [isOpen, currentSale]);
+  }, [isOpen, currentSale, clientsList]);
 
   const unrolledItems = useMemo(() => {
     if (!currentSale?.items) return [];
@@ -305,12 +305,8 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   // Lógica para determinar se a venda está "Visualmente" paga com base nos itens vendidos
   const isActuallyPaid = soldItems.length > 0 && soldItems.every(i => i.status_pagamento === 'pago');
 
-  const handleStartLinking = async () => {
+  const handleStartLinking = () => {
       setIsLinkingMode(true);
-      if (clientsList.length === 0) {
-          const loadedClients = await backendService.getClients();
-          setClientsList(loadedClients);
-      }
   };
 
   const filteredClientsToLink = clientsList.filter(c => {
@@ -328,6 +324,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
               setCurrentSale(prev => prev ? ({ ...prev, cliente_id: client.id, cliente_nome: client.nome, cliente_cpf: client.cpf }) : null);
               setClientDetails(client);
               setIsLinkingMode(false);
+              refreshData();
               if (onSaleCancelled) onSaleCancelled();
           } else { alert("Erro ao vincular cliente."); }
       } catch (error) { console.error(error); alert("Erro técnico ao vincular."); }
@@ -341,6 +338,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
     try {
         await backendService.returnSaleItems(currentSale.id, selectedItems, currentSale.cliente_id, userId);
         alert("Devolução processada com sucesso!");
+        refreshData();
         if (onSaleCancelled) onSaleCancelled();
         onClose();
     } catch (error) { console.error(error); alert("Erro ao processar devolução."); }

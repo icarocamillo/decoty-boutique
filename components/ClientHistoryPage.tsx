@@ -13,107 +13,93 @@ import { GiftCardAdjustmentModal } from './GiftCardAdjustmentModal';
 import { CrediarioPaymentModal } from './CrediarioPaymentModal';
 import React, { useEffect, useState, useMemo } from 'react';
 
-interface ClientHistoryPageProps {
-  onUpdate?: () => void;
-}
+import { useData } from '../contexts/DataContext';
 
-export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }) => {
+export const ClientHistoryPage: React.FC = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [client, setClient] = useState<Client | null>(null);
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [provadorHistory, setProvadorHistory] = useState<(StockEntry & { displayId: string })[]>([]);
-  const [fullStockHistory, setFullStockHistory] = useState<StockEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { 
+    clients: clientsData, 
+    users: usersData, 
+    products: productsData, 
+    clientSales: sales, 
+    clientStockHistory: stockHistory,
+    fetchClientHistory,
+    refreshData,
+    isRefreshing: loadingContext 
+  } = useData();
+  
   const [processingId, setProcessingId] = useState<string | null>(null);
   
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
   const [isCrediarioModalOpen, setIsCrediarioModalOpen] = useState(false);
 
-  const loadData = async () => {
-    if (!clientId) return;
-    try {
-      const [clientsData, allSales, clientStock, usersData, productsData] = await Promise.all([
-        backendService.getClients(),
-        backendService.getClientSales(clientId),
-        backendService.getClientStockHistory(clientId),
-        backendService.getUsers(),
-        backendService.getProducts()
-      ]);
-
-      const foundClient = clientsData.find(c => c.id === clientId);
-      setClient(foundClient || null);
-      setSales(allSales);
-      setUsers(usersData);
-      setProducts(productsData);
-
-      // 1. Histórico Completo Ordenado para a tabela geral
-      const sortedHistory = [...clientStock].sort((a, b) => 
-        new Date(b.data_entrada).getTime() - new Date(a.data_entrada).getTime()
-      );
-      setFullStockHistory(sortedHistory);
-
-      // 2. Lógica de Pendências de Provador (Pareamento Cirúrgico)
-      const cronoHistory = [...clientStock].sort((a, b) => 
-        new Date(a.data_entrada).getTime() - new Date(b.data_entrada).getTime()
-      );
-
-      const outgoingUnits: (StockEntry & { displayId: string; productKey: string; matched?: boolean })[] = [];
-      const incomingUnits: { productKey: string }[] = [];
-
-      cronoHistory.forEach(entry => {
-          const motivoLower = (entry.motivo || '').toLowerCase();
-          const productKey = entry.produto_id || entry.produto_nome;
-          const qty = Math.abs(entry.quantidade);
-          
-          // --- DETECÇÃO DE SAÍDA PARA PROVADOR ---
-          const isFittingRoomWithdrawal = motivoLower.includes('provador') && entry.quantidade < 0;
-
-          if (isFittingRoomWithdrawal) {
-              for (let i = 0; i < qty; i++) {
-                  outgoingUnits.push({
-                      ...entry,
-                      displayId: `${entry.id}-${i}`,
-                      productKey,
-                      quantidade: -1,
-                      matched: false
-                  });
-              }
-          } 
-          // --- DETECÇÃO DE RETORNO DE PROVADOR ---
-          else if (entry.quantidade > 0 && motivoLower.includes('provador')) {
-              for (let i = 0; i < qty; i++) {
-                  incomingUnits.push({ productKey });
-              }
-          }
-      });
-
-      incomingUnits.forEach(inc => {
-          const matchIdx = outgoingUnits.findIndex(out => out.productKey === inc.productKey && !out.matched);
-          if (matchIdx !== -1) {
-              outgoingUnits[matchIdx].matched = true;
-          }
-      });
-
-      const pending = outgoingUnits.filter(u => !u.matched).reverse();
-      setProvadorHistory(pending);
-
-    } catch (error) {
-      console.error("Erro ao carregar histórico do cliente", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // 1. Fetch data only when clientId changes
   useEffect(() => {
-    loadData();
-  }, [clientId]);
+    if (clientId) {
+      fetchClientHistory(clientId);
+    }
+  }, [clientId, fetchClientHistory]);
+
+  // 2. Derive client from context
+  const client = useMemo(() => {
+    return clientsData.find(c => c.id === clientId) || null;
+  }, [clientId, clientsData]);
+
+  // 3. Derive sorted history from context
+  const fullStockHistory = useMemo(() => {
+    return [...stockHistory].sort((a, b) => 
+      new Date(b.data_entrada).getTime() - new Date(a.data_entrada).getTime()
+    );
+  }, [stockHistory]);
+
+  // 4. Derive provador history from context
+  const provadorHistory = useMemo(() => {
+    const cronoHistory = [...stockHistory].sort((a, b) => 
+      new Date(a.data_entrada).getTime() - new Date(b.data_entrada).getTime()
+    );
+
+    const outgoingUnits: (StockEntry & { displayId: string; productKey: string; matched?: boolean })[] = [];
+    const incomingUnits: { productKey: string }[] = [];
+
+    cronoHistory.forEach(entry => {
+        const motivoLower = (entry.motivo || '').toLowerCase();
+        const productKey = entry.produto_id || entry.produto_nome;
+        const qty = Math.abs(entry.quantidade);
+        
+        const isFittingRoomWithdrawal = motivoLower.includes('provador') && entry.quantidade < 0;
+
+        if (isFittingRoomWithdrawal) {
+            for (let i = 0; i < qty; i++) {
+                outgoingUnits.push({
+                    ...entry,
+                    displayId: `${entry.id}-${i}`,
+                    productKey,
+                    quantidade: -1,
+                    matched: false
+                });
+            }
+        } 
+        else if (entry.quantidade > 0 && motivoLower.includes('provador')) {
+            for (let i = 0; i < qty; i++) {
+                incomingUnits.push({ productKey });
+            }
+        }
+    });
+
+    incomingUnits.forEach(inc => {
+        const matchIdx = outgoingUnits.findIndex(out => out.productKey === inc.productKey && !out.matched);
+        if (matchIdx !== -1) {
+            outgoingUnits[matchIdx].matched = true;
+        }
+    });
+
+    return outgoingUnits.filter(u => !u.matched).reverse();
+  }, [stockHistory]);
 
   const resolveUserName = (userId: string) => {
-    const profile = users.find(u => u.id === userId);
+    const profile = usersData.find(u => u.id === userId);
     if (profile) return profile.name;
     if (userId?.length > 30) return 'Vendedor';
     return userId || 'Sistema';
@@ -138,6 +124,13 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
     return motivo;
   };
 
+  const handleUpdate = () => {
+    if (clientId) {
+      refreshData();
+      fetchClientHistory(clientId);
+    }
+  };
+
   const handleReturnProvador = async (e: React.MouseEvent, entry: StockEntry & { displayId: string }) => {
     if (e && e.stopPropagation) e.stopPropagation();
     
@@ -148,8 +141,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
         const success = await backendService.returnProvadorItem(entry, userId);
         if (success) {
             alert("Item retornado ao estoque com sucesso!");
-            if (onUpdate) onUpdate();
-            loadData(); 
+            handleUpdate();
         } else {
             alert("Erro: Não foi possível realizar a devolução. Verifique se o produto ainda existe.");
         }
@@ -162,7 +154,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
   };
 
   const getProductDetails = (entry: StockEntry) => {
-    const product = products.find(p => p.id === entry.produto_id);
+    const product = productsData.find(p => p.id === entry.produto_id);
     return {
       tamanho: product?.tamanho || '-',
       cor: product?.cor || '-'
@@ -193,7 +185,7 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
     }, 0);
   }, [sales]);
 
-  if (loading) {
+  if (loadingContext && !client) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-zinc-500 animate-pulse">
         <Loader2 size={32} className="animate-spin mb-2" />
@@ -431,11 +423,11 @@ export const ClientHistoryPage: React.FC<ClientHistoryPageProps> = ({ onUpdate }
       </Card>
 
       <Card title="Vendas Realizadas (Financeiro)">
-         <RecentSales sales={sales} onUpdate={loadData} />
+         <RecentSales />
       </Card>
 
-      <GiftCardAdjustmentModal isOpen={isGiftModalOpen} onClose={() => setIsGiftModalOpen(false)} onSuccess={loadData} clientId={client.id} clientName={client.nome} currentBalance={client.saldo_vale_presente || 0} />
-      <CrediarioPaymentModal isOpen={isCrediarioModalOpen} onClose={() => setIsCrediarioModalOpen(false)} onSuccess={loadData} client={client} sales={sales} />
+      <GiftCardAdjustmentModal isOpen={isGiftModalOpen} onClose={() => setIsGiftModalOpen(false)} onSuccess={handleUpdate} clientId={client.id} clientName={client.nome} currentBalance={client.saldo_vale_presente || 0} />
+      <CrediarioPaymentModal isOpen={isCrediarioModalOpen} onClose={() => setIsCrediarioModalOpen(false)} onSuccess={handleUpdate} client={client} sales={sales} />
     </div>
   );
 };

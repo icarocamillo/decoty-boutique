@@ -7,6 +7,7 @@ import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { SIZES_LIST } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
 import { formatProductId } from '../utils';
 
 interface SelectedAdjustmentItem {
@@ -18,15 +19,15 @@ interface StockAdjustmentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  products: Product[];
   initialProduct?: Product | null;
 }
 
 const CATEGORIES = ['Vestidos', 'Blusas', 'Camisas', 'Calças', 'Saias', 'Casacos', 'Jaquetas', 'Bermudas', 'Pulseira', 'Brinco', 'Colar'];
 const REASON_OPTIONS = ['Provador', 'Defeito / Avaria', 'Doação', 'Perda / Roubo', 'Uso Interno', 'Outro'];
 
-export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onClose, onSuccess, products, initialProduct }) => {
+export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onClose, onSuccess, initialProduct }) => {
   const { user } = useAuth();
+  const { products, clients, suppliers } = useData();
   const [activeTab, setActiveTab] = useState<'search' | 'list'>('search');
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -34,7 +35,13 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
   const [selectedItems, setSelectedItems] = useState<SelectedAdjustmentItem[]>([]);
   
   // Filters State
-  const [brands, setBrands] = useState<string[]>([]);
+  const brands = useMemo(() => {
+    const supplierBrands = suppliers
+      .map(s => s.fantasy_name)
+      .filter((name): name is string => !!name && name.trim() !== '');
+    return Array.from(new Set(supplierBrands)).sort();
+  }, [suppliers]);
+
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
@@ -44,7 +51,6 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
   const [customReason, setCustomReason] = useState('');
   
   // Client Selection Logic (For Provador)
-  const [clients, setClients] = useState<Client[]>([]);
   const [clientSearch, setClientSearch] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
@@ -55,20 +61,6 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      const fetchBrands = async () => {
-        try {
-          const suppliers = await backendService.getSuppliers();
-          const supplierBrands = suppliers
-            .map(s => s.fantasy_name)
-            .filter((name): name is string => !!name && name.trim() !== '');
-          const uniqueBrands = Array.from(new Set(supplierBrands)).sort();
-          setBrands(uniqueBrands);
-        } catch (error) {
-          console.error("Erro ao carregar marcas", error);
-        }
-      };
-      fetchBrands();
-      backendService.getClients().then(setClients);
     } else {
       document.body.style.overflow = 'unset';
     }

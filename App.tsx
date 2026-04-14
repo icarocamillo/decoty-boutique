@@ -1,8 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Package, Archive, ShoppingCart, Users, PieChart, Truck } from 'lucide-react';
-import { backendService } from './services/backendService';
-import { Sale, ChartDataPoint, Client, Product, StockEntry, Supplier } from './types';
 import { Button } from './components/ui/Button';
 import { NewSaleModal } from './components/NewSaleModal';
 import { ClientList } from './components/ClientList';
@@ -12,6 +10,7 @@ import { SalesPage } from './components/SalesPage';
 import { UserMenu } from './components/UserMenu';
 import { DashboardHome } from './components/DashboardHome';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { DataProvider, useData } from './contexts/DataContext';
 import { LoginPage } from './components/LoginPage';
 import { RegisterPage } from './components/RegisterPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -41,24 +40,13 @@ const ManagerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
   const { userRole } = useAuth();
+  const { isLoading, isRefreshing, refreshData } = useData();
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => getInitialTheme());
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);        // bloqueia tela só na carga inicial
-  const [isRefreshing, setIsRefreshing] = useState(false); // re-fetch silencioso ao navegar
-  const isInitialLoadDone = React.useRef(false);
 
   const isManager = userRole === 'manager';
-
-  const [recentSales, setRecentSales] = useState<Sale[]>([]);
-  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [topBrand, setTopBrand] = useState<string>('-');
 
   // ─── Tema ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -68,71 +56,6 @@ const AppLayout: React.FC = () => {
   }, [isDarkMode]);
 
   const toggleTheme = () => setIsDarkMode(prev => !prev);
-
-  // ─── Fetch de dados ───────────────────────────────────────────────────────────
-  const fetchDashboardData = useCallback(async () => {
-    // Na carga inicial bloqueia a tela; nas navegações subsequentes só atualiza em background
-    if (!isInitialLoadDone.current) {
-      setIsLoading(true);
-    } else {
-      setIsRefreshing(true);
-    }
-    try {
-      const [sales, chart, clientData, productData, stockData, supplierData, brand] = await Promise.all([
-        backendService.getRecentSales(),
-        backendService.getDashboardChartData(),
-        backendService.getClients(),
-        backendService.getProducts(),
-        backendService.getStockEntries(),
-        backendService.getSuppliers(),
-        backendService.getTopSellingBrand()
-      ]);
-
-      setRecentSales(sales);
-      setChartData(chart);
-      setClients(clientData);
-      setProducts(productData);
-      setStockEntries(stockData);
-      setSuppliers(supplierData);
-      setTopBrand(brand);
-    } catch (error) {
-      console.error('Failed to fetch dashboard data', error);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-      isInitialLoadDone.current = true;
-    }
-  }, []);
-
-  // ─── Re-fetch na primeira carga e a cada mudança de rota ─────────────────────
-  useEffect(() => {
-    fetchDashboardData();
-  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ─── Re-fetch ao voltar para a aba após inatividade ───────────────────────────
-  // Quando o usuário deixa a aba parada e volta, o navegador dispara
-  // visibilitychange. Aproveitamos para buscar dados frescos antes que
-  // qualquer interação tente usar uma conexão já encerrada pelo servidor.
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchDashboardData();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ─── Navegação ────────────────────────────────────────────────────────────────
-  const navigateWithRefresh = (path: string) => {
-    navigate(path);
-    // O re-fetch é disparado automaticamente pelo useEffect acima ao mudar pathname
-  };
-
-  // ─── KPIs ─────────────────────────────────────────────────────────────────────
-  const totalPeriodSales = chartData.reduce((acc, curr) => acc + curr.total, 0);
-  const todaySales = chartData.length > 0 ? chartData[chartData.length - 1].total : 0;
-  const dailyAverage = totalPeriodSales / 7;
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
@@ -144,15 +67,17 @@ const AppLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col transition-colors duration-300">
-      {/* Barra de progresso sutil — aparece apenas nos re-fetches de navegação */}
-      <div className={`fixed top-0 left-0 right-0 z-50 h-0.5 bg-emerald-500 transition-all duration-500 ${isRefreshing ? 'opacity-100' : 'opacity-0'}`}
+      {/* Barra de progresso sutil — aparece apenas nos re-fetches */}
+      <div
+        className={`fixed top-0 left-0 right-0 z-50 h-0.5 bg-emerald-500 transition-all duration-500 ${isRefreshing ? 'opacity-100' : 'opacity-0'}`}
         style={{ transform: isRefreshing ? 'scaleX(0.9)' : 'scaleX(1)', transformOrigin: 'left' }}
       />
+
       <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-30 transition-colors duration-300 shadow-sm">
         <div className="w-full max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div
             className="flex items-center gap-5 cursor-pointer group h-full"
-            onClick={() => navigateWithRefresh('/home')}
+            onClick={() => navigate('/home')}
           >
             <div className="transform group-hover:scale-105 transition-transform duration-300 flex items-center h-full">
               <BrandLogo size="xl" />
@@ -161,7 +86,6 @@ const AppLayout: React.FC = () => {
               Decoty Boutique
             </h1>
           </div>
-
           <UserMenu isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
         </div>
       </header>
@@ -179,12 +103,8 @@ const AppLayout: React.FC = () => {
 
           <Button
             variant={isActive('/products') ? 'primary' : 'secondary'}
-            className={`h-auto py-3 flex flex-col items-center gap-2 transition-all shadow-sm
-              ${!isActive('/products')
-                ? 'bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700'
-                : 'border-0'
-              }`}
-            onClick={() => navigateWithRefresh('/products')}
+            className={`h-auto py-3 flex flex-col items-center gap-2 transition-all shadow-sm ${!isActive('/products') ? 'bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700' : 'border-0'}`}
+            onClick={() => navigate('/products')}
           >
             <Package size={24} />
             <span>Produtos</span>
@@ -192,12 +112,8 @@ const AppLayout: React.FC = () => {
 
           <Button
             variant={isActive('/stock') ? 'primary' : 'secondary'}
-            className={`h-auto py-3 flex flex-col items-center gap-2 transition-all shadow-sm
-              ${!isActive('/stock')
-                ? 'bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700'
-                : 'border-0'
-              }`}
-            onClick={() => navigateWithRefresh('/stock')}
+            className={`h-auto py-3 flex flex-col items-center gap-2 transition-all shadow-sm ${!isActive('/stock') ? 'bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700' : 'border-0'}`}
+            onClick={() => navigate('/stock')}
           >
             <Archive size={24} />
             <span>Estoque</span>
@@ -205,12 +121,8 @@ const AppLayout: React.FC = () => {
 
           <Button
             variant={isActive('/clients') ? 'primary' : 'secondary'}
-            className={`h-auto py-3 flex flex-col items-center gap-2 transition-all shadow-sm
-              ${!isActive('/clients')
-                ? 'bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700'
-                : 'border-0'
-              }`}
-            onClick={() => navigateWithRefresh('/clients')}
+            className={`h-auto py-3 flex flex-col items-center gap-2 transition-all shadow-sm ${!isActive('/clients') ? 'bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700' : 'border-0'}`}
+            onClick={() => navigate('/clients')}
           >
             <Users size={24} />
             <span>Clientes</span>
@@ -218,12 +130,8 @@ const AppLayout: React.FC = () => {
 
           <Button
             variant={isActive('/suppliers') ? 'primary' : 'secondary'}
-            className={`h-auto py-3 flex flex-col items-center gap-2 transition-all shadow-sm
-              ${!isActive('/suppliers')
-                ? 'bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700'
-                : 'border-0'
-              }`}
-            onClick={() => navigateWithRefresh('/suppliers')}
+            className={`h-auto py-3 flex flex-col items-center gap-2 transition-all shadow-sm ${!isActive('/suppliers') ? 'bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700' : 'border-0'}`}
+            onClick={() => navigate('/suppliers')}
           >
             <Truck size={24} />
             <span>Fornecedores</span>
@@ -232,12 +140,8 @@ const AppLayout: React.FC = () => {
           {isManager && (
             <Button
               variant={isActive('/reports') ? 'primary' : 'secondary'}
-              className={`h-auto py-3 flex flex-col items-center gap-2 transition-all shadow-sm
-                ${!isActive('/reports')
-                  ? 'bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700'
-                  : 'border-0'
-                }`}
-              onClick={() => navigateWithRefresh('/reports')}
+              className={`h-auto py-3 flex flex-col items-center gap-2 transition-all shadow-sm ${!isActive('/reports') ? 'bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700' : 'border-0'}`}
+              onClick={() => navigate('/reports')}
             >
               <PieChart size={24} />
               <span>Relatórios</span>
@@ -250,29 +154,13 @@ const AppLayout: React.FC = () => {
         ) : (
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
-            <Route path="/home" element={
-              <DashboardHome
-                totalPeriodSales={totalPeriodSales}
-                dailyAverage={dailyAverage}
-                todaySales={todaySales}
-                topBrand={topBrand}
-                chartData={chartData}
-                recentSales={recentSales}
-                isDarkMode={isDarkMode}
-                onOpenReport={() => navigateWithRefresh('/sales')}
-                onRefresh={fetchDashboardData}
-              />
-            } />
-
-            <Route path="/clients" element={<ClientList clients={clients} onUpdate={fetchDashboardData} entries={stockEntries} />} />
-            <Route path="/clients/:clientId/history" element={<ClientHistoryPage onUpdate={fetchDashboardData} />} />
-            <Route path="/suppliers" element={<SupplierList suppliers={suppliers} onUpdate={fetchDashboardData} />} />
-
-            <Route path="/products" element={<ProductList products={products} onUpdate={fetchDashboardData} />} />
-            <Route path="/stock" element={<StockList entries={stockEntries} products={products} onUpdate={fetchDashboardData} />} />
-
-            <Route path="/sales" element={<SalesPage onUpdate={fetchDashboardData} />} />
-
+            <Route path="/home" element={<DashboardHome />} />
+            <Route path="/clients" element={<ClientList />} />
+            <Route path="/clients/:clientId/history" element={<ClientHistoryPage />} />
+            <Route path="/suppliers" element={<SupplierList />} />
+            <Route path="/products" element={<ProductList />} />
+            <Route path="/stock" element={<StockList />} />
+            <Route path="/sales" element={<SalesPage />} />
             <Route path="/team" element={<ManagerRoute><TeamList /></ManagerRoute>} />
             <Route path="/settings" element={<ManagerRoute><SettingsPage /></ManagerRoute>} />
             <Route path="/reports" element={<ManagerRoute><ManagementReportPage /></ManagerRoute>} />
@@ -295,7 +183,7 @@ const AppLayout: React.FC = () => {
       <NewSaleModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSaleComplete={fetchDashboardData}
+        onSaleComplete={refreshData}
       />
     </div>
   );
@@ -304,11 +192,13 @@ const AppLayout: React.FC = () => {
 const App = () => {
   return (
     <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="*" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-      </Routes>
+      <DataProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="*" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+        </Routes>
+      </DataProvider>
     </AuthProvider>
   );
 };

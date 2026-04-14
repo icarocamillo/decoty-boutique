@@ -10,10 +10,7 @@ import { Pagination } from './ui/Pagination';
 import { backendService } from '../services/backendService';
 import { formatProductId } from '../utils';
 
-interface ProductListProps {
-  products: Product[];
-  onUpdate?: () => void;
-}
+import { useData } from '../contexts/DataContext';
 
 type SortKey = keyof Product;
 
@@ -23,10 +20,10 @@ const CATEGORIES = [
 ];
 const MATERIALS = ['Malha', 'Tecido Plano', 'Bijuteria'];
 
-export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) => {
+export const ProductList: React.FC = () => {
+  const { products, suppliers, refreshData } = useData();
   // State for Data & Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [brands, setBrands] = useState<string[]>([]);
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedMaterial, setSelectedMaterial] = useState('');
@@ -42,23 +39,14 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
 
-  // Carrega marcas dos fornecedores
-  useEffect(() => {
-    const fetchBrands = async () => {
-      try {
-        const suppliers = await backendService.getSuppliers();
-        const supplierBrands = suppliers
-          .map(s => s.fantasy_name)
-          .filter((name): name is string => !!name && name.trim() !== '');
-        
-        const uniqueBrands = Array.from(new Set(supplierBrands)).sort();
-        setBrands(uniqueBrands);
-      } catch (error) {
-        console.error("Erro ao carregar marcas", error);
-      }
-    };
-    fetchBrands();
-  }, []);
+  // Marcas dos fornecedores vindas do contexto
+  const brands = useMemo(() => {
+    const supplierBrands = suppliers
+      .map(s => s.fantasy_name)
+      .filter((name): name is string => !!name && name.trim() !== '');
+    
+    return Array.from(new Set(supplierBrands)).sort();
+  }, [suppliers]);
 
   // Reset page on filter change
   useEffect(() => {
@@ -545,7 +533,7 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onUpdate }) 
       <ProductFormModal 
         isOpen={isModalOpen}
         onClose={handleModalClose}
-        onSuccess={() => onUpdate && onUpdate()}
+        onSuccess={refreshData}
         productToEdit={productToEdit}
       />
     </div>

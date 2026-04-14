@@ -4,6 +4,7 @@ import { X, UserPlus, User, Mail, Phone, Loader2, MapPin, Smartphone, Megaphone,
 import { Button } from './ui/Button';
 import { backendService } from '../services/backendService';
 import { Client } from '../types';
+import { useData } from '../contexts/DataContext';
 
 interface ClientFormModalProps {
   isOpen: boolean;
@@ -14,7 +15,7 @@ interface ClientFormModalProps {
 
 export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClose, onSuccess, clientToEdit }) => {
   const [loading, setLoading] = useState(false);
-  const [allClients, setAllClients] = useState<Client[]>([]);
+  const { clients: allClients } = useData();
   
   // State for Form Data
   const [formData, setFormData] = useState({
@@ -35,13 +36,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
     estado: ''
   });
 
-  // Carrega lista de clientes para validação de duplicidade
-  useEffect(() => {
-    if (isOpen) {
-      backendService.getClients().then(setAllClients);
-    }
-  }, [isOpen]);
-
+  // Reset Form Data when modal opens
   useEffect(() => {
     if (isOpen) {
       if (clientToEdit) {
