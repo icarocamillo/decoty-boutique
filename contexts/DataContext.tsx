@@ -50,15 +50,54 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const isInitialLoadDone = useRef(false);
-  // Referência ao AbortController ativo — cancelamos ao sair da aba
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Função base que executa as queries sem retry
+  const executeQueries = useCallback(async (): Promise<boolean> => {
+    const timeoutPromise = new Promise<null>(resolve =>
+      setTimeout(() => resolve(null), 10000)
+    );
+
+    const fetchPromise = Promise.allSettled([
+      backendService.getRecentSales(),
+      backendService.getDashboardChartData(),
+      backendService.getClients(),
+      backendService.getProducts(),
+      backendService.getStockEntries(),
+      backendService.getSuppliers(),
+      backendService.getTopSellingBrand(),
+      backendService.getUsers(),
+      backendService.getPaymentFees()
+    ]);
+
+    const results = await Promise.race([fetchPromise, timeoutPromise]);
+
+    // Timeout — queries ainda travadas
+    if (results === null) return false;
+
+    const [recentSales, dashboardChart, clientData, productData, stockData,
+           supplierData, brand, usersData, feesData] =
+      results.map(r => r.status === 'fulfilled' ? r.value : null) as any;
+
+    setSales(recentSales || []);
+    setChartData(dashboardChart || []);
+    setClients(clientData || []);
+    setProducts(productData || []);
+    setStockEntries(stockData || []);
+    setSuppliers(supplierData || []);
+    setTopBrand(brand || '-');
+    setUsers(usersData || []);
+    setPaymentFees(feesData || null);
+    setLastUpdated(new Date());
+    return true;
+  }, []);
 
   const refreshData = useCallback(async () => {
-    // Cancela fetch anterior se ainda estiver pendente
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+    // Cancela retry pendente se houver
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
     }
-    abortControllerRef.current = new AbortController();
 
     if (!isInitialLoadDone.current) {
       setIsLoading(true);
@@ -67,49 +106,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const [
-        recentSales,
-        dashboardChart,
-        clientData,
-        productData,
-        stockData,
-        supplierData,
-        brand,
-        usersData,
-        feesData
-      ] = await Promise.all([
-        backendService.getRecentSales(),
-        backendService.getDashboardChartData(),
-        backendService.getClients(),
-        backendService.getProducts(),
-        backendService.getStockEntries(),
-        backendService.getSuppliers(),
-        backendService.getTopSellingBrand(),
-        backendService.getUsers(),
-        backendService.getPaymentFees()
-      ]);
+      // Primeira tentativa
+      const success = await executeQueries();
 
-      setSales(recentSales);
-      setChartData(dashboardChart);
-      setClients(clientData);
-      setProducts(productData);
-      setStockEntries(stockData);
-      setSuppliers(supplierData);
-      setTopBrand(brand);
-      setUsers(usersData);
-      setPaymentFees(feesData);
-      setLastUpdated(new Date());
+      if (!success) {
+        // Queries travadas — aguarda 3s e tenta uma única vez mais
+        console.log('[DataContext] Conexão indisponível — aguardando 3s para retry...');
+        setIsRefreshing(false);
+        setIsLoading(false);
+        isInitialLoadDone.current = true;
+
+        retryTimeoutRef.current = setTimeout(async () => {
+          console.log('[DataContext] Retry...');
+          setIsRefreshing(true);
+          const retrySuccess = await executeQueries();
+          if (!retrySuccess) {
+            console.log('[DataContext] Retry falhou — conexão indisponível.');
+          }
+          setIsRefreshing(false);
+        }, 3000);
+      }
     } catch (error: any) {
-      // AbortError é intencional — não logar como erro
       if (error?.name !== 'AbortError') {
-        console.error('[DataContext] Erro ao buscar dados globais:', error);
+        console.error('[DataContext] Erro:', error);
       }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
       isInitialLoadDone.current = true;
     }
-  }, []);
+  }, [executeQueries]);
 
   const fetchSalesReport = useCallback(async (startDate: string, endDate: string) => {
     setIsRefreshing(true);
@@ -173,55 +199,47 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [session, refreshData]);
 
-  // Gerencia ciclo de vida da aba:
-  // - Ao sair: cancela queries pendentes (evita zumbis que nunca resolvem)
-  // - Ao voltar: inicia novo fetch com dados frescos
+  // Ao voltar para a aba: aguarda 1s antes de tentar (deixa conexão se reestabelecer)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
+      if (document.visibilityState === 'visible' && session) {
+        // Cancela retry pendente para não duplicar
+        if (retryTimeoutRef.current) {
+          clearTimeout(retryTimeoutRef.current);
+          retryTimeoutRef.current = null;
         }
-        setIsRefreshing(false);
-      } else if (document.visibilityState === 'visible' && session) {
-        refreshData();
+        // Delay de 1s ao voltar para a aba
+        setTimeout(() => refreshData(), 1000);
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [session, refreshData]);
 
-  // Keep-alive a cada 4 minutos para evitar idle do Supabase Free tier
+  // Keep-alive a cada 4 minutos
   useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible' && session) {
-        backendService.getPaymentFees(); // query leve, mantém conexão viva
+        backendService.getPaymentFees();
       }
     }, 4 * 60 * 1000);
     return () => clearInterval(interval);
   }, [session]);
 
+  // Limpa retry ao desmontar
+  useEffect(() => {
+    return () => {
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+    };
+  }, []);
+
   return (
     <DataContext.Provider value={{
-      clients,
-      products,
-      sales,
-      salesReport,
-      receiptsReport,
-      clientSales,
-      clientStockHistory,
-      stockEntries,
-      suppliers,
-      users,
-      paymentFees,
-      chartData,
-      topBrand,
-      isLoading,
-      isRefreshing,
-      refreshData,
-      fetchSalesReport,
-      fetchManagementReport,
-      fetchClientHistory,
+      clients, products, sales, salesReport, receiptsReport,
+      clientSales, clientStockHistory, stockEntries, suppliers,
+      users, paymentFees, chartData, topBrand,
+      isLoading, isRefreshing,
+      refreshData, fetchSalesReport, fetchManagementReport, fetchClientHistory,
       lastUpdated
     }}>
       {children}
