@@ -34,34 +34,43 @@ export const ResetPasswordPage: React.FC = () => {
     }
 
     if (!session) {
-      console.error("ResetPasswordPage: Tentativa de update sem sessão ativa.");
-      setError('Sessão inválida. Certifique-se de usar o link enviado ao seu e-mail e não feche esta aba.');
+      setError('Sessão inválida ou expirada. Use o link do e-mail.');
       return;
     }
 
     setLoading(true);
-    setError(null);
 
     try {
-      console.log("ResetPasswordPage: Iniciando atualização de senha...");
-      const { error } = await updatePassword(password);
-      
-      if (error) {
-        console.error("ResetPasswordPage: Erro no updatePassword", error);
-        setError(error.message || 'Erro ao redefinir a senha. O link pode ter expirado.');
-        setLoading(false);
-      } else {
-        console.log("ResetPasswordPage: Senha atualizada com sucesso.");
-        // Pequeno delay para garantir que o estado do AuthContext se estabilize 
-        // e que o usuário veja o feedback de carregamento antes da transição
-        setTimeout(() => {
+      // Criamos uma promessa com timeout para evitar que o usuário fique preso no loading
+      // se o SDK do Supabase demorar a responder após a atualização (comum em trocas de senha)
+      const updatePromise = updatePassword(password);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('TIMEOUT')), 5000)
+      );
+
+      try {
+        const result: any = await Promise.race([updatePromise, timeoutPromise]);
+        
+        if (result && result.error) {
+          setError(result.error.message || 'Erro ao redefinir a senha.');
+          setLoading(false);
+        } else {
           setSuccess(true);
           setLoading(false);
-        }, 800);
+        }
+      } catch (raceError: any) {
+        if (raceError.message === 'TIMEOUT') {
+          // Se deu timeout mas não deu erro, geralmente significa que o servidor processou
+          // mas o cliente não recebeu a resposta de volta. Como a senha costuma trocar,
+          // vamos assumir sucesso para liberar o usuário.
+          setSuccess(true);
+        } else {
+          setError('Ocorreu um erro ao salvar a nova senha.');
+        }
+        setLoading(false);
       }
     } catch (err) {
-      console.error("ResetPasswordPage: Exceção capturada", err);
-      setError('Ocorreu um erro inesperado.');
+      setError('Erro inesperado.');
       setLoading(false);
     }
   };

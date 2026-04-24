@@ -220,10 +220,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updatePassword = async (newPassword: string) => {
     if (isSupabaseConfigured()) {
-      const { error } = await getSupabase().auth.updateUser({ password: newPassword });
-      return { error };
+      try {
+        const { error } = await getSupabase().auth.updateUser({ password: newPassword });
+        return { error };
+      } catch (err) {
+        console.error("Erro ao atualizar senha:", err);
+        return { error: err };
+      }
     }
-    // Mock
     return { error: null };
   };
 
