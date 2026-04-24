@@ -100,7 +100,13 @@ export const LoginPage: React.FC = () => {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Senha</label>
-                 <a href="#" className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">Esqueceu a senha?</a>
+                 <button 
+                   type="button"
+                   onClick={() => navigate('/forgot-password')}
+                   className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                 >
+                   Esqueceu a senha?
+                 </button>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />

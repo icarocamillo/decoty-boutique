@@ -8,6 +8,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, name: string, role: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  sendPasswordResetEmail: (email: string) => Promise<{ error: any }>;
+  updatePassword: (newPassword: string) => Promise<{ error: any }>;
   loading: boolean;
   userRole: 'manager' | 'salesperson' | null;
   userName: string | null;
@@ -205,6 +207,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const sendPasswordResetEmail = async (email: string) => {
+    if (isSupabaseConfigured()) {
+      const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      return { error };
+    }
+    // Mock
+    return { error: null };
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    if (isSupabaseConfigured()) {
+      const { error } = await getSupabase().auth.updateUser({ password: newPassword });
+      return { error };
+    }
+    // Mock
+    return { error: null };
+  };
+
   const signOut = async () => {
     if (isSupabaseConfigured()) {
       await getSupabase().auth.signOut();
@@ -218,7 +240,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, signIn, signUp, signOut, loading, userRole, userName }}>
+    <AuthContext.Provider value={{ session, user, signIn, signUp, signOut, sendPasswordResetEmail, updatePassword, loading, userRole, userName }}>
       {children}
     </AuthContext.Provider>
   );

@@ -13,6 +13,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DataProvider, useData } from './contexts/DataContext';
 import { LoginPage } from './components/LoginPage';
 import { RegisterPage } from './components/RegisterPage';
+import { ForgotPasswordRequest } from './components/ForgotPasswordRequest';
+import { ResetPasswordPage } from './components/ResetPasswordPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { TeamList } from './components/TeamList';
 import { SettingsPage } from './components/SettingsPage';
@@ -196,6 +198,8 @@ const App = () => {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordRequest />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="*" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
         </Routes>
       </DataProvider>

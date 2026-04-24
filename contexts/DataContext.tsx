@@ -222,7 +222,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (document.visibilityState === 'visible' && session) {
         backendService.getPaymentFees();
       }
-    }, 4 * 60 * 1000);
+    }, 15 * 60 * 1000);
     return () => clearInterval(interval);
   }, [session]);
 
