@@ -43,15 +43,25 @@ export const ResetPasswordPage: React.FC = () => {
     setError(null);
 
     try {
+      console.log("ResetPasswordPage: Iniciando atualização de senha...");
       const { error } = await updatePassword(password);
+      
       if (error) {
+        console.error("ResetPasswordPage: Erro no updatePassword", error);
         setError(error.message || 'Erro ao redefinir a senha. O link pode ter expirado.');
+        setLoading(false);
       } else {
-        setSuccess(true);
+        console.log("ResetPasswordPage: Senha atualizada com sucesso.");
+        // Pequeno delay para garantir que o estado do AuthContext se estabilize 
+        // e que o usuário veja o feedback de carregamento antes da transição
+        setTimeout(() => {
+          setSuccess(true);
+          setLoading(false);
+        }, 800);
       }
     } catch (err) {
+      console.error("ResetPasswordPage: Exceção capturada", err);
       setError('Ocorreu um erro inesperado.');
-    } finally {
       setLoading(false);
     }
   };
