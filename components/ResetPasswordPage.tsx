@@ -11,12 +11,14 @@ export const ResetPasswordPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const { updatePassword, session } = useAuth();
+  const { updatePassword, session, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  // Monitorar a sessão que deve ser injetada pelo Supabase via URL
+  // Monitorar a sessão
   useEffect(() => {
-    console.log("ResetPasswordPage: Verificando sessão...", { hasSession: !!session });
+    if (session) {
+      console.log("ResetPasswordPage: Sessão detectada.");
+    }
   }, [session]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,48 +35,44 @@ export const ResetPasswordPage: React.FC = () => {
       return;
     }
 
+    // Se o AuthContext ainda está carregando, esperamos um pouco
+    if (authLoading) {
+      setLoading(true);
+      setTimeout(() => handleSubmit(e), 500);
+      return;
+    }
+
     if (!session) {
-      setError('Sessão inválida ou expirada. Use o link do e-mail.');
+      setError('Sessão expirada ou link inválido. Por favor, tente solicitar um novo e-mail de recuperação.');
       return;
     }
 
     setLoading(true);
 
     try {
-      // Criamos uma promessa com timeout
-      const updatePromise = updatePassword(password);
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('TIMEOUT')), 8000)
-      );
-
-      try {
-        const result: any = await Promise.race([updatePromise, timeoutPromise]);
-        
-        const errorMessage = result?.error?.message || '';
-
-        // Erro específico do Supabase que acontece mesmo quando a senha muda
-        const isGhostSessionError = errorMessage.includes('session_id claim in JWT does not exist') || 
+      // Tentativa direta sem RACE inicialmente, mas mantendo logs
+      console.log("ResetPasswordPage: Iniciando update de senha...");
+      const result = await updatePassword(password);
+      
+      const errorMessage = result?.error?.message || '';
+      const isGhostSessionError = errorMessage.includes('session_id claim') || 
                                    errorMessage.includes('Auth session missing');
 
-        if (result && result.error && !isGhostSessionError) {
-          setError(result.error.message || 'Erro ao redefinir a senha.');
-          setLoading(false);
-        } else {
-          // Se não houve erro OU foi o erro de "ghost session", consideramos sucesso
-          setSuccess(true);
-          setLoading(false);
-        }
-      } catch (raceError: any) {
-        if (raceError.message === 'TIMEOUT') {
-          // No timeout, como a senha costuma trocar silenciosamente, damos como sucesso
-          setSuccess(true);
-        } else {
-          setError('Ocorreu um erro ao salvar a nova senha. Tente fazer login.');
-        }
+      if (result?.error && !isGhostSessionError) {
+        setError(result.error.message || 'Erro ao redefinir a senha.');
+        setLoading(false);
+      } else {
+        setSuccess(true);
         setLoading(false);
       }
-    } catch (err) {
-      setError('Erro inesperado.');
+    } catch (err: any) {
+      console.error("ResetPasswordPage Error:", err);
+      // Fallback para sucesso se o erro for apenas de sessão (o Supabase às vezes invalida o token após o uso bem sucedido)
+      if (err?.message?.includes('session_id') || err?.message?.includes('Auth session missing')) {
+        setSuccess(true);
+      } else {
+        setError('Ocorreu um erro ao salvar a nova senha.');
+      }
       setLoading(false);
     }
   };
