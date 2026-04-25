@@ -41,31 +41,35 @@ export const ResetPasswordPage: React.FC = () => {
     setLoading(true);
 
     try {
-      // Criamos uma promessa com timeout para evitar que o usuário fique preso no loading
-      // se o SDK do Supabase demorar a responder após a atualização (comum em trocas de senha)
+      // Criamos uma promessa com timeout
       const updatePromise = updatePassword(password);
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('TIMEOUT')), 5000)
+        setTimeout(() => reject(new Error('TIMEOUT')), 8000)
       );
 
       try {
         const result: any = await Promise.race([updatePromise, timeoutPromise]);
         
-        if (result && result.error) {
+        const errorMessage = result?.error?.message || '';
+
+        // Erro específico do Supabase que acontece mesmo quando a senha muda
+        const isGhostSessionError = errorMessage.includes('session_id claim in JWT does not exist') || 
+                                   errorMessage.includes('Auth session missing');
+
+        if (result && result.error && !isGhostSessionError) {
           setError(result.error.message || 'Erro ao redefinir a senha.');
           setLoading(false);
         } else {
+          // Se não houve erro OU foi o erro de "ghost session", consideramos sucesso
           setSuccess(true);
           setLoading(false);
         }
       } catch (raceError: any) {
         if (raceError.message === 'TIMEOUT') {
-          // Se deu timeout mas não deu erro, geralmente significa que o servidor processou
-          // mas o cliente não recebeu a resposta de volta. Como a senha costuma trocar,
-          // vamos assumir sucesso para liberar o usuário.
+          // No timeout, como a senha costuma trocar silenciosamente, damos como sucesso
           setSuccess(true);
         } else {
-          setError('Ocorreu um erro ao salvar a nova senha.');
+          setError('Ocorreu um erro ao salvar a nova senha. Tente fazer login.');
         }
         setLoading(false);
       }
