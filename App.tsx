@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate, BrowserRouter } from 'react-router-dom';
 import { Package, Archive, ShoppingCart, Users, PieChart, Truck } from 'lucide-react';
 import { Button } from './components/ui/Button';
 import { NewSaleModal } from './components/NewSaleModal';
@@ -193,17 +193,19 @@ const AppLayout: React.FC = () => {
 
 const App = () => {
   return (
-    <AuthProvider>
-      <DataProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordRequest />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="*" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-        </Routes>
-      </DataProvider>
-    </AuthProvider>
+    <BrowserRouter basename="/erp">
+      <AuthProvider>
+        <DataProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordRequest />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="*" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
+          </Routes>
+        </DataProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 };
 
