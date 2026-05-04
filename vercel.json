@@ -1,5 +1,8 @@
 {
   "rewrites": [
+    { "source": "/erp/assets/:path*", "destination": "/assets/:path*" },
+    { "source": "/erp/decoty_logo.png", "destination": "/decoty_logo.png" },
+    { "source": "/erp/favicon.ico", "destination": "/favicon.ico" },
     { "source": "/erp/:path*", "destination": "/index.html" }
   ]
 }
