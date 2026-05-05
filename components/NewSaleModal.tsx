@@ -125,28 +125,40 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
     if (e.target.checked) setSelectedClient(null);
   };
 
-  const addToCart = (product: Product) => {
+  const addToCart = (v: any) => {
     setCart(prev => {
-      const existing = prev.find(item => item.produto_id === product.id);
+      const existing = prev.find(item => item.produto_id === v.id);
       if (existing) {
-        if (existing.quantidade < product.quantidade_estoque) {
+        if (existing.quantidade < v.quantidade_estoque) {
           const newQty = existing.quantidade + 1;
-          return prev.map(item => item.produto_id === product.id ? { ...item, quantidade: newQty, subtotal: newQty * item.preco_unitario, desconto: 0 } : item);
+          return prev.map(item => item.produto_id === v.id ? { ...item, quantidade: newQty, subtotal: newQty * item.preco_unitario, desconto: 0 } : item);
         }
+        alert("Quantidade máxima em estoque atingida!");
         return prev;
       }
       return [...prev, {
-        produto_id: product.id, nome: product.nome, marca: product.marca, cor: product.cor, tamanho: product.tamanho,
-        preco_unitario: product.preco_venda, preco_custo: product.preco_custo, quantidade: 1, subtotal: product.preco_venda,
-        estoque_maximo: product.quantidade_estoque, desconto: 0, percentual_desconto: 0
+        produto_id: v.id, 
+        parent_id: v.parent_id,
+        nome: v.parent_nome, 
+        marca: v.parent_marca, 
+        cor: v.cor, 
+        tamanho: v.tamanho,
+        preco_unitario: v.preco_venda, 
+        preco_custo: v.preco_custo, 
+        quantidade: 1, 
+        subtotal: v.preco_venda,
+        estoque_maximo: v.quantidade_estoque, 
+        desconto: 0, 
+        percentual_desconto: 0
       }];
     });
+    setProductSearchTerm('');
   };
 
-  const updateQuantity = (productId: string, newQtyStr: string) => {
+  const updateQuantity = (variantId: string, newQtyStr: string) => {
     const newQty = parseInt(newQtyStr) || 0;
     setCart(prev => prev.map(item => {
-      if (item.produto_id === productId) {
+      if (item.produto_id === variantId) {
         const validatedQty = Math.max(0, Math.min(newQty, item.estoque_maximo));
         return { ...item, quantidade: validatedQty, subtotal: validatedQty * item.preco_unitario, desconto: 0 };
       }
@@ -154,9 +166,9 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
     }));
   };
 
-  const adjustQuantity = (productId: string, delta: number) => {
+  const adjustQuantity = (variantId: string, delta: number) => {
     setCart(prev => prev.map(item => {
-      if (item.produto_id === productId) {
+      if (item.produto_id === variantId) {
         const newQty = Math.max(0, Math.min(item.quantidade + delta, item.estoque_maximo));
         return { ...item, quantidade: newQty, subtotal: newQty * item.preco_unitario, desconto: 0 };
       }
@@ -241,19 +253,39 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
     }
   };
 
-  const filteredProducts = useMemo(() => {
+  const availableVariants = useMemo(() => {
     if (!productSearchTerm && !selectedBrand && !selectedCategory) return [];
     
-    return products.filter(p => {
-      const vid = formatProductId(p).toLowerCase();
-      const term = productSearchTerm.toLowerCase();
-      return p.quantidade_estoque > 0 && 
-      (p.nome.toLowerCase().includes(term) || 
-       p.cor.toLowerCase().includes(term) ||
-       vid.includes(term)) &&
-      (!selectedBrand || p.marca === selectedBrand) &&
-      (!selectedCategory || p.categoria === selectedCategory);
-    }).sort((a, b) => b.quantidade_estoque - a.quantidade_estoque).slice(0, 15);
+    const results: any[] = [];
+    const term = productSearchTerm.toLowerCase();
+    
+    products.forEach(p => {
+       const vid = formatProductId(p).toLowerCase();
+       const matchesParent = 
+          (p.nome.toLowerCase().includes(term) || vid.includes(term)) &&
+          (!selectedBrand || p.marca === selectedBrand) &&
+          (!selectedCategory || p.categoria === selectedCategory);
+       
+       p.variants?.forEach(v => {
+           const matchVariant = 
+              v.sku.toLowerCase().includes(term) || 
+              v.ean.toLowerCase().includes(term) || 
+              v.cor.toLowerCase().includes(term);
+
+           if ((matchesParent || matchVariant) && v.quantidade_estoque > 0) {
+               results.push({
+                   ...v,
+                   parent_id: p.id,
+                   parent_nome: p.nome,
+                   parent_marca: p.marca,
+                   parent_visual_id: vid,
+                   variant_visual_id: formatProductId({ ui_id: v.ui_id })
+               });
+           }
+       });
+    });
+    
+    return results.sort((a, b) => b.quantidade_estoque - a.quantidade_estoque).slice(0, 15);
   }, [products, productSearchTerm, selectedBrand, selectedCategory]);
 
   const getPaymentDiscountValue = (method: string) => {
@@ -370,23 +402,26 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
                     
                     {/* SEARCH RESULTS */}
                     <div className="space-y-2 pr-1 h-full">
-                      {filteredProducts.map(product => (
+                      {availableVariants.map(v => (
                         <button 
-                          key={product.id} 
+                          key={v.id} 
                           className="w-full text-left p-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-800 rounded-lg flex items-center justify-between transition-colors group active:scale-[0.98]" 
-                          onClick={() => addToCart(product)}
+                          onClick={() => addToCart(v)}
                         >
                           <div className="min-w-0">
-                            <p className="font-bold text-xs sm:text-sm text-zinc-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400">{product.nome}</p>
-                            <p className="text-[10px] text-zinc-500 font-mono">{formatProductId(product)} • {product.tamanho}</p>
+                            <p className="font-bold text-xs sm:text-sm text-zinc-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
+                                {v.parent_nome}
+                                <span className="ml-2 text-[10px] text-zinc-400 font-normal">({v.tamanho}/{v.cor})</span>
+                            </p>
+                            <p className="text-[10px] text-zinc-500 font-mono">{v.variant_visual_id || v.parent_visual_id} • {v.sku}</p>
                           </div>
                           <div className="flex flex-col items-end shrink-0 ml-2">
-                            <Badge variant={product.quantidade_estoque <= 2 ? 'warning' : 'success'} className="text-[9px] px-1 py-0">{product.quantidade_estoque} un</Badge>
-                            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-1">{formatCurrency(product.preco_venda)}</span>
+                            <Badge variant={v.quantidade_estoque <= 2 ? 'warning' : 'success'} className="text-[9px] px-1 py-0">{v.quantidade_estoque} un</Badge>
+                            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-1">{formatCurrency(v.preco_venda)}</span>
                           </div>
                         </button>
                       ))}
-                      {productSearchTerm && filteredProducts.length === 0 && (
+                      {productSearchTerm && availableVariants.length === 0 && (
                          <p className="text-center py-8 text-zinc-400 text-xs italic">Nenhum produto encontrado.</p>
                       )}
                       {!productSearchTerm && !selectedBrand && !selectedCategory && (

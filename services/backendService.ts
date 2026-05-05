@@ -1,4 +1,4 @@
-import { Client, Product, Sale, SaleItem, StockEntry, Supplier, PaymentDiscounts, PaymentFees, CartItem, UserProfile, CrediarioPayment } from '../types';
+import { Client, Product, ProductVariant, Sale, SaleItem, StockEntry, Supplier, PaymentDiscounts, PaymentFees, CartItem, UserProfile, CrediarioPayment } from '../types';
 import { getSupabase, isSupabaseConfigured } from './supabaseClient';
 import { MOCK_CLIENTS, MOCK_PRODUCTS, MOCK_INITIAL_SALES, MOCK_STOCK_ENTRIES, MOCK_SUPPLIERS } from '../constants';
 
@@ -84,6 +84,33 @@ const prepareClientPayload = (client: any) => {
     });
   }
   return payload;
+};
+
+const SALE_WITH_ITEMS_JOIN = `
+  *, 
+  items:sale_items(
+    *,
+    variant:product_variants(
+      cor,
+      tamanho,
+      product:products(nome, marca)
+    )
+  )
+`;
+
+const flattenSaleItems = (sale: any): Sale => {
+  if (!sale) return sale;
+  return {
+    ...sale,
+    ui_id: sale.sales_id || sale.ui_id,
+    items: (sale.items || []).map((item: any) => ({
+      ...item,
+      nome_produto: item.variant?.product?.nome || item.nome_produto,
+      marca: item.variant?.product?.marca || item.marca,
+      cor: item.variant?.cor || item.cor,
+      tamanho: item.variant?.tamanho || item.tamanho
+    }))
+  };
 };
 
 const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
@@ -216,46 +243,171 @@ export const backendService = {
 
   getProducts: async (): Promise<Product[]> => {
     if (isSupabaseConfigured()) {
-      const { data, error } = await getSupabase().from('products').select('*').order('nome');
-      if (error) return [];
+      const { data, error } = await getSupabase()
+        .from('products')
+        .select(`
+          *,
+          variants:product_variants(*)
+        `)
+        .order('nome');
+      if (error) {
+        console.error("Erro ao buscar produtos:", error);
+        return [];
+      }
       return data || [];
     }
     return getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
   },
 
-  createProduct: async (product: Omit<Product, 'id' | 'ui_id'>, userId: string): Promise<boolean> => {
+  createProduct: async (product: Omit<Product, 'id' | 'ui_id' | 'created_at'>, initialVariants: Omit<ProductVariant, 'id' | 'product_variant_id' | 'created_at'>[], userId: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        const { data, error } = await getSupabase().from('products').insert([product]).select().single();
-        if (!error && data) {
-            await backendService.logStockEntry({
-                produto_id: data.id, 
-                produto_nome: `${data.nome} - ${data.marca}`,
-                quantidade: data.quantidade_estoque,
-                responsavel: userId,
-                motivo: 'Cadastro de Produto'
-            });
-            return true;
+        const { data: parent, error: parentError } = await getSupabase()
+            .from('products')
+            .insert([product])
+            .select()
+            .single();
+            
+        if (parentError || !parent) {
+            console.error("Erro ao criar produto pai:", parentError);
+            return false;
         }
+
+        const variantsToInsert = initialVariants.map((v, index) => ({
+            ...v,
+            product_variant_id: parent.id,
+            ui_id: (parent.ui_id * 1000) + (index + 1)
+        }));
+
+        const { data: variants, error: variantError } = await getSupabase()
+            .from('product_variants')
+            .insert(variantsToInsert)
+            .select();
+
+        if (variantError) {
+            console.error("Erro ao criar variantes:", variantError);
+            return false;
+        }
+
+        // Log inicial de estoque para cada variante
+        if (variants) {
+            for (const v of variants) {
+                if (v.quantidade_estoque !== 0) {
+                    await backendService.logStockEntry({
+                        produto_id: v.id, 
+                        produto_nome: `${parent.nome} (${v.tamanho}/${v.cor})`,
+                        quantidade: v.quantidade_estoque,
+                        responsavel: userId,
+                        motivo: 'Cadastro de Produto'
+                    });
+                }
+            }
+        }
+        return true;
     }
     return false;
   },
 
-  updateProduct: async (product: Product, userId: string): Promise<boolean> => {
+  updateProduct: async (product: Partial<Product> & { id: string }, variants: (Partial<ProductVariant> & { id?: string })[], userId: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-        const { data: oldProduct } = await getSupabase().from('products').select('quantidade_estoque').eq('id', product.id).single();
-        const oldStock = oldProduct?.quantidade_estoque || 0;
-        const diff = product.quantidade_estoque - oldStock;
-        const { error } = await getSupabase().from('products').update(product).eq('id', product.id);
-        if (!error && diff !== 0) {
-             await backendService.logStockEntry({
-                produto_id: product.id,
-                produto_nome: `${product.nome} - ${product.marca}`,
-                quantidade: diff,
-                responsavel: userId,
-                motivo: 'Atualização de Produto (Manual)'
-            });
+        // 1. Buscar dados atuais do pai (para ui_id) e variantes atuais (para contagem)
+        const { data: currentParent, error: fetchError } = await getSupabase()
+            .from('products')
+            .select('*, variants:product_variants(id, ui_id)')
+            .eq('id', product.id)
+            .single();
+
+        if (fetchError || !currentParent) {
+            console.error("Erro ao buscar produto para atualização:", fetchError);
+            return false;
         }
-        return !error;
+
+        // 2. Atualizar dados do pai
+        const { id, variants: _v, created_at: _ca, ...parentData } = product as any;
+        const { error: parentError } = await getSupabase()
+            .from('products')
+            .update(parentData)
+            .eq('id', id);
+
+        if (parentError) {
+            console.error("Erro ao atualizar produto pai:", parentError);
+            return false;
+        }
+
+        // 3. Processar Variantes (Upsert)
+        let newlyCreatedCount = 0;
+        const existingVariantUiIds = (currentParent.variants || []).map((v: any) => v.ui_id);
+        const maxSubId = existingVariantUiIds.length > 0 
+            ? Math.max(...existingVariantUiIds.map((uid: number) => {
+                const uidStr = uid.toString();
+                if (uidStr.includes('.')) {
+                    const parts = uidStr.split('.');
+                    return parseInt(parts[1]) || 0;
+                }
+                return uid % 1000;
+            }))
+            : 0;
+
+        for (const v of variants) {
+            if (v.id) {
+                // Update
+                const { id: vid, created_at: _vca, ...variantData } = v as any;
+                const { data: oldVariant } = await getSupabase()
+                    .from('product_variants')
+                    .select('quantidade_estoque')
+                    .eq('id', vid)
+                    .single();
+                
+                const oldStock = oldVariant?.quantidade_estoque || 0;
+                const { error: varError } = await getSupabase()
+                    .from('product_variants')
+                    .update(variantData)
+                    .eq('id', vid);
+
+                if (varError) {
+                    console.error("Erro ao atualizar variante:", varError);
+                    return false;
+                }
+
+                if (v.quantidade_estoque !== undefined) {
+                    const diff = v.quantidade_estoque - oldStock;
+                    if (diff !== 0) {
+                        await backendService.logStockEntry({
+                            produto_id: v.id,
+                            produto_nome: `${product.nome} (${v.tamanho}/${v.cor})`,
+                            quantidade: diff,
+                            responsavel: userId,
+                            motivo: 'Atualização de Produto (Manual)'
+                        });
+                    }
+                }
+            } else {
+                // Create New Variant for existing product
+                newlyCreatedCount++;
+                const newUiId = (currentParent.ui_id * 1000) + (maxSubId + newlyCreatedCount);
+                
+                const { data: newVar, error: varError } = await getSupabase()
+                    .from('product_variants')
+                    .insert([{ ...v, product_variant_id: id, ui_id: newUiId }])
+                    .select()
+                    .single();
+                
+                if (varError) {
+                    console.error("Erro ao inserir nova variante:", varError);
+                    return false;
+                }
+
+                if (newVar && newVar.quantidade_estoque !== 0) {
+                    await backendService.logStockEntry({
+                        produto_id: newVar.id,
+                        produto_nome: `${product.nome} (${v.tamanho}/${v.cor})`,
+                        quantidade: newVar.quantidade_estoque,
+                        responsavel: userId,
+                        motivo: 'Cadastro de Produto (Nova Variante)'
+                    });
+                }
+            }
+        }
+        return true;
     }
     return false;
   },
@@ -288,25 +440,45 @@ export const backendService = {
     };
 
     if (isSupabaseConfigured()) {
-        const { data: sale, error: saleError } = await getSupabase().from('sales').insert([saleData]).select().single();
+        const supabase = getSupabase();
+        
+        // 1. Buscar detalhes de variantes e produtos para todos os itens do carrinho
+        const variantIds = Array.from(new Set(cart.map(item => item.produto_id)));
+        const { data: variantDetails, error: detailsError } = await supabase
+            .from('product_variants')
+            .select(`
+                id,
+                product:products(nome, marca)
+            `)
+            .in('id', variantIds);
+            
+        if (detailsError || !variantDetails) {
+            console.error("Erro ao buscar detalhes das variantes para venda:", detailsError);
+            return false;
+        }
+        
+        const detailsMap = new Map(variantDetails.map((v: any) => [v.id, v]));
+
+        const { data: sale, error: saleError } = await supabase.from('sales').insert([saleData]).select().single();
         if (saleError || !sale) return false;
 
         const saleDisplayId = sale.sales_id || sale.ui_id || sale.id;
 
         if (isCrediario && client.id) {
-            const { data: c } = await getSupabase().from('clients').select('saldo_devedor_crediario').eq('id', client.id).single();
-            await getSupabase().from('clients').update({ saldo_devedor_crediario: roundMoney(Number(c?.saldo_devedor_crediario || 0) + totalValue) }).eq('id', client.id);
+            const { data: c } = await supabase.from('clients').select('saldo_devedor_crediario').eq('id', client.id).single();
+            await supabase.from('clients').update({ saldo_devedor_crediario: roundMoney(Number(c?.saldo_devedor_crediario || 0) + totalValue) }).eq('id', client.id);
         }
 
         const itemsData = cart.flatMap(item => {
+            const details = detailsMap.get(item.produto_id) as any;
             const unitDiscount = (item.desconto || 0) / item.quantidade;
             const unitSubtotal = (item.subtotal || 0) / item.quantidade;
+            
             return Array.from({ length: item.quantidade }).map(() => ({
                 venda_id: sale.id,
-                produto_id: item.produto_id,
-                nome_produto: item.nome,
-                marca: item.marca,
-                tamanho: item.tamanho,
+                produto_id: item.produto_id, // Variant ID
+                nome_produto: details?.product?.nome || item.nome,
+                marca: details?.product?.marca || '',
                 quantidade: 1,
                 preco_unitario: item.preco_unitario,
                 custo_unitario: item.preco_custo || 0,
@@ -317,15 +489,28 @@ export const backendService = {
             }));
         });
         
-        await getSupabase().from('sale_items').insert(itemsData);
+        const { error: itemsError } = await supabase.from('sale_items').insert(itemsData);
+        if (itemsError) {
+            console.error("Erro ao inserir itens da venda:", itemsError);
+            return false;
+        }
 
         for (const item of cart) {
-            const { data: prod } = await getSupabase().from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
-            if (prod) {
-                await getSupabase().from('products').update({ quantidade_estoque: prod.quantidade_estoque - item.quantidade }).eq('id', item.produto_id);
+            const { data: varData } = await getSupabase()
+                .from('product_variants')
+                .select('quantidade_estoque')
+                .eq('id', item.produto_id)
+                .single();
+            
+            if (varData) {
+                await getSupabase()
+                    .from('product_variants')
+                    .update({ quantidade_estoque: varData.quantidade_estoque - item.quantidade })
+                    .eq('id', item.produto_id);
+                
                 await backendService.logStockEntry({
                     produto_id: item.produto_id,
-                    produto_nome: `${item.nome} - ${item.marca}`,
+                    produto_nome: `${item.nome} (${item.tamanho}/${item.cor})`,
                     quantidade: -item.quantidade,
                     responsavel: userId,
                     motivo: `Saída - Venda #${saleDisplayId}`,
@@ -346,8 +531,13 @@ export const backendService = {
 
   getRecentSales: async (): Promise<Sale[]> => {
     if (isSupabaseConfigured()) {
-        const { data } = await getSupabase().from('sales').select('*, items:sale_items(*)').order('data_venda', { ascending: false }).limit(20);
-        return attachPaymentsToSales(data || []);
+        const { data } = await getSupabase()
+            .from('sales')
+            .select(SALE_WITH_ITEMS_JOIN)
+            .order('data_venda', { ascending: false })
+            .limit(20);
+        
+        return attachPaymentsToSales((data || []).map(flattenSaleItems));
     }
     const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
     return attachPaymentsToSales(sales.sort((a, b) => new Date(b.data_venda).getTime() - new Date(a.data_venda).getTime()).slice(0, 20));
@@ -355,8 +545,13 @@ export const backendService = {
 
   getSalesByPeriod: async (start: string, end: string): Promise<Sale[]> => {
     if (isSupabaseConfigured()) {
-        const { data } = await getSupabase().from('sales').select('*, items:sale_items(*)').gte('data_venda', `${start}T00:00:00`).lte('data_venda', `${end}T23:59:59`);
-        return attachPaymentsToSales(data || []);
+        const { data } = await getSupabase()
+            .from('sales')
+            .select(SALE_WITH_ITEMS_JOIN)
+            .gte('data_venda', `${start}T00:00:00`)
+            .lte('data_venda', `${end}T23:59:59`);
+        
+        return attachPaymentsToSales((data || []).map(flattenSaleItems));
     }
     const sales = getLocalData<Sale[]>(LS_KEYS.SALES, MOCK_INITIAL_SALES);
     const sDate = new Date(`${start}T00:00:00`);
@@ -366,6 +561,34 @@ export const backendService = {
         return d >= sDate && d <= eDate;
     });
     return attachPaymentsToSales(filtered);
+  },
+
+  getSaleById: async (idOrUiId: string): Promise<Sale | null> => {
+    if (isSupabaseConfigured()) {
+        const supabase = getSupabase();
+        const isNumeric = /^\d+$/.test(idOrUiId);
+        let result;
+
+        if (isNumeric) {
+            const numId = parseInt(idOrUiId);
+            const { data: dataBySalesId } = await supabase.from('sales').select(SALE_WITH_ITEMS_JOIN).eq('sales_id', numId).maybeSingle();
+            if (dataBySalesId) result = dataBySalesId;
+            else {
+                const { data: dataByUiId } = await supabase.from('sales').select(SALE_WITH_ITEMS_JOIN).eq('ui_id', numId).maybeSingle();
+                result = dataByUiId;
+            }
+        }
+
+        if (!result) {
+            const { data: dataById } = await supabase.from('sales').select(SALE_WITH_ITEMS_JOIN).eq('id', idOrUiId).maybeSingle();
+            result = dataById;
+        }
+        
+        if (!result) return null;
+        const attached = await attachPaymentsToSales([flattenSaleItems(result)]);
+        return attached[0];
+    }
+    return null;
   },
 
   getReceiptsByPeriod: async (start: string, end: string): Promise<any[]> => {
@@ -477,28 +700,29 @@ export const backendService = {
     setLocalData(LS_KEYS.STOCK, [newEntry, ...entries]);
   },
 
-  updateProductStock: async (productId: string, newQuantity: number, reason: string, clientInfo: {id: string, name: string} | undefined, userId: string) => {
-      const products = await backendService.getProducts();
-      const product = products.find(p => p.id === productId);
-      if (!product) return;
-      const diff = newQuantity - product.quantidade_estoque;
-      
+  updateProductStock: async (variantId: string, newQuantity: number, reason: string, clientInfo: {id: string, name: string} | undefined, userId: string) => {
       if (isSupabaseConfigured()) {
-          await getSupabase().from('products').update({ quantidade_estoque: newQuantity }).eq('id', productId);
-      } else {
-          const updated = products.map(p => p.id === productId ? { ...p, quantidade_estoque: newQuantity } : p);
-          setLocalData(LS_KEYS.PRODUCTS, updated);
-      }
+          const { data: variant } = await getSupabase()
+            .from('product_variants')
+            .select('*, product:products(nome, marca)')
+            .eq('id', variantId)
+            .single();
+            
+          if (!variant) return;
+          
+          const diff = newQuantity - variant.quantidade_estoque;
+          await getSupabase().from('product_variants').update({ quantidade_estoque: newQuantity }).eq('id', variantId);
 
-      await backendService.logStockEntry({
-          produto_id: productId,
-          produto_nome: `${product.nome} - ${product.marca}`,
-          quantidade: diff,
-          responsavel: userId, 
-          motivo: reason,
-          cliente_id: clientInfo?.id,
-          cliente_nome: clientInfo?.name
-      });
+          await backendService.logStockEntry({
+              produto_id: variantId,
+              produto_nome: `${variant.product?.nome} (${variant.tamanho}/${variant.cor})`,
+              quantidade: diff,
+              responsavel: userId, 
+              motivo: reason,
+              cliente_id: clientInfo?.id,
+              cliente_nome: clientInfo?.name
+          });
+      }
   },
 
   getSuppliers: async (): Promise<Supplier[]> => {
@@ -622,12 +846,21 @@ export const backendService = {
           const { data: items } = await getSupabase().from('sale_items').select('*').eq('venda_id', saleId);
           if (items) {
               for (const item of items) {
-                  const { data: prod } = await getSupabase().from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
-                  if (prod) {
-                      await getSupabase().from('products').update({ quantidade_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id);
+                  const { data: variant } = await getSupabase()
+                    .from('product_variants')
+                    .select('quantidade_estoque')
+                    .eq('id', item.produto_id)
+                    .single();
+                    
+                  if (variant) {
+                      await getSupabase()
+                        .from('product_variants')
+                        .update({ quantidade_estoque: variant.quantidade_estoque + item.quantidade })
+                        .eq('id', item.produto_id);
+                        
                       await backendService.logStockEntry({
                           produto_id: item.produto_id,
-                          produto_nome: `${item.nome_produto} - ${item.marca}`,
+                          produto_nome: `${item.nome_produto} (${item.tamanho}/${item.cor})`,
                           quantidade: item.quantidade,
                           responsavel: userId, 
                           motivo: `Cancelamento de Venda #${saleDisplayId}`
@@ -649,13 +882,22 @@ export const backendService = {
         let debtReductionSum = 0;
 
         for (const item of items) {
-           const { data: prod } = await getSupabase().from('products').select('quantidade_estoque').eq('id', item.produto_id).single();
-           if (prod) {
-               await getSupabase().from('products').update({ quantidade_estoque: prod.quantidade_estoque + item.quantidade }).eq('id', item.produto_id);
+           const { data: variant } = await getSupabase()
+                .from('product_variants')
+                .select('quantidade_estoque')
+                .eq('id', item.produto_id)
+                .single();
+                
+           if (variant) {
+               await getSupabase()
+                .from('product_variants')
+                .update({ quantidade_estoque: variant.quantidade_estoque + item.quantidade })
+                .eq('id', item.produto_id);
+                
                await getSupabase().from('sale_items').update({ status_pagamento: 'pendente', status: 'returned' }).eq('id', item.id);
                await backendService.logStockEntry({
                    produto_id: item.produto_id,
-                   produto_nome: `${item.nome_produto} - ${item.marca}`,
+                   produto_nome: `${item.nome_produto} (${item.tamanho}/${item.cor})`,
                    quantidade: item.quantidade,
                    responsavel: userId, 
                    motivo: `Devolução de Venda #${saleDisplayId}`,
@@ -694,8 +936,13 @@ export const backendService = {
 
   getClientSales: async (clientId: string): Promise<Sale[]> => {
       if (isSupabaseConfigured()) {
-          const { data } = await getSupabase().from('sales').select('*, items:sale_items(*)').eq('cliente_id', clientId).order('data_venda', { ascending: false });
-          return attachPaymentsToSales(data || []);
+          const { data } = await getSupabase()
+              .from('sales')
+              .select(SALE_WITH_ITEMS_JOIN)
+              .eq('cliente_id', clientId)
+              .order('data_venda', { ascending: false });
+          
+          return attachPaymentsToSales((data || []).map(flattenSaleItems));
       }
       return [];
   },
@@ -728,7 +975,7 @@ export const backendService = {
           await getSupabase().from('products').update({ quantidade_estoque: prod.quantidade_estoque + Math.abs(entry.quantidade) }).eq('id', targetProductId);
       } else {
           const products = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
-          const updated = products.map(p => p.id === targetProductId ? { ...p, quantidade_estoque: p.quantidade_estoque + Math.abs(entry.quantidade) } : p);
+          const updated = products.map(p => p.id === targetProductId ? { ...p } : p);
           setLocalData(LS_KEYS.PRODUCTS, updated);
       }
 

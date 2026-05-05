@@ -201,9 +201,19 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
 
   useEffect(() => {
-      setCurrentSale(sale);
-      setIsLinkingMode(false);
-      setLinkSearchTerm('');
+    const fetchFullSale = async () => {
+      if (isOpen && sale?.id) {
+        // Fetch fresh data for the specific sale
+        const fullSale = await backendService.getSaleById(sale.id);
+        setCurrentSale(fullSale || sale);
+      } else {
+        setCurrentSale(sale);
+      }
+    };
+
+    fetchFullSale();
+    setIsLinkingMode(false);
+    setLinkSearchTerm('');
   }, [sale, isOpen]);
 
   useEffect(() => {
@@ -219,17 +229,44 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
     if (!currentSale?.items) return [];
     const list: (SaleItem & { virtualId: string })[] = [];
     currentSale.items.forEach(item => {
-        for (let i = 0; i < item.quantidade; i++) {
+        // If items are already stored as qty=1 in DB (unrolled), this loop runs once.
+        // If legacy items have qty > 1, this loop unrolls them for specific unit selection (like returns).
+        const qty = Number(item.quantidade) || 0;
+        for (let i = 0; i < qty; i++) {
             list.push({
                 ...item,
                 quantidade: 1,
-                subtotal: item.subtotal / item.quantidade,
-                desconto: (item.desconto || 0) / item.quantidade,
+                subtotal: (item.subtotal || 0) / qty,
+                desconto: (item.desconto || 0) / qty,
                 virtualId: `${item.id}-${i}`
             });
         }
     });
     return list;
+  }, [currentSale?.items]);
+
+  const groupedItems = useMemo(() => {
+    if (!currentSale?.items) return [];
+    const groups: Record<string, SaleItem & { count: number }> = {};
+    
+    currentSale.items.forEach(item => {
+      // Group by variant ID, price and status
+      const key = `${item.produto_id}-${item.preco_unitario}-${item.status}`;
+      if (!groups[key]) {
+        groups[key] = { 
+          ...item, 
+          count: Number(item.quantidade) || 0,
+          subtotal: Number(item.subtotal) || 0,
+          desconto: Number(item.desconto) || 0
+        };
+      } else {
+        groups[key].count += (Number(item.quantidade) || 0);
+        groups[key].subtotal += (Number(item.subtotal) || 0);
+        groups[key].desconto += (Number(item.desconto) || 0);
+      }
+    });
+    
+    return Object.values(groups);
   }, [currentSale?.items]);
 
   // --- LÓGICA DE TAXAS CONSOLIDADAS BASEADA NO HISTÓRICO DE RECEBIMENTOS ---
@@ -269,11 +306,22 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
 
   // Subtotal Bruto: Itens que permanecem vendidos
   const soldItems = currentSale.items?.filter(i => i.status === 'sold') || [];
-  const soldItemsGrossSubtotal = soldItems.reduce((acc, i) => acc + (i.preco_unitario * i.quantidade), 0) || 0;
+  const hasItems = currentSale.items && currentSale.items.length > 0;
+  
+  const soldItemsGrossSubtotal = hasItems 
+    ? soldItems.reduce((acc, i) => acc + (i.preco_unitario * i.quantidade), 0) 
+    : (currentSale.valor_total || 0) + (currentSale.desconto_extra || 0) + (currentSale.uso_vale_presente || 0);
   
   // Total Líquido Final esperado da venda
-  const soldItemsNetSubtotal = soldItems.reduce((acc, i) => acc + i.subtotal, 0) || 0;
-  const currentTotalNet = currentSale.status === 'cancelled' ? 0 : Math.max(0, soldItemsNetSubtotal - (currentSale.desconto_extra || 0) - (currentSale.uso_vale_presente || 0));
+  const soldItemsNetSubtotal = hasItems 
+    ? soldItems.reduce((acc, i) => acc + i.subtotal, 0) 
+    : (currentSale.valor_total || 0) + (currentSale.desconto_extra || 0) + (currentSale.uso_vale_presente || 0);
+
+  const currentTotalNet = currentSale.status === 'cancelled' ? 0 : (
+    hasItems 
+      ? Math.max(0, soldItemsNetSubtotal - (currentSale.desconto_extra || 0) - (currentSale.uso_vale_presente || 0))
+      : (currentSale.valor_total || 0)
+  );
   
   const totalPaymentDiscount = soldItems.reduce((acc, item) => acc + (item.desconto || 0), 0) || 0;
   const totalExtraDiscount = currentSale.desconto_extra || 0;
@@ -303,7 +351,9 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
   const isAllReturned = currentSale.items && currentSale.items.length > 0 && currentSale.items.every(i => i.status === 'returned');
   
   // Lógica para determinar se a venda está "Visualmente" paga com base nos itens vendidos
-  const isActuallyPaid = soldItems.length > 0 && soldItems.every(i => i.status_pagamento === 'pago');
+  const isActuallyPaid = hasItems 
+    ? (soldItems.length > 0 && soldItems.every(i => i.status_pagamento === 'pago'))
+    : (currentSale.status_pagamento === 'pago');
 
   const handleStartLinking = () => {
       setIsLinkingMode(true);
@@ -520,6 +570,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                   <thead className="bg-zinc-50 dark:bg-zinc-800 text-xs text-zinc-500 dark:text-zinc-400 uppercase font-medium">
                     <tr>
                       <th className="px-4 py-3">Produto</th>
+                      <th className="px-4 py-3 text-center">Cor</th>
                       <th className="px-4 py-3 text-center">Tam.</th>
                       <th className="px-4 py-3 text-center">Qtd</th>
                       <th className="px-4 py-3 text-center">Status</th>
@@ -528,44 +579,64 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {unrolledItems.map((item) => {
+                    {groupedItems.map((item, idx) => {
                       const isReturned = item.status === 'returned';
                       return (
-                        <tr key={item.virtualId} className={`hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale bg-zinc-50/50 dark:bg-zinc-900/20' : ''}`}>
+                        <tr key={`${item.id}-${idx}`} className={`hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale bg-zinc-50/50 dark:bg-zinc-900/20' : ''}`}>
                           <td className="px-4 py-3"><div className="font-medium text-zinc-900 dark:text-white">{item.nome_produto}</div><div className="text-[10px] text-zinc-400 dark:text-zinc-400">{item.marca}</div></td>
+                          <td className="px-4 py-3 text-center"><Badge variant="outline" className="dark:bg-zinc-800 dark:text-zinc-300 capitalize">{item.cor}</Badge></td>
                           <td className="px-4 py-3 text-center"><Badge variant="secondary" className="dark:bg-zinc-800 dark:text-zinc-300">{item.tamanho}</Badge></td>
-                          <td className="px-4 py-3 text-center text-zinc-800 dark:text-zinc-200 font-bold">{item.quantidade}</td>
+                          <td className="px-4 py-3 text-center text-zinc-800 dark:text-zinc-200 font-bold">{item.count}</td>
                           <td className="px-4 py-3 text-center">{isReturned ? <Badge variant="destructive" className="text-[9px]">Devolvido</Badge> : <Badge variant="success" className="text-[9px]">Vendido</Badge>}</td>
                           <td className="px-4 py-3 text-center">
                              {!isReturned && currentSale.status !== 'cancelled' && (item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[9px] h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[9px] h-4 px-1.5 gap-1"><DollarSign size={8} /> Pendente</Badge>)}
                           </td>
-                          <td className="px-4 py-3 text-right font-bold text-zinc-900 dark:text-zinc-100">{formatCurrency(item.preco_unitario * item.quantidade)}</td>
+                          <td className="px-4 py-3 text-right font-bold text-zinc-900 dark:text-zinc-100">{formatCurrency(item.subtotal)}</td>
                         </tr>
                       );
                     })}
+                    {groupedItems.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-8 text-center text-zinc-500 italic bg-zinc-50 dark:bg-zinc-800/20">
+                          <div className="flex flex-col items-center gap-2">
+                            <span className="text-zinc-400 dark:text-zinc-500">Detalhes dos itens não carregados. Resumo:</span>
+                            <span className="text-zinc-600 dark:text-zinc-300 font-medium">{currentSale.produtos_resumo || 'Nenhum detalhe disponível.'}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
             </div>
             {/* Mobile View Itens */}
             <div className="flex flex-col gap-3 sm:hidden">
-              {unrolledItems.map((item) => {
+              {groupedItems.map((item, idx) => {
                 const isReturned = item.status === 'returned';
                 return (
-                  <div key={item.virtualId} className={`bg-zinc-50 dark:bg-zinc-800/30 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale' : ''}`}>
+                  <div key={`${item.id}-${idx}`} className={`bg-zinc-50 dark:bg-zinc-800/30 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale' : ''}`}>
                       <div className="flex justify-between items-start">
-                          <span className="font-bold text-sm text-zinc-900 dark:text-white">{item.nome_produto}</span>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-sm text-zinc-900 dark:text-white">{item.nome_produto}</span>
+                            <span className="text-[10px] text-zinc-500 capitalize">{item.cor}</span>
+                          </div>
                           <Badge variant="outline" className="text-[9px] dark:text-zinc-300 border-zinc-200 dark:border-zinc-700">{item.tamanho}</Badge>
                       </div>
                       <div className="flex justify-between items-center mt-2">
-                          <span className="text-xs text-zinc-700 dark:text-zinc-200 font-bold">{formatCurrency(item.preco_unitario * item.quantidade)}</span>
+                          <span className="text-xs text-zinc-700 dark:text-zinc-200 font-bold">{formatCurrency(item.subtotal)}</span>
                           <div className="flex items-center gap-2">
-                             <span className="text-[10px] text-zinc-500 dark:text-zinc-400">Qtd: {item.quantidade}</span>
+                             <span className="text-[10px] text-zinc-500 dark:text-zinc-400">Qtd: {item.count}</span>
                              {isReturned ? <Badge variant="destructive" className="text-[8px]">Devolvido</Badge> : (item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[8px]">Pago</Badge> : <Badge variant="warning" className="text-[8px]">Pendente</Badge>)}
                           </div>
                       </div>
                   </div>
                 );
               })}
+              {groupedItems.length === 0 && (
+                <div className="bg-zinc-50 dark:bg-zinc-800/30 p-4 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 text-center">
+                  <p className="text-xs text-zinc-500 italic mb-1">Resumo dos itens:</p>
+                  <p className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">{currentSale.produtos_resumo || 'Nenhum detalhe disponível.'}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -98,24 +98,39 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
     }
   }, [isOpen, initialProduct]);
 
-  const filteredProducts = useMemo(() => {
+  const filteredVariants = useMemo(() => {
     if (!searchTerm && !selectedBrand && !selectedCategory && !selectedSize) return [];
     const lowerTerm = searchTerm.toLowerCase();
-    return products.filter(p => {
-      const hasStock = p.quantidade_estoque > 0;
-      if (!hasStock) return false;
-      
-      const vid = formatProductId(p).toLowerCase();
-      const matchesSearch = !searchTerm || (
-        p.nome.toLowerCase().includes(lowerTerm) || 
-        vid.includes(lowerTerm) ||
-        p.sku.toLowerCase().includes(lowerTerm)
-      );
-      const matchesBrand = !selectedBrand || p.marca === selectedBrand;
-      const matchesCategory = !selectedCategory || p.categoria === selectedCategory;
-      const matchesSize = !selectedSize || p.tamanho === selectedSize;
-      return matchesSearch && matchesBrand && matchesCategory && matchesSize;
-    }).slice(0, 15); 
+    
+    const results: any[] = [];
+    products.forEach(p => {
+       const vid = formatProductId(p).toLowerCase();
+       const matchesParent = 
+          (p.nome.toLowerCase().includes(lowerTerm) || vid.includes(lowerTerm)) &&
+          (!selectedBrand || p.marca === selectedBrand) &&
+          (!selectedCategory || p.categoria === selectedCategory);
+       
+       p.variants?.forEach(v => {
+           const matchVariant = 
+              v.sku.toLowerCase().includes(lowerTerm) || 
+              v.cor.toLowerCase().includes(lowerTerm);
+           
+           const matchesSize = !selectedSize || v.tamanho === selectedSize;
+
+           if ((matchesParent || matchVariant) && matchesSize && v.quantidade_estoque > 0) {
+               results.push({
+                   ...v,
+                   parent_id: p.id,
+                   parent_nome: p.nome,
+                   parent_marca: p.marca,
+                   parent_visual_id: vid,
+                   variant_visual_id: formatProductId({ ui_id: v.ui_id })
+               });
+           }
+       });
+    });
+    
+    return results.slice(0, 15);
   }, [products, searchTerm, selectedBrand, selectedCategory, selectedSize]);
 
   const filteredClients = useMemo(() => {
@@ -124,14 +139,23 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
       return clients.filter(c => c.nome.toLowerCase().includes(lower) || (c.cpf && c.cpf.includes(lower))).slice(0, 5);
   }, [clients, clientSearch]);
 
-  const addProductToList = (product: Product) => {
-    if (selectedItems.some(item => item.product.id === product.id)) {
+  const addProductToList = (v: any) => {
+    if (selectedItems.some(item => item.product.id === v.id)) {
         alert("Este produto já está na lista.");
         return;
     }
-    setSelectedItems(prev => [...prev, { product, amount: '1' }]);
+    // Cria um objeto híbrido para a lista
+    const hybridProduct: any = {
+        id: v.id,
+        nome: v.parent_nome,
+        marca: v.parent_marca,
+        tamanho: v.tamanho,
+        cor: v.cor,
+        ui_id: v.ui_id,
+        quantidade_estoque: v.quantidade_estoque
+    };
+    setSelectedItems(prev => [...prev, { product: hybridProduct, amount: '1' }]);
     setSearchTerm('');
-    // No mobile, após adicionar, podemos querer alternar para a lista se o usuário desejar
   };
 
   const removeProductFromList = (productId: string) => {
@@ -274,22 +298,22 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOp
               
               {/* SEARCH RESULTS */}
               <div className="space-y-2 flex-1 overflow-y-auto pr-1">
-                {filteredProducts.map(product => (
+                {filteredVariants.map(v => (
                   <button 
-                    key={product.id} 
+                    key={v.id} 
                     className="w-full text-left p-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-800 rounded-lg flex items-center justify-between transition-colors group active:scale-[0.98]" 
-                    onClick={() => addProductToList(product)}
+                    onClick={() => addProductToList(v)}
                   >
                     <div className="min-w-0">
-                      <p className="font-bold text-xs sm:text-sm text-zinc-900 dark:text-white truncate group-hover:text-red-600 dark:group-hover:text-red-400">{product.nome}</p>
-                      <p className="text-[10px] text-zinc-500 font-mono">{formatProductId(product)} • {product.tamanho} • {product.cor}</p>
+                      <p className="font-bold text-xs sm:text-sm text-zinc-900 dark:text-white truncate group-hover:text-red-600 dark:group-hover:text-red-400">{v.parent_nome}</p>
+                      <p className="text-[10px] text-zinc-500 font-mono">{v.variant_visual_id || v.parent_visual_id} • {v.tamanho} • {v.cor}</p>
                     </div>
                     <div className="flex flex-col items-end shrink-0 ml-2">
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{product.quantidade_estoque} un</Badge>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{v.quantidade_estoque} un</Badge>
                     </div>
                   </button>
                 ))}
-                {searchTerm && filteredProducts.length === 0 && (
+                {searchTerm && filteredVariants.length === 0 && (
                    <p className="text-center py-8 text-zinc-400 text-xs italic">Nenhum produto encontrado.</p>
                 )}
                 {!searchTerm && !selectedBrand && !selectedCategory && !selectedSize && (

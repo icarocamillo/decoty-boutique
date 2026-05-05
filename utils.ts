@@ -28,9 +28,11 @@ export const formatDateStandard = (isoString: string) => {
 /**
  * Helper para formatar o ID visual do produto: DECOTY-{ui_id}
  */
-export const formatProductId = (product: { ui_id?: number, marca?: string } | undefined | null) => {
+export const formatProductId = (product: { ui_id?: number | string, marca?: string } | undefined | null) => {
   if (!product) return '-';
-  return `DECOTY-${product.ui_id || '?'}`;
+  const idValue = product.ui_id;
+  if (!idValue) return 'DECOTY-?';
+  return `DECOTY-${idValue}`;
 };
 
 /**

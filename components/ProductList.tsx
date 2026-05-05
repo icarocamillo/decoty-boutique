@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Product } from '../types';
 import { PackagePlus, Search, Edit, ArrowUp, ArrowDown, ArrowUpDown, Filter, Settings, Check, Tag, Layers, ChevronRight } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
-import { ProductFormModal } from './ProductFormModal';
 import { SIZES_LIST } from '../constants';
 import { Pagination } from './ui/Pagination';
 import { backendService } from '../services/backendService';
@@ -21,6 +21,7 @@ const CATEGORIES = [
 const MATERIALS = ['Malha', 'Tecido Plano', 'Bijuteria'];
 
 export const ProductList: React.FC = () => {
+  const navigate = useNavigate();
   const { products, suppliers, refreshData } = useData();
   // State for Data & Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,8 +31,6 @@ export const ProductList: React.FC = () => {
   const [selectedSize, setSelectedSize] = useState('');
   
   // State for UI
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [productToEdit, setProductToEdit] = useState<Product | null>(null);
   // Inicializado para sempre mostrar por ID DECOTY decrescente por padrão
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>({ key: 'ui_id', direction: 'desc' });
   
@@ -103,13 +102,13 @@ export const ProductList: React.FC = () => {
       const matchesSearch = 
         p.nome.toLowerCase().includes(searchLower) || 
         visualId.toLowerCase().includes(searchLower) ||
-        p.sku.toLowerCase().includes(searchLower);
+        p.variants?.some(v => v.sku.toLowerCase().includes(searchLower) || v.ean.toLowerCase().includes(searchLower));
       
       // Filter Matches
       const matchesBrand = selectedBrand ? p.marca === selectedBrand : true;
       const matchesCategory = selectedCategory ? p.categoria === selectedCategory : true;
       const matchesMaterial = selectedMaterial ? p.tipo_material === selectedMaterial : true;
-      const matchesSize = selectedSize ? p.tamanho === selectedSize : true;
+      const matchesSize = selectedSize ? p.variants?.some(v => v.tamanho === selectedSize) : true;
 
       return matchesSearch && matchesBrand && matchesCategory && matchesMaterial && matchesSize;
     });
@@ -117,8 +116,13 @@ export const ProductList: React.FC = () => {
     // Sorting
     if (sortConfig) {
       result.sort((a, b) => {
-        let aVal: any = a[sortConfig.key];
-        let bVal: any = b[sortConfig.key];
+        let aVal: any = (a as any)[sortConfig.key];
+        let bVal: any = (b as any)[sortConfig.key];
+
+        if (sortConfig.key === 'quantidade_estoque' as any) {
+             aVal = a.variants?.reduce((sum, v) => sum + v.quantidade_estoque, 0) || 0;
+             bVal = b.variants?.reduce((sum, v) => sum + v.quantidade_estoque, 0) || 0;
+        }
 
         if (aVal === undefined || bVal === undefined) return 0;
 
@@ -152,16 +156,6 @@ export const ProductList: React.FC = () => {
     return <ArrowUpDown size={14} className="ml-1 opacity-30" />;
   };
 
-  const handleEditClick = (product: Product) => {
-    setProductToEdit(product);
-    setIsModalOpen(true);
-  };
-
-  const handleModalClose = () => {
-    setIsModalOpen(false);
-    setTimeout(() => setProductToEdit(null), 300);
-  };
-
   const getStockStatus = (qty: number) => {
     if (qty === 0) return { variant: 'destructive' as const, label: '0 un' };
     if (qty <= 2) return { variant: 'warning' as const, label: `${qty} un` };
@@ -175,7 +169,7 @@ export const ProductList: React.FC = () => {
            <h2 className="text-2xl font-bold text-zinc-800 dark:text-white">Produtos Cadastrados</h2>
            <p className="text-zinc-500 dark:text-zinc-400">Gerencie seu catálogo de roupas</p>
         </div>
-        <Button className="flex items-center gap-2 w-full sm:w-auto" onClick={() => { setProductToEdit(null); setIsModalOpen(true); }}>
+        <Button className="flex items-center gap-2 w-full sm:w-auto" onClick={() => navigate('/products/new')}>
           <PackagePlus size={18} /> Cadastrar Produto
         </Button>
       </div>
@@ -306,7 +300,7 @@ export const ProductList: React.FC = () => {
             return (
               <button 
                 key={product.id} 
-                onClick={() => handleEditClick(product)}
+                onClick={() => navigate(`/products/update/${product.id}`)}
                 className="text-left p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm active:scale-[0.98] transition-all flex flex-col gap-3"
               >
                 <div className="flex justify-between items-start">
@@ -376,13 +370,13 @@ export const ProductList: React.FC = () => {
                   </th>
                 )}
                 {visibleColumns.sku && (
-                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('sku')}>
-                    <div className="flex items-center">SKU <SortIcon columnKey="sku" /></div>
+                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('sku' as any)}>
+                    <div className="flex items-center">SKU <SortIcon columnKey={"sku" as any} /></div>
                   </th>
                 )}
                 {visibleColumns.ean && (
-                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('ean')}>
-                    <div className="flex items-center">EAN <SortIcon columnKey="ean" /></div>
+                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('ean' as any)}>
+                    <div className="flex items-center">EAN <SortIcon columnKey={"ean" as any} /></div>
                   </th>
                 )}
                 {visibleColumns.categoria && (
@@ -391,13 +385,13 @@ export const ProductList: React.FC = () => {
                   </th>
                 )}
                 {visibleColumns.tamanho && (
-                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-center" onClick={() => handleSort('tamanho')}>
-                    <div className="flex items-center justify-center">Tam. <SortIcon columnKey="tamanho" /></div>
+                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-center" onClick={() => handleSort('tamanho' as any)}>
+                    <div className="flex items-center justify-center">Tam. <SortIcon columnKey={"tamanho" as any} /></div>
                   </th>
                 )}
                 {visibleColumns.cor && (
-                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('cor')}>
-                    <div className="flex items-center">Cor <SortIcon columnKey="cor" /></div>
+                  <th className="px-4 py-3 font-medium cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('cor' as any)}>
+                    <div className="flex items-center">Cor <SortIcon columnKey={"cor" as any} /></div>
                   </th>
                 )}
                  {visibleColumns.tipo_material && (
@@ -406,25 +400,37 @@ export const ProductList: React.FC = () => {
                   </th>
                 )}
                 {visibleColumns.preco_venda && (
-                  <th className="px-4 py-3 font-medium text-right cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('preco_venda')}>
-                    <div className="flex items-center justify-end">Preço Venda <SortIcon columnKey="preco_venda" /></div>
+                  <th className="px-4 py-3 font-medium text-right cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('preco_venda' as any)}>
+                    <div className="flex items-center justify-end">Preço Venda <SortIcon columnKey={"preco_venda" as any} /></div>
                   </th>
                 )}
                 {visibleColumns.estoque && (
-                  <th className="px-4 py-3 font-medium text-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('quantidade_estoque')}>
-                     <div className="flex items-center justify-center">Estoque <SortIcon columnKey="quantidade_estoque" /></div>
+                  <th className="px-4 py-3 font-medium text-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('quantidade_estoque' as any)}>
+                     <div className="flex items-center justify-center">Estoque <SortIcon columnKey={"quantidade_estoque" as any} /></div>
                   </th>
                 )}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {currentProducts.map((product) => {
-                const stock = getStockStatus(product.quantidade_estoque);
+                const totalStock = product.variants?.reduce((sum, v) => sum + v.quantidade_estoque, 0) || 0;
+                const stock = getStockStatus(totalStock);
+                
+                // Pegar valores das variantes para exibição rápida
+                const prices = (Array.from(new Set(product.variants?.map(v => v.preco_venda) || [])) as number[]).filter(p => typeof p === 'number');
+                const displayPrice = prices.length > 1 ? Math.min(...prices) : (prices[0] || 0);
+                const isPriceRange = prices.length > 1;
+
+                const sizes = Array.from(new Set(product.variants?.map(v => v.tamanho) || []));
+                const colors = Array.from(new Set(product.variants?.map(v => v.cor) || []));
+
+                const firstSku = product.variants?.[0]?.sku || '-';
+                const firstEan = product.variants?.[0]?.ean || '-';
                 
                 return (
                   <tr 
                     key={product.id} 
-                    onClick={() => handleEditClick(product)}
+                    onClick={() => navigate(`/products/update/${product.id}`)}
                     className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors group cursor-pointer"
                   >
                     {/* ID Formatado: ui_id-MARCA (Caixa Alta) */}
@@ -447,14 +453,16 @@ export const ProductList: React.FC = () => {
                      {/* SKU */}
                     {visibleColumns.sku && (
                       <td className="px-4 py-2 text-zinc-600 dark:text-zinc-400">
-                         <div className="text-[11px] font-mono bg-zinc-100 dark:bg-zinc-800 px-1 rounded w-fit whitespace-nowrap">{product.sku}</div>
+                         <div className="text-[11px] font-mono bg-zinc-100 dark:bg-zinc-800 px-1 rounded w-fit whitespace-nowrap">
+                           {firstSku}{product.variants && product.variants.length > 1 ? '...' : ''}
+                         </div>
                       </td>
                     )}
 
                     {/* EAN */}
                     {visibleColumns.ean && (
                       <td className="px-4 py-2 text-zinc-500 dark:text-zinc-500 text-[11px] font-mono">
-                         {product.ean}
+                         {firstEan}{product.variants && product.variants.length > 1 ? '...' : ''}
                       </td>
                     )}
 
@@ -468,14 +476,16 @@ export const ProductList: React.FC = () => {
                     {/* Tamanho */}
                     {visibleColumns.tamanho && (
                       <td className="px-4 py-2 text-center">
-                        <Badge variant="outline">{product.tamanho}</Badge>
+                        <Badge variant="outline">
+                          {sizes.length > 1 ? `${sizes.length} tam.` : (sizes[0] || '-')}
+                        </Badge>
                       </td>
                     )}
 
                      {/* Cor */}
                     {visibleColumns.cor && (
-                      <td className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400 truncate max-w-[100px]" title={product.cor}>
-                        {product.cor}
+                      <td className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400 truncate max-w-[100px]" title={colors.join(', ')}>
+                        {colors.length > 1 ? 'Várias' : (colors[0] || '-')}
                       </td>
                     )}
 
@@ -489,7 +499,8 @@ export const ProductList: React.FC = () => {
                     {/* Preço Venda */}
                     {visibleColumns.preco_venda && (
                       <td className="px-4 py-2 text-right font-medium text-zinc-900 dark:text-white">
-                        {formatCurrency(product.preco_venda)}
+                        {isPriceRange && <span className="text-[10px] text-zinc-400 mr-1">a partir</span>}
+                        {formatCurrency(displayPrice)}
                       </td>
                     )}
 
@@ -529,13 +540,6 @@ export const ProductList: React.FC = () => {
           />
         )}
       </Card>
-
-      <ProductFormModal 
-        isOpen={isModalOpen}
-        onClose={handleModalClose}
-        onSuccess={refreshData}
-        productToEdit={productToEdit}
-      />
     </div>
   );
 };

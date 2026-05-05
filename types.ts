@@ -1,29 +1,42 @@
 
-export type ProductSize = 'P' | 'M' | 'G' | 'GG' | 'G1' | '40' | '42' | '44' | '46' | '48' | '00';
+export type ProductSize = 'P' | 'M' | 'G' | 'GG' | 'G1' | '40' | '42' | '44' | '46' | '48' | '00' | string;
 
 export interface Product {
-  id: string;
-  ui_id: number; // Identificador numérico sequencial
-  sku: string;
-  ean: string;
+  id: string; // UUID (Supabase)
+  ui_id: number; // ID Humano (ex: 105)
   nome: string;
   marca: string;
   categoria: string;
   tipo_material: string;
+  descricao: string;
+  slug: string;
+  created_at: string;
+  variants?: ProductVariant[];
+}
+
+export interface ProductVariant {
+  id: string; // UUID (Supabase)
+  product_variant_id: string; // Foreign Key pointing to Product.id
+  ui_id: number; // ID Variante (ex: 105.1)
+  sku: string;
+  ean: string;
   cor: string;
-  tamanho: ProductSize;
+  tamanho: string;
   preco_custo: number;
   preco_venda: number;
   quantidade_estoque: number;
+  created_at: string;
+  product?: Product;
 }
 
 export interface SaleItem {
   id: string;
   venda_id: string;
-  produto_id: string;
-  nome_produto: string;
+  produto_id: string; // Points to product_variants.id
+  nome_produto: string; // Parent name
   marca: string;
   tamanho: string;
+  cor?: string;
   quantidade: number;
   preco_unitario: number;
   custo_unitario: number; 
@@ -31,7 +44,7 @@ export interface SaleItem {
   subtotal: number;
   status: 'sold' | 'returned'; 
   status_pagamento?: 'pago' | 'pendente';
-  valor_estorno_unitario?: number; // Valor líquido calculado com rateio para estorno
+  valor_estorno_unitario?: number; 
 }
 
 export interface CrediarioPayment {
@@ -71,11 +84,12 @@ export interface Sale {
 }
 
 export interface CartItem {
-  produto_id: string;
+  produto_id: string; // Points to product_variants.id
+  parent_id: string; // Points to products.id
   nome: string;
   marca: string;
   cor: string;
-  tamanho: ProductSize;
+  tamanho: string;
   preco_unitario: number;
   preco_custo?: number;
   quantidade: number;

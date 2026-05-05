@@ -59,10 +59,27 @@ export const StockList: React.FC = () => {
   }, [searchTerm, selectedBrand, selectedCategory, selectedSize, filterType, itemsPerPage]);
 
   const getProductInfo = (entry: StockEntry) => {
-    if (entry.produto_id) {
-        return products.find(p => p.id === entry.produto_id);
+    if (!entry.produto_id) return null;
+    
+    for (const p of products) {
+        const variant = p.variants?.find(v => v.id === entry.produto_id);
+        if (variant) {
+            // Retorna um objeto híbrido para compatibilidade com as colunas de filtro atuais
+            return {
+                ...p,
+                ui_id: variant.ui_id,
+                tamanho: variant.tamanho,
+                cor: variant.cor,
+                quantidade_estoque: variant.quantidade_estoque,
+                preco_venda: variant.preco_venda,
+                preco_custo: variant.preco_custo,
+                variant_id: variant.id,
+                sku: variant.sku,
+                ean: variant.ean
+            } as any;
+        }
     }
-    return products.find(p => `${p.nome} - ${p.marca}` === entry.produto_nome);
+    return null;
   };
 
   const filteredEntries = useMemo(() => {
@@ -70,13 +87,13 @@ export const StockList: React.FC = () => {
 
     return entries
       .filter(entry => {
-        const product = getProductInfo(entry);
-        const visualId = formatProductId(product);
+        const productInfo = getProductInfo(entry);
+        const visualId = productInfo ? formatProductId(productInfo) : '';
         
-        const brand = product ? product.marca : '';
-        const category = product ? product.categoria : '';
-        const size = product ? product.tamanho : '';
-        const name = product ? product.nome : entry.produto_nome;
+        const brand = productInfo ? productInfo.marca : '';
+        const category = productInfo ? productInfo.categoria : '';
+        const size = productInfo ? productInfo.tamanho : '';
+        const name = productInfo ? productInfo.nome : entry.produto_nome;
         
         const clientName = entry.cliente_nome || '';
         const reason = entry.motivo || '';
@@ -437,8 +454,8 @@ export const StockList: React.FC = () => {
                     <th className="px-6 py-4 font-medium">Produto</th>
                     <th className="px-6 py-4 font-medium text-center">Tam.</th>
                     <th className="px-6 py-4 font-medium text-center">Cor</th>
-                    <th className="px-6 py-4 font-medium text-center">Quantidade Movimentada</th>
                     <th className="px-6 py-4 font-medium text-center">Quantidade Atual</th>
+                    <th className="px-6 py-4 font-medium text-center">Quantidade Movimentada</th>
                     <th className="px-6 py-4 font-medium">Responsável / Ação</th>
                   </tr>
                 </thead>
@@ -483,17 +500,17 @@ export const StockList: React.FC = () => {
                         <td className="px-6 py-4 text-center text-sm text-zinc-600 dark:text-zinc-400">
                            {product?.cor || '-'}
                         </td>
-                        <td className="px-6 py-4 text-center">
-                          <Badge variant={isPositive ? "success" : "destructive"} className="gap-1 px-3">
-                            {isPositive ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
-                            {isPositive ? '+' : ''}{entry.quantidade}
-                          </Badge>
-                        </td>
                         <td className="px-6 py-4 text-center text-zinc-700 dark:text-zinc-300 font-mono">
                            <div className="inline-flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-md">
                              <Package size={12} className="text-zinc-400" />
                              {product ? product.quantidade_estoque : '-'}
                            </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <Badge variant={isPositive ? "success" : "destructive"} className="gap-1 px-3">
+                            {isPositive ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
+                            {isPositive ? '+' : ''}{entry.quantidade}
+                          </Badge>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col">

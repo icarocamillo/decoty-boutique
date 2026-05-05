@@ -5,6 +5,7 @@ import { Button } from './components/ui/Button';
 import { NewSaleModal } from './components/NewSaleModal';
 import { ClientList } from './components/ClientList';
 import { ProductList } from './components/ProductList';
+import { ProductFormPage } from './components/ProductFormPage';
 import { StockList } from './components/StockList';
 import { SalesPage } from './components/SalesPage';
 import { UserMenu } from './components/UserMenu';
@@ -161,6 +162,8 @@ const AppLayout: React.FC = () => {
             <Route path="/clients/:clientId/history" element={<ClientHistoryPage />} />
             <Route path="/suppliers" element={<SupplierList />} />
             <Route path="/products" element={<ProductList />} />
+            <Route path="/products/new" element={<ProductFormPage />} />
+            <Route path="/products/update/:id" element={<ProductFormPage />} />
             <Route path="/stock" element={<StockList />} />
             <Route path="/sales" element={<SalesPage />} />
             <Route path="/team" element={<ManagerRoute><TeamList /></ManagerRoute>} />
