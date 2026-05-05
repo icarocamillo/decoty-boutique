@@ -300,7 +300,7 @@ export const ProductList: React.FC = () => {
             return (
               <button 
                 key={product.id} 
-                onClick={() => navigate(`/products/update/${product.id}`)}
+                onClick={() => navigate(`/products/update/${product.ui_id}`)}
                 className="text-left p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm active:scale-[0.98] transition-all flex flex-col gap-3"
               >
                 <div className="flex justify-between items-start">
@@ -430,7 +430,7 @@ export const ProductList: React.FC = () => {
                 return (
                   <tr 
                     key={product.id} 
-                    onClick={() => navigate(`/products/update/${product.id}`)}
+                    onClick={() => navigate(`/products/update/${product.ui_id}`)}
                     className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors group cursor-pointer"
                   >
                     {/* ID Formatado: ui_id-MARCA (Caixa Alta) */}

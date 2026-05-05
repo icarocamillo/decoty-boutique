@@ -35,19 +35,32 @@ export const ClientHistoryPage: React.FC = () => {
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
   const [isCrediarioModalOpen, setIsCrediarioModalOpen] = useState(false);
 
-  // 1. Fetch data only when clientId changes
-  useEffect(() => {
-    if (clientId) {
-      fetchClientHistory(clientId);
-    }
-  }, [clientId, fetchClientHistory]);
-
-  // 2. Derive client from context
+  // 1. Derive client from context (searching by UID or ui_id)
   const client = useMemo(() => {
+    if (!clientId) return null;
+    const numericId = parseInt(clientId);
+    if (!isNaN(numericId)) {
+      const found = clientsData.find(c => c.ui_id === numericId);
+      if (found) return found;
+    }
     return clientsData.find(c => c.id === clientId) || null;
   }, [clientId, clientsData]);
 
-  // 3. Derive sorted history from context
+  // 2. Fetch data only when client instance is resolved (ensures we have a UUID for the backend)
+  useEffect(() => {
+    if (client) {
+      fetchClientHistory(client.id);
+    }
+  }, [client?.id, fetchClientHistory]);
+
+  // 3. Clean up URL: If accessing via UUID, replace with ui_id
+  useEffect(() => {
+    if (clientId && client && clientId !== client.ui_id.toString()) {
+      navigate(`/clients/${client.ui_id}/history`, { replace: true });
+    }
+  }, [clientId, client, navigate]);
+
+  // 4. Derive sorted history from context
   const fullStockHistory = useMemo(() => {
     return [...stockHistory].sort((a, b) => 
       new Date(b.data_entrada).getTime() - new Date(a.data_entrada).getTime()
@@ -98,6 +111,15 @@ export const ClientHistoryPage: React.FC = () => {
     return outgoingUnits.filter(u => !u.matched).reverse();
   }, [stockHistory]);
 
+  const cleanProductName = (name: string) => {
+    if (!name) return '';
+    const index = name.lastIndexOf(' (');
+    if (index !== -1 && name.endsWith(')')) {
+      return name.substring(0, index).trim();
+    }
+    return name;
+  };
+
   const resolveUserName = (userId: string) => {
     const profile = usersData.find(u => u.id === userId);
     if (profile) return profile.name;
@@ -125,9 +147,9 @@ export const ClientHistoryPage: React.FC = () => {
   };
 
   const handleUpdate = () => {
-    if (clientId) {
+    if (client) {
       refreshData();
-      fetchClientHistory(clientId);
+      fetchClientHistory(client.id);
     }
   };
 
@@ -154,10 +176,20 @@ export const ClientHistoryPage: React.FC = () => {
   };
 
   const getProductDetails = (entry: StockEntry) => {
-    const product = productsData.find(p => p.id === entry.produto_id);
+    // Agora o entry.produto_id refere-se ao ID da variante
+    for (const p of productsData) {
+      const variant = p.variants?.find(v => v.id === entry.produto_id);
+      if (variant) {
+        return {
+          tamanho: variant.tamanho || '-',
+          cor: variant.cor || '-'
+        };
+      }
+    }
+
     return {
-      tamanho: product?.tamanho || '-',
-      cor: product?.cor || '-'
+      tamanho: '-',
+      cor: '-'
     };
   };
 
@@ -303,7 +335,7 @@ export const ClientHistoryPage: React.FC = () => {
                       <div key={unit.displayId} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm flex flex-col gap-3 animate-fade-in-up">
                         <div className="flex justify-between items-start">
                           <div className="min-w-0 flex-1">
-                            <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm truncate">{unit.produto_nome}</h4>
+                            <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm truncate">{cleanProductName(unit.produto_nome)}</h4>
                             <div className="flex items-center gap-2 mt-1">
                               <Badge variant="outline" className="text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/10 text-[10px]">Tam: {details.tamanho}</Badge>
                               <Badge variant="outline" className="text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/10 text-[10px]">Cor: {details.cor}</Badge>
@@ -358,7 +390,7 @@ export const ClientHistoryPage: React.FC = () => {
                               return (
                                   <tr key={unit.displayId} className="hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition-colors bg-white dark:bg-zinc-900">
                                       <td className="px-6 py-3 whitespace-nowrap text-zinc-600 dark:text-zinc-400 text-xs"><div className="flex flex-col"><span className="font-bold">{weekDay}</span><span>{dateTime}</span></div></td>
-                                      <td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">{unit.produto_nome}</td>
+                                      <td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">{cleanProductName(unit.produto_nome)}</td>
                                       <td className="px-6 py-3 text-center"><Badge variant="outline" className="text-zinc-600 dark:text-zinc-300">{details.tamanho}</Badge></td>
                                       <td className="px-6 py-3 text-center text-zinc-600 dark:text-zinc-400 text-xs">{details.cor}</td>
                                       <td className="px-6 py-3 text-zinc-500 dark:text-zinc-400 text-xs"><div className="flex items-center gap-1.5"><Badge variant="secondary" className="w-6 h-6 p-0 rounded-full flex items-center justify-center text-[8px] font-bold">{responsibleName.substring(0, 2).toUpperCase()}</Badge><span className="font-medium">{responsibleName}</span></div></td>
@@ -396,7 +428,7 @@ export const ClientHistoryPage: React.FC = () => {
                       const displayMotivo = formatMotivo(entry.motivo);
                       return (
                         <div key={entry.id} className={`text-left p-4 rounded-xl border bg-white dark:bg-zinc-900 shadow-sm transition-all flex flex-col gap-3 ${isEntry ? 'border-green-100 dark:border-green-900/30' : 'border-zinc-100 dark:border-zinc-800'}`}>
-                          <div className="flex justify-between items-start"><div className="flex flex-col min-w-0 flex-1 pr-2"><h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm truncate">{entry.produto_nome}</h3><p className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1 italic"><Tag size={10} className="text-zinc-400" /> {displayMotivo}</p></div><Badge variant={isEntry ? "success" : "destructive"} className="text-[10px] shrink-0">{isEntry ? '+' : ''}{entry.quantidade} un</Badge></div>
+                          <div className="flex justify-between items-start"><div className="flex flex-col min-w-0 flex-1 pr-2"><h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm truncate">{cleanProductName(entry.produto_nome)}</h3><p className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1 italic"><Tag size={10} className="text-zinc-400" /> {displayMotivo}</p></div><Badge variant={isEntry ? "success" : "destructive"} className="text-[10px] shrink-0">{isEntry ? '+' : ''}{entry.quantidade} un</Badge></div>
                           <div className="flex items-center justify-between mt-1 pt-2 border-t border-zinc-50 dark:border-zinc-800"><div className="flex flex-col gap-1 text-[10px] text-zinc-400"><div className="flex items-center gap-1"><Calendar size={10} className="shrink-0" /><span className="truncate">{weekDay.split('-')[0]}</span></div><div className="flex items-center gap-1"><Clock size={10} className="shrink-0" /><span>{dateTime.split(' às ')[1]}</span></div></div><div className="flex items-center gap-2"><div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-medium"><Badge variant="secondary" className="w-5 h-5 p-0 rounded-full flex items-center justify-center text-[8px] font-bold">{responsibleName.substring(0, 2).toUpperCase()}</Badge><span className="dark:text-zinc-300">{responsibleName}</span></div></div></div>
                         </div>
                       );
@@ -412,7 +444,7 @@ export const ClientHistoryPage: React.FC = () => {
                               const isEntry = entry.quantidade > 0;
                               const responsibleName = resolveUserName(entry.responsavel);
                               return (
-                                  <tr key={entry.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors bg-white dark:bg-zinc-900"><td className="px-6 py-3 text-zinc-600 dark:text-zinc-400 whitespace-nowrap text-xs">{dateTime}</td><td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">{entry.produto_nome}</td><td className="px-6 py-3 text-center"><Badge variant={isEntry ? "success" : "destructive"}>{isEntry ? '+' : ''}{entry.quantidade}</Badge></td><td className="px-6 py-3 text-xs text-zinc-500">{formatMotivo(entry.motivo)}</td><td className="px-6 py-3 text-xs text-zinc-500 italic">{responsibleName}</td></tr>
+                                  <tr key={entry.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors bg-white dark:bg-zinc-900"><td className="px-6 py-3 text-zinc-600 dark:text-zinc-400 whitespace-nowrap text-xs">{dateTime}</td><td className="px-6 py-3 font-medium text-zinc-900 dark:text-white">{cleanProductName(entry.produto_nome)}</td><td className="px-6 py-3 text-center"><Badge variant={isEntry ? "success" : "destructive"}>{isEntry ? '+' : ''}{entry.quantidade}</Badge></td><td className="px-6 py-3 text-xs text-zinc-500">{formatMotivo(entry.motivo)}</td><td className="px-6 py-3 text-xs text-zinc-500 italic">{responsibleName}</td></tr>
                               );
                           })}
                       </tbody>

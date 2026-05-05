@@ -36,7 +36,7 @@ export const ClientList: React.FC = () => {
     setCurrentPage(1);
   }, [searchTerm, filterDebt, filterBalance, filterProvador, filterWhatsApp, filterOffers, itemsPerPage]);
 
-  const handleHistorySelect = (clientId: string) => {
+  const handleHistorySelect = (clientId: string | number) => {
     navigate(`/clients/${clientId}/history`);
   };
 
@@ -228,7 +228,7 @@ export const ClientList: React.FC = () => {
             return (
               <div 
                 key={client.id}
-                onClick={() => handleHistorySelect(client.id)}
+                onClick={() => handleHistorySelect(client.ui_id)}
                 className="text-left p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm active:scale-[0.98] transition-all flex flex-col gap-3 cursor-pointer relative"
               >
                 <div className="flex justify-between items-start">
@@ -327,7 +327,7 @@ export const ClientList: React.FC = () => {
                   return (
                     <tr 
                       key={client.id} 
-                      onClick={() => handleHistorySelect(client.id)}
+                      onClick={() => handleHistorySelect(client.ui_id)}
                       className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors group cursor-pointer"
                       title="Clique para ver o histórico de compras"
                     >

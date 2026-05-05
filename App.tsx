@@ -7,6 +7,7 @@ import { ClientList } from './components/ClientList';
 import { ProductList } from './components/ProductList';
 import { ProductFormPage } from './components/ProductFormPage';
 import { StockList } from './components/StockList';
+import { StockAdjustmentPage } from './components/StockAdjustmentPage';
 import { SalesPage } from './components/SalesPage';
 import { UserMenu } from './components/UserMenu';
 import { DashboardHome } from './components/DashboardHome';
@@ -165,6 +166,7 @@ const AppLayout: React.FC = () => {
             <Route path="/products/new" element={<ProductFormPage />} />
             <Route path="/products/update/:id" element={<ProductFormPage />} />
             <Route path="/stock" element={<StockList />} />
+            <Route path="/stock/adjustment" element={<StockAdjustmentPage />} />
             <Route path="/sales" element={<SalesPage />} />
             <Route path="/team" element={<ManagerRoute><TeamList /></ManagerRoute>} />
             <Route path="/settings" element={<ManagerRoute><SettingsPage /></ManagerRoute>} />

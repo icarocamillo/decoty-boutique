@@ -272,11 +272,14 @@ export const backendService = {
             return false;
         }
 
-        const variantsToInsert = initialVariants.map((v, index) => ({
-            ...v,
-            product_variant_id: parent.id,
-            ui_id: (parent.ui_id * 1000) + (index + 1)
-        }));
+        const variantsToInsert = initialVariants.map((v, index) => {
+            const { original_estoque, ...cleanVariant } = v as any;
+            return {
+                ...cleanVariant,
+                product_variant_id: parent.id,
+                ui_id: (parent.ui_id * 1000) + (index + 1)
+            };
+        });
 
         const { data: variants, error: variantError } = await getSupabase()
             .from('product_variants')
@@ -350,7 +353,7 @@ export const backendService = {
         for (const v of variants) {
             if (v.id) {
                 // Update
-                const { id: vid, created_at: _vca, ...variantData } = v as any;
+                const { id: vid, created_at: _vca, original_estoque, ...variantData } = v as any;
                 const { data: oldVariant } = await getSupabase()
                     .from('product_variants')
                     .select('quantidade_estoque')
@@ -384,10 +387,11 @@ export const backendService = {
                 // Create New Variant for existing product
                 newlyCreatedCount++;
                 const newUiId = (currentParent.ui_id * 1000) + (maxSubId + newlyCreatedCount);
+                const { original_estoque, ...cleanVariant } = v as any;
                 
                 const { data: newVar, error: varError } = await getSupabase()
                     .from('product_variants')
-                    .insert([{ ...v, product_variant_id: id, ui_id: newUiId }])
+                    .insert([{ ...cleanVariant, product_variant_id: id, ui_id: newUiId }])
                     .select()
                     .single();
                 
@@ -963,17 +967,33 @@ export const backendService = {
 
       if (isSupabaseConfigured()) {
           if (!targetProductId) {
-             const { data: foundProd } = await getSupabase().from('products').select('id').eq('nome', entry.produto_nome.split(' - ')[0]).maybeSingle();
-             targetProductId = foundProd?.id;
+             // Busca apenas na tabela de variantes pelo SKU/Nome se necessário (embora o ideal seja ter o ID)
+             const { data: foundVar } = await getSupabase()
+                .from('product_variants')
+                .select('id')
+                .eq('sku', entry.produto_nome.split(' - ')[0])
+                .maybeSingle();
+             targetProductId = foundVar?.id;
           }
 
           if (!targetProductId) return false;
 
-          const { data: prod } = await getSupabase().from('products').select('quantidade_estoque').eq('id', targetProductId).single();
-          if (!prod) return false;
+          const { data: variant } = await getSupabase()
+            .from('product_variants')
+            .select('quantidade_estoque')
+            .eq('id', targetProductId)
+            .single();
 
-          await getSupabase().from('products').update({ quantidade_estoque: prod.quantidade_estoque + Math.abs(entry.quantidade) }).eq('id', targetProductId);
+          if (variant) {
+            await getSupabase()
+              .from('product_variants')
+              .update({ quantidade_estoque: variant.quantidade_estoque + Math.abs(entry.quantidade) })
+              .eq('id', targetProductId);
+          } else {
+            return false;
+          }
       } else {
+          // Mock logic (não alterado)
           const products = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
           const updated = products.map(p => p.id === targetProductId ? { ...p } : p);
           setLocalData(LS_KEYS.PRODUCTS, updated);

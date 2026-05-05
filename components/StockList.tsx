@@ -4,7 +4,6 @@ import { ArrowDownCircle, ArrowUpCircle, Package, Archive, Search, Filter, User,
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
-import { StockAdjustmentModal } from './StockAdjustmentModal';
 import { Pagination } from './ui/Pagination';
 import { SIZES_LIST } from '../constants';
 import { formatDateStandard, formatProductId } from '../utils';
@@ -18,8 +17,6 @@ const CATEGORIES = ['Vestidos', 'Blusas', 'Camisas', 'Calças', 'Saias', 'Casaco
 export const StockList: React.FC = () => {
   const navigate = useNavigate();
   const { stockEntries: entries, products, suppliers, users: profiles, sales, refreshData, isLoading: dataLoading } = useData();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [productToAdjust, setProductToAdjust] = useState<Product | null>(null);
   
   // Estados para mapeamento de IDs para Nomes/Números Reais
   const [salesMapping, setSalesMapping] = useState<Record<string, number>>({});
@@ -125,15 +122,13 @@ export const StockList: React.FC = () => {
 
   const handleRowClick = (entry: StockEntry) => {
     const product = getProductInfo(entry);
-    if (product) {
-        setProductToAdjust(product);
-        setIsModalOpen(true);
+    if (product && product.ui_id) {
+        navigate('/stock/adjustment', { state: { variantId: product.ui_id.toString() } });
     }
   };
 
   const handleOpenGeneralModal = () => {
-    setProductToAdjust(null);
-    setIsModalOpen(true);
+    navigate('/stock/adjustment');
   };
 
   const formatResponsibleAndReason = (entry: StockEntry) => {
@@ -565,13 +560,6 @@ export const StockList: React.FC = () => {
           />
         )}
       </Card>
-
-      <StockAdjustmentModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={refreshData} 
-        initialProduct={productToAdjust} 
-      />
     </div>
   );
 };
