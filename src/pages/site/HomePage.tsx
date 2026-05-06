@@ -40,7 +40,7 @@ export const HomePage: React.FC = () => {
               A elegância mora nos detalhes.
             </h1>
             <p className="text-lg text-white/80 mb-10 max-w-lg leading-relaxed">
-              Descubra uma curadoria exclusiva que celebra a feminilidade e o estilo moderno. Peças que contam sua história.
+              Descubra uma boutique exclusiva que celebra a feminilidade e o estilo moderno. Peças elegantes que contam sua história.
             </p>
             <div className="flex flex-wrap gap-4">
               <Button size="lg" className="bg-white text-black hover:bg-zinc-100 rounded-full px-8 h-14 text-base font-bold shadow-xl">
