@@ -361,7 +361,10 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                                            feePerc = (pay.valor_taxa / pay.valor) * 100;
                                         }
 
-                                        const itemInfo = pay.product_variant_id ? selectedSale.items?.find(i => i.id === pay.sale_item_id || i.produto_id === pay.product_variant_id) : null;
+                                        const itemInfo = selectedSale.items?.find(i => 
+                                            (pay.sale_item_id && i.id === pay.sale_item_id) || 
+                                            (!pay.sale_item_id && pay.product_variant_id && i.produto_id === pay.product_variant_id)
+                                        );
 
                                         return (
                                             <div key={pay.id} className="flex items-center gap-3 sm:gap-4 p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm transition-all hover:shadow-md">
@@ -389,7 +392,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                                                     <div className="flex flex-col mt-0.5">
                                                         {itemInfo && (
                                                             <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                                                                <span className="text-[8px] font-black text-zinc-400 opacity-60">ID: {itemInfo.ui_id || itemInfo.id.slice(0,8)}</span>
+                                                                <span className="text-[8px] font-black text-zinc-400 opacity-60">Item {itemInfo.ui_id || '---'}: ID - {itemInfo.product_ui_id || '---'}</span>
                                                                 <p className="text-[9px] font-bold text-zinc-700 dark:text-zinc-300 truncate">
                                                                     {itemInfo.nome_produto}
                                                                 </p>

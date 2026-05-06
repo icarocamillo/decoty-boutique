@@ -111,7 +111,8 @@ const flattenSaleItems = (sale: any): Sale => {
       marca: item.variant?.product?.marca || item.marca,
       cor: item.variant?.cor || item.cor,
       tamanho: item.variant?.tamanho || item.tamanho,
-      ui_id: item.variant?.ui_id || (item as any).ui_id
+      ui_id: (item as any).ui_id,
+      product_ui_id: item.variant?.ui_id
     }))
   };
 };
@@ -1082,9 +1083,21 @@ export const backendService = {
                    cliente_nome: saleData?.cliente_nome
                });
 
-               const unitRefund = item.valor_estorno_unitario || (item.subtotal / item.quantidade);
-               if (item.status_pagamento === 'pago') giftCardSum += unitRefund;
-               else debtReductionSum += unitRefund;
+               // Lógica de Reembolso Robusta para Crediário e Parciais
+               const toClear = item.valor_liquido_estorno || item.valor_estorno_unitario || (item.subtotal / item.quantidade);
+               const paid = item.valor_pago_unitario || 0;
+               
+               if (paid >= toClear && toClear > 0) {
+                   // Totalmente pago
+                   giftCardSum += toClear;
+               } else if (paid > 0) {
+                   // Parcialmente pago
+                   giftCardSum += paid;
+                   debtReductionSum += roundMoney(Math.max(0, toClear - paid));
+               } else {
+                   // Nada pago
+                   debtReductionSum += toClear;
+               }
            }
         }
 

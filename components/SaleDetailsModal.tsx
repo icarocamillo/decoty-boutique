@@ -36,7 +36,7 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
     }, [sale]);
 
     const unrolledItems = useMemo(() => {
-        const list: (SaleItem & { virtualId: string; valorLiquidoEstorno: number; valorPago: number })[] = [];
+        const list: (SaleItem & { virtualId: string; valor_liquido_estorno: number; valor_pago_unitario: number })[] = [];
         const receipts = sale.pagamentos_crediario || [];
         const extraDiscountUnit = extraDiscountPerUnit;
         
@@ -126,9 +126,9 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
             
             list.push({
                 ...u,
-                valorLiquidoEstorno: netRefundValue,
+                valor_liquido_estorno: netRefundValue,
                 valor_estorno_unitario: netRefundValue,
-                valorPago: paidAmount,
+                valor_pago_unitario: paidAmount,
                 virtualId: u.virtualId
             });
         });
@@ -154,8 +154,8 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
         let pendingTotal = 0;
 
         selectedItems.forEach(item => {
-            const paid = (item as any).valorPago || 0;
-            const toClear = (item as any).valorLiquidoEstorno || 0;
+            const paid = item.valor_pago_unitario || 0;
+            const toClear = item.valor_liquido_estorno || 0;
             
             // O que o cliente já pagou vira Vale Presente
             const refundPart = Math.min(paid, toClear);
@@ -223,11 +223,11 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
                                                     <span className="text-zinc-300">•</span>
                                                     {sale.metodo_pagamento === 'Crediário' ? (
                                                         <>
-                                                            {(item as any).valorPago >= (item as any).valorLiquidoEstorno - 0.01 ? (
+                                                            {(item.valor_pago_unitario || 0) >= (item.valor_liquido_estorno || 0) - 0.01 ? (
                                                                 <Badge variant="success" className="text-[9px] h-4 px-1">Pago</Badge>
-                                                            ) : (item as any).valorPago > 0 ? (
+                                                            ) : (item.valor_pago_unitario || 0) > 0 ? (
                                                                 <Badge variant="warning" className="text-[9px] h-4 px-1 gap-1">
-                                                                    <DollarSign size={8} /> Parcial ({formatCurrency((item as any).valorPago)})
+                                                                    <DollarSign size={8} /> Parcial ({formatCurrency(item.valor_pago_unitario || 0)})
                                                                 </Badge>
                                                             ) : (
                                                                 <Badge variant="outline" className="text-[9px] h-4 px-1 text-zinc-500 border-zinc-200">Pendente</Badge>
@@ -244,7 +244,7 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 block">{formatCurrency(item.valorLiquidoEstorno)}</span>
+                                            <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 block">{formatCurrency(item.valor_liquido_estorno || 0)}</span>
                                         </div>
                                     </label>
                                 ))}
@@ -338,8 +338,6 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
     if (!currentSale?.items) return [];
     const list: (SaleItem & { virtualId: string })[] = [];
     currentSale.items.forEach(item => {
-        // If items are already stored as qty=1 in DB (unrolled), this loop runs once.
-        // If legacy items have qty > 1, this loop unrolls them for specific unit selection (like returns).
         const qty = Number(item.quantidade) || 0;
         for (let i = 0; i < qty; i++) {
             list.push({
@@ -352,30 +350,6 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
         }
     });
     return list;
-  }, [currentSale?.items]);
-
-  const groupedItems = useMemo(() => {
-    if (!currentSale?.items) return [];
-    const groups: Record<string, SaleItem & { count: number }> = {};
-    
-    currentSale.items.forEach(item => {
-      // Group by variant ID, price and status
-      const key = `${item.produto_id}-${item.preco_unitario}-${item.status}`;
-      if (!groups[key]) {
-        groups[key] = { 
-          ...item, 
-          count: Number(item.quantidade) || 0,
-          subtotal: Number(item.subtotal) || 0,
-          desconto: Number(item.desconto) || 0
-        };
-      } else {
-        groups[key].count += (Number(item.quantidade) || 0);
-        groups[key].subtotal += (Number(item.subtotal) || 0);
-        groups[key].desconto += (Number(item.desconto) || 0);
-      }
-    });
-    
-    return Object.values(groups);
   }, [currentSale?.items]);
 
   // --- LÓGICA DE TAXAS CONSOLIDADAS BASEADA NO HISTÓRICO DE RECEBIMENTOS ---
@@ -688,14 +662,20 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {groupedItems.map((item, idx) => {
+                    {unrolledItems.map((item) => {
                       const isReturned = item.status === 'returned';
                       return (
-                        <tr key={`${item.id}-${idx}`} className={`hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale bg-zinc-50/50 dark:bg-zinc-900/20' : ''}`}>
-                          <td className="px-4 py-3"><div className="font-medium text-zinc-900 dark:text-white">{item.nome_produto}</div><div className="text-[10px] text-zinc-400 dark:text-zinc-400">{item.marca}</div></td>
+                        <tr key={item.virtualId} className={`hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale bg-zinc-50/50 dark:bg-zinc-900/20' : ''}`}>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-black text-zinc-400 opacity-60">Item {item.ui_id || '---'}: ID - {item.product_ui_id || '---'}</span>
+                              <div className="font-medium text-zinc-900 dark:text-white">{item.nome_produto}</div>
+                              <div className="text-[10px] text-zinc-400 dark:text-zinc-400">{item.marca}</div>
+                            </div>
+                          </td>
                           <td className="px-4 py-3 text-center"><Badge variant="outline" className="dark:bg-zinc-800 dark:text-zinc-300 capitalize">{item.cor}</Badge></td>
                           <td className="px-4 py-3 text-center"><Badge variant="secondary" className="dark:bg-zinc-800 dark:text-zinc-300">{item.tamanho}</Badge></td>
-                          <td className="px-4 py-3 text-center text-zinc-800 dark:text-zinc-200 font-bold">{item.count}</td>
+                          <td className="px-4 py-3 text-center text-zinc-800 dark:text-zinc-200 font-bold">{item.quantidade}</td>
                           <td className="px-4 py-3 text-center">{isReturned ? <Badge variant="destructive" className="text-[9px]">Devolvido</Badge> : <Badge variant="success" className="text-[9px]">Vendido</Badge>}</td>
                           <td className="px-4 py-3 text-center">
                              {!isReturned && currentSale.status !== 'cancelled' && (item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[9px] h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[9px] h-4 px-1.5 gap-1"><DollarSign size={8} /> Pendente</Badge>)}
@@ -704,7 +684,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                         </tr>
                       );
                     })}
-                    {groupedItems.length === 0 && (
+                    {unrolledItems.length === 0 && (
                       <tr>
                         <td colSpan={7} className="px-4 py-8 text-center text-zinc-500 italic bg-zinc-50 dark:bg-zinc-800/20">
                           <div className="flex flex-col items-center gap-2">
@@ -719,12 +699,13 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
             </div>
             {/* Mobile View Itens */}
             <div className="flex flex-col gap-3 sm:hidden">
-              {groupedItems.map((item, idx) => {
+              {unrolledItems.map((item) => {
                 const isReturned = item.status === 'returned';
                 return (
-                  <div key={`${item.id}-${idx}`} className={`bg-zinc-50 dark:bg-zinc-800/30 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale' : ''}`}>
+                  <div key={item.virtualId} className={`bg-zinc-50 dark:bg-zinc-800/30 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 ${currentSale.status === 'cancelled' || isReturned ? 'opacity-60 grayscale' : ''}`}>
                       <div className="flex justify-between items-start">
                           <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-zinc-400 opacity-60">Item {item.ui_id || '---'}: ID - {item.product_ui_id || '---'}</span>
                             <span className="font-bold text-sm text-zinc-900 dark:text-white">{item.nome_produto}</span>
                             <span className="text-[10px] text-zinc-500 capitalize">{item.cor}</span>
                           </div>
@@ -733,14 +714,14 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                       <div className="flex justify-between items-center mt-2">
                           <span className="text-xs text-zinc-700 dark:text-zinc-200 font-bold">{formatCurrency(item.subtotal)}</span>
                           <div className="flex items-center gap-2">
-                             <span className="text-[10px] text-zinc-500 dark:text-zinc-400">Qtd: {item.count}</span>
+                             <span className="text-[10px] text-zinc-500 dark:text-zinc-400">Qtd: {item.quantidade}</span>
                              {isReturned ? <Badge variant="destructive" className="text-[8px]">Devolvido</Badge> : (item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[8px]">Pago</Badge> : <Badge variant="warning" className="text-[8px]">Pendente</Badge>)}
                           </div>
                       </div>
                   </div>
                 );
               })}
-              {groupedItems.length === 0 && (
+              {unrolledItems.length === 0 && (
                 <div className="bg-zinc-50 dark:bg-zinc-800/30 p-4 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 text-center">
                   <p className="text-xs text-zinc-500 italic mb-1">Resumo dos itens:</p>
                   <p className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">{currentSale.produtos_resumo || 'Nenhum detalhe disponível.'}</p>
