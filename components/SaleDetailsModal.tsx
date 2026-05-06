@@ -36,25 +36,105 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
     }, [sale]);
 
     const unrolledItems = useMemo(() => {
-        const list: (SaleItem & { virtualId: string; valorLiquidoEstorno: number })[] = [];
-        sale.items?.forEach(item => {
-            for (let i = 0; i < item.quantidade; i++) {
-                const unitSubtotal = item.subtotal / item.quantidade;
-                const netRefundValue = Math.max(0, unitSubtotal - extraDiscountPerUnit);
+        const list: (SaleItem & { virtualId: string; valorLiquidoEstorno: number; valorPago: number })[] = [];
+        const receipts = sale.pagamentos_crediario || [];
+        const extraDiscountUnit = extraDiscountPerUnit;
+        
+        // --- Cálculo de distribuição de pagamentos similar ao backend ---
+        const itemPayments: Record<string, number> = {}; // VirtualId -> Valor Pago
+        
+        const round = (num: number) => Math.round((num + Number.EPSILON) * 100) / 100;
 
-                list.push({
+        // 1. Unroll items first to have virtualIds
+        const tempUnrolled: (SaleItem & { virtualId: string; unitSubtotal: number })[] = [];
+        sale.items?.forEach(item => {
+            const qty = Number(item.quantidade) || 1;
+            for (let i = 0; i < qty; i++) {
+                tempUnrolled.push({
                     ...item,
                     quantidade: 1,
-                    subtotal: unitSubtotal, 
-                    valorLiquidoEstorno: netRefundValue,
-                    valor_estorno_unitario: netRefundValue,
-                    desconto: (item.desconto || 0) / item.quantidade,
+                    unitSubtotal: item.subtotal / qty,
                     virtualId: `${item.id}-${i}`
                 });
             }
         });
+
+        if (sale.metodo_pagamento === 'Crediário') {
+            // 2. Distribuir Pagamentos Específicos usando sale_item_id
+            const itemSpecificPool = receipts.reduce((acc, r) => {
+                if (r.sale_item_id) {
+                    acc[r.sale_item_id] = (acc[r.sale_item_id] || 0) + Number(r.valor || 0);
+                }
+                return acc;
+            }, {} as Record<string, number>);
+
+            // 3. Fallback: Pagamentos por Variant ID (para compatibilidade legada ou se faltar sale_item_id)
+            const variantSpecificPool = receipts.reduce((acc, r) => {
+                if (!r.sale_item_id && r.product_variant_id) {
+                    acc[r.product_variant_id] = (acc[r.product_variant_id] || 0) + Number(r.valor || 0);
+                }
+                return acc;
+            }, {} as Record<string, number>);
+
+            // 4. Atribuir aos itens unrolled
+            tempUnrolled.forEach(u => {
+                // Prioridade 1: ID do item da venda
+                let available = itemSpecificPool[u.id] || 0;
+                if (available > 0) {
+                    const applied = round(Math.min(u.unitSubtotal, available));
+                    itemPayments[u.virtualId] = applied;
+                    itemSpecificPool[u.id] = round(itemSpecificPool[u.id] - applied);
+                }
+                
+                // Prioridade 2: Variante (se ainda houver saldo devedor e houver saldo na variante)
+                const currentPaid = itemPayments[u.virtualId] || 0;
+                const remainingDebt = round(Math.max(0, u.unitSubtotal - currentPaid));
+                if (remainingDebt > 0 && variantSpecificPool[u.produto_id] > 0) {
+                    const applied = round(Math.min(remainingDebt, variantSpecificPool[u.produto_id]));
+                    itemPayments[u.virtualId] = round(currentPaid + applied);
+                    variantSpecificPool[u.produto_id] = round(variantSpecificPool[u.produto_id] - applied);
+                }
+            });
+
+            // 5. Distribute Generic Payments
+            let genericPool = receipts.filter(r => !r.product_variant_id && !r.sale_item_id).reduce((sum: number, r) => sum + Number(r.valor || 0), 0);
+            // Add leftovers from specific pools (should ideally be zero if everything is perfectly synced)
+            const itemLeftovers = Object.values(itemSpecificPool) as number[];
+            const variantLeftovers = Object.values(variantSpecificPool) as number[];
+            genericPool = round(genericPool + itemLeftovers.reduce((sum, v) => sum + v, 0) + variantLeftovers.reduce((sum, v) => sum + v, 0));
+
+            tempUnrolled.forEach(u => {
+                const currentPaid = itemPayments[u.virtualId] || 0;
+                const debt = round(Math.max(0, u.unitSubtotal - currentPaid));
+                if (debt > 0 && genericPool > 0) {
+                    const apply = round(Math.min(debt, genericPool));
+                    itemPayments[u.virtualId] = round((itemPayments[u.virtualId] || 0) + apply);
+                    genericPool = round(genericPool - apply);
+                }
+            });
+        } else if (sale.status_pagamento === 'pago') {
+            // Vendas não-crediário já pagas: assumimos pagamento total
+            tempUnrolled.forEach(u => {
+                itemPayments[u.virtualId] = u.unitSubtotal;
+            });
+        }
+
+        // --- Final list creation ---
+        tempUnrolled.forEach(u => {
+            const netRefundValue = round(Math.max(0, u.unitSubtotal - extraDiscountUnit));
+            const paidAmount = itemPayments[u.virtualId] || 0;
+            
+            list.push({
+                ...u,
+                valorLiquidoEstorno: netRefundValue,
+                valor_estorno_unitario: netRefundValue,
+                valorPago: paidAmount,
+                virtualId: u.virtualId
+            });
+        });
+        
         return list;
-    }, [sale.items, extraDiscountPerUnit]);
+    }, [sale.items, sale.pagamentos_crediario, sale.metodo_pagamento, sale.status_pagamento, extraDiscountPerUnit]);
 
     const availableItems = useMemo(() => 
         unrolledItems.filter(item => item.status !== 'returned') || [], 
@@ -69,13 +149,28 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
 
     const selectedItems = availableItems.filter(i => selectedVirtualIds.has(i.virtualId));
     
-    const totalPaidToRefund = selectedItems
-        .filter(i => i.status_pagamento === 'pago')
-        .reduce((acc, curr) => acc + curr.valorLiquidoEstorno, 0);
-    
-    const totalPendingToAbate = selectedItems
-        .filter(i => i.status_pagamento !== 'pago')
-        .reduce((acc, curr) => acc + curr.valorLiquidoEstorno, 0);
+    const { totalPaidToRefund, totalPendingToAbate } = useMemo(() => {
+        let paidTotal = 0;
+        let pendingTotal = 0;
+
+        selectedItems.forEach(item => {
+            const paid = (item as any).valorPago || 0;
+            const toClear = (item as any).valorLiquidoEstorno || 0;
+            
+            // O que o cliente já pagou vira Vale Presente
+            const refundPart = Math.min(paid, toClear);
+            // O que falta pagar vira Abatimento de dívida
+            const abatePart = Math.max(0, toClear - refundPart);
+            
+            paidTotal += refundPart;
+            pendingTotal += abatePart;
+        });
+
+        return {
+            totalPaidToRefund: paidTotal,
+            totalPendingToAbate: pendingTotal
+        };
+    }, [selectedItems]);
 
     const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -126,10 +221,24 @@ const ReturnItemsModal: React.FC<ReturnItemsModalProps> = ({ isOpen, onClose, sa
                                                 <div className="flex items-center gap-2 mt-0.5">
                                                     <span className="text-[10px] text-zinc-500 uppercase font-bold">{item.tamanho}</span>
                                                     <span className="text-zinc-300">•</span>
-                                                    {item.status_pagamento === 'pago' ? (
-                                                        <Badge variant="success" className="text-[9px] h-4 px-1">Pago</Badge>
+                                                    {sale.metodo_pagamento === 'Crediário' ? (
+                                                        <>
+                                                            {(item as any).valorPago >= (item as any).valorLiquidoEstorno - 0.01 ? (
+                                                                <Badge variant="success" className="text-[9px] h-4 px-1">Pago</Badge>
+                                                            ) : (item as any).valorPago > 0 ? (
+                                                                <Badge variant="warning" className="text-[9px] h-4 px-1 gap-1">
+                                                                    <DollarSign size={8} /> Parcial ({formatCurrency((item as any).valorPago)})
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge variant="outline" className="text-[9px] h-4 px-1 text-zinc-500 border-zinc-200">Pendente</Badge>
+                                                            )}
+                                                        </>
                                                     ) : (
-                                                        <Badge variant="warning" className="text-[9px] h-4 px-1 gap-1"><DollarSign size={8} /> Pendente</Badge>
+                                                        item.status_pagamento === 'pago' ? (
+                                                            <Badge variant="success" className="text-[9px] h-4 px-1">Pago</Badge>
+                                                        ) : (
+                                                            <Badge variant="warning" className="text-[9px] h-4 px-1 gap-1"><DollarSign size={8} /> Pendente</Badge>
+                                                        )
                                                     )}
                                                 </div>
                                             </div>

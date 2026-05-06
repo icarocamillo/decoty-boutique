@@ -91,9 +91,10 @@ const SALE_WITH_ITEMS_JOIN = `
   items:sale_items(
     *,
     variant:product_variants(
+      id,
       cor,
       tamanho,
-      product:products(nome, marca)
+      product:products(id, nome, marca)
     )
   )
 `;
@@ -120,7 +121,7 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
         const saleIds = sales.map(s => s.id);
         const { data: payments, error } = await getSupabase()
             .from('crediario_recebimentos')
-            .select('id, venda_id, valor_pago, valor_taxa, metodo_pagamento, responsavel, data_recebimento, parcelas')
+            .select('id, venda_id, sale_item_id, valor_pago, valor_faltante, valor_taxa, metodo_pagamento, responsavel, data_recebimento, parcelas, product_id, product_variant_id')
             .in('venda_id', saleIds);
 
         if (error) {
@@ -133,7 +134,12 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
                 .filter(p => p.venda_id === s.id)
                 .map(p => ({
                     id: p.id,
+                    venda_id: p.venda_id,
+                    sale_item_id: p.sale_item_id,
+                    product_id: p.product_id,
+                    product_variant_id: p.product_variant_id,
                     valor: Number(p.valor_pago || 0),
+                    valor_faltante: Number(p.valor_faltante || 0),
                     valor_taxa: Number(p.valor_taxa || 0),
                     metodo: p.metodo_pagamento,
                     data: p.data_recebimento,
@@ -196,45 +202,210 @@ export const backendService = {
     return true;
   },
 
-  processCrediarioPayment: async (clientId: string, amount: number, vendaId: string, metodo: string, responsavelId: string, parcelas: number = 1): Promise<boolean> => {
+  processCrediarioPayment: async (clientId: string, amount: number, vendaId: string, metodo: string, responsavelId: string, parcelas: number = 1, productId?: string, variantId?: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
         const currentFees = await backendService.getPaymentFees();
         let feePercent = 0;
         if (metodo === 'Cartão de Débito') feePercent = currentFees.debit;
         else if (metodo === 'Cartão de Crédito') feePercent = parcelas > 1 ? currentFees.credit_installment : currentFees.credit_spot;
         
-        const valorTaxaCalculada = roundMoney(amount * (feePercent / 100));
+        // 1. Buscar a venda e itens de forma simples para evitar erros de join complexos
+        const { data: sale, error: saleError } = await getSupabase()
+            .from('sales')
+            .select('*, items:sale_items(*)')
+            .eq('id', vendaId)
+            .single();
+        if (saleError || !sale) {
+            console.error("Erro ao buscar venda:", saleError);
+            return false;
+        }
 
-        const { error: receiptError } = await getSupabase().from('crediario_recebimentos').insert([{
-            venda_id: vendaId,
-            valor_pago: amount,
-            valor_taxa: valorTaxaCalculada, 
-            metodo_pagamento: metodo, 
-            responsavel: responsavelId, 
-            data_recebimento: new Date().toISOString(),
-            parcelas: parcelas
-        }]);
+        const { data: allReceipts } = await getSupabase().from('crediario_recebimentos').select('*').eq('venda_id', vendaId);
+        const receipts = allReceipts || [];
+        const items = (sale.items || []).filter((i: any) => i.status === 'sold');
 
-        if (receiptError) return false;
+        // Buscar mapping de variant -> product_id para preencher a coluna product_id
+        const variantIds = items.map((i: any) => i.produto_id).filter(Boolean);
+        const productMapping: Record<string, string> = {};
+        if (variantIds.length > 0) {
+            const { data: variants } = await getSupabase().from('product_variants').select('id, product_id').in('id', variantIds);
+            variants?.forEach(v => { productMapping[v.id] = v.product_id; });
+        }
 
-        const { data: allReceipts } = await getSupabase().from('crediario_recebimentos').select('valor_pago').eq('venda_id', vendaId);
-        const totalPaidAccumulated = (allReceipts || []).reduce((sum, r) => sum + Number(r.valor_pago || 0), 0);
+        const inserts: any[] = [];
+        let remainingToPay = amount;
 
-        const { data: sale } = await getSupabase().from('sales').select('*, items:sale_items(*)').eq('id', vendaId).single();
-        if (!sale) return false;
+        if (variantId) {
+            // Pagamento vinculado a um item específico (Manual ou Item Individual)
+            const valorTaxaCalculada = roundMoney(amount * (feePercent / 100));
+            
+            // Localizar item da venda que corresponde a essa variante
+            const matchingItem = items.find((i: any) => i.produto_id === variantId);
+            const itemSubtotal = matchingItem ? Number(matchingItem.subtotal) : 0;
+            
+            // Total já pago PARA ESTE ITEM específico
+            // Nota: Se houver múltiplos itens da mesma variante, a lógica de diluição é preferível, 
+            // mas aqui respeitamos o vínculo direto se fornecido.
+            const totalPaidForItem = receipts
+                .filter(r => r.sale_item_id === matchingItem?.id || (!r.sale_item_id && r.product_variant_id === variantId))
+                .reduce((sum, r) => sum + Number(r.valor_pago || 0), 0);
+            
+            const currentDebt = roundMoney(Math.max(0, itemSubtotal - totalPaidForItem));
 
-        let remainingToDistribute = totalPaidAccumulated;
-        const items = sale.items || [];
-        for (const item of items) {
-            if (item.status === 'sold') {
-                const isItemPaid = remainingToDistribute >= roundMoney(item.subtotal);
-                await getSupabase().from('sale_items').update({ status_pagamento: isItemPaid ? 'pago' : 'pendente' }).eq('id', item.id);
-                if (isItemPaid) remainingToDistribute = roundMoney(remainingToDistribute - item.subtotal);
+            inserts.push({
+                venda_id: vendaId,
+                sale_item_id: matchingItem?.id || null,
+                valor_pago: amount,
+                valor_faltante: roundMoney(Math.max(0, currentDebt - amount)),
+                valor_taxa: valorTaxaCalculada, 
+                metodo_pagamento: metodo, 
+                responsavel: responsavelId, 
+                data_recebimento: new Date().toISOString(),
+                parcelas: parcelas,
+                product_id: productMapping[variantId] || productId || null,
+                product_variant_id: variantId || null
+            });
+        } else {
+            // Pagamento GENÉRICO (Lógica de Diluição entre itens)
+            const itemReceivedAmounts: Record<string, number> = {};
+            
+            // Atribuir o que já foi pago aos itens considerando sale_item_id e fallback variant_id
+            const specificReceipts = [...receipts];
+            for (const item of items) {
+                let paid = 0;
+                // Primeiro por ID direto
+                const byId = specificReceipts.filter(r => r.sale_item_id === item.id);
+                paid += byId.reduce((s, r) => s + Number(r.valor_pago || 0), 0);
+                
+                // Remover usados
+                byId.forEach(r => {
+                    const idx = specificReceipts.indexOf(r);
+                    if (idx > -1) specificReceipts.splice(idx, 1);
+                });
+
+                itemReceivedAmounts[item.id] = paid;
+            }
+
+            // Fallback: Distribuir recebimentos que tem variant_id mas não sale_item_id
+            for (const item of items) {
+                const currentPaid = itemReceivedAmounts[item.id];
+                const debt = roundMoney(item.subtotal - currentPaid);
+                if (debt > 0) {
+                    const byVariant = specificReceipts.filter(r => !r.sale_item_id && r.product_variant_id === item.produto_id);
+                    const available = byVariant.reduce((s, r) => s + Number(r.valor_pago || 0), 0);
+                    const apply = Math.min(debt, available);
+                    itemReceivedAmounts[item.id] += apply;
+                    
+                    // Nota: Aqui a lógica de remoção dos receipts usados seria mais complexa se um receipt parasse no meio
+                }
+            }
+            
+            // Distribuir genéricos puros (sem variant e sem item_id)
+            let poolGenericoAnterior = receipts.filter(r => !r.product_variant_id && !r.sale_item_id).reduce((sum, r) => sum + Number(r.valor_pago || 0), 0);
+            for (const item of items) {
+                const currentPaid = itemReceivedAmounts[item.id] || 0;
+                const debt = roundMoney(item.subtotal - currentPaid);
+                if (debt > 0 && poolGenericoAnterior > 0) {
+                    const apply = Math.min(debt, poolGenericoAnterior);
+                    itemReceivedAmounts[item.id] += apply;
+                    poolGenericoAnterior = roundMoney(poolGenericoAnterior - apply);
+                }
+            }
+
+            // AGORA SIM: Distribuímos o NOVO pagamento (amount) nos itens que ainda tem saldo
+            for (const item of items) {
+                if (remainingToPay > 0) {
+                    const alreadyPaid = itemReceivedAmounts[item.id] || 0;
+                    const itemDebtNow = roundMoney(item.subtotal - alreadyPaid);
+                    
+                    if (itemDebtNow > 0) {
+                        const payingForItem = Math.min(remainingToPay, itemDebtNow);
+                        const valorTaxa = roundMoney(payingForItem * (feePercent / 100));
+                        
+                        inserts.push({
+                            venda_id: vendaId,
+                            sale_item_id: item.id,
+                            valor_pago: payingForItem,
+                            valor_faltante: roundMoney(itemDebtNow - payingForItem),
+                            valor_taxa: valorTaxa,
+                            metodo_pagamento: metodo,
+                            responsavel: responsavelId,
+                            data_recebimento: new Date().toISOString(),
+                            parcelas: parcelas,
+                            product_id: productMapping[item.produto_id] || null,
+                            product_variant_id: item.produto_id
+                        });
+                        
+                        remainingToPay = roundMoney(remainingToPay - payingForItem);
+                        itemReceivedAmounts[item.id] += payingForItem;
+                    }
+                }
+            }
+
+            // Se sobrar algum valor (ex: pagou a venda toda e sobrou troco/saldo), insere como genérico
+            if (remainingToPay > 0) {
+                const valorTaxa = roundMoney(remainingToPay * (feePercent / 100));
+                const totalDebtBefore = roundMoney(sale.valor_total - receipts.reduce((s,r) => s + Number(r.valor_pago), 0));
+                inserts.push({
+                    venda_id: vendaId,
+                    sale_item_id: null,
+                    valor_pago: remainingToPay,
+                    valor_faltante: roundMoney(Math.max(0, totalDebtBefore - remainingToPay)),
+                    valor_taxa: valorTaxa,
+                    metodo_pagamento: metodo,
+                    responsavel: responsavelId,
+                    data_recebimento: new Date().toISOString(),
+                    parcelas: parcelas,
+                    product_id: null,
+                    product_variant_id: null
+                });
             }
         }
 
+        // 3. Executar Inserts no Banco
+        const { error: receiptError } = await getSupabase().from('crediario_recebimentos').insert(inserts);
+
+        if (receiptError) {
+            console.error("Erro ao registrar recebimentos:", receiptError);
+            return false;
+        }
+
+        // 4. Recalcular Status de Pagamento de todos os itens e da venda (Sincronização Final)
+        const { data: updatedReceipts } = await getSupabase().from('crediario_recebimentos').select('*').eq('venda_id', vendaId);
+        const allLatestReceipts = updatedReceipts || [];
+        
+        const finalItemPaid: Record<string, number> = {};
+        const availableLatestSpecific = allLatestReceipts.reduce((acc: any, r) => {
+            if (r.product_variant_id) acc[r.product_variant_id] = (acc[r.product_variant_id] || 0) + Number(r.valor_pago || 0);
+            return acc;
+        }, {});
+
+        for (const item of items) {
+            if (item.status === 'sold') {
+                const consumed = Math.min(item.subtotal, availableLatestSpecific[item.produto_id] || 0);
+                finalItemPaid[item.id] = consumed;
+                availableLatestSpecific[item.produto_id] -= consumed;
+            }
+        }
+
+        let poolLatestGeneric = allLatestReceipts.filter(r => !r.product_variant_id).reduce((sum, r) => sum + Number(r.valor_pago || 0), 0);
+        for (const item of items) {
+            if (item.status === 'sold') {
+                const needed = roundMoney(item.subtotal - (finalItemPaid[item.id] || 0));
+                if (needed > 0 && poolLatestGeneric > 0) {
+                    const apply = Math.min(needed, poolLatestGeneric);
+                    finalItemPaid[item.id] += apply;
+                    poolLatestGeneric = roundMoney(poolLatestGeneric - apply);
+                }
+                const isPaid = finalItemPaid[item.id] >= roundMoney(item.subtotal);
+                await getSupabase().from('sale_items').update({ status_pagamento: isPaid ? 'pago' : 'pendente' }).eq('id', item.id);
+            }
+        }
+
+        const totalPaidAccumulated = allLatestReceipts.reduce((sum, r) => sum + Number(r.valor_pago || 0), 0);
         const isFullyPaid = totalPaidAccumulated >= roundMoney(sale.valor_total);
         await getSupabase().from('sales').update({ status_pagamento: isFullyPaid ? 'pago' : 'pendente' }).eq('id', vendaId);
+        
         await backendService.updateClientCrediario(clientId, amount);
         return true;
     }

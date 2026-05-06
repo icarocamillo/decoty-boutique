@@ -21,6 +21,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
   const { user } = useAuth(); 
   const [step, setStep] = useState<Step>('select-sale');
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [selectedItem, setSelectedItem] = useState<SaleItem | null>(null);
   const [method, setMethod] = useState('Pix');
   const [installments, setInstallments] = useState(1);
   const [amountToPayStr, setAmountToPayStr] = useState('');
@@ -39,6 +40,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
     if (isOpen) {
       setStep('select-sale');
       setSelectedSale(null);
+      setSelectedItem(null);
       setMethod('Pix');
       setInstallments(1);
       setAmountToPayStr('');
@@ -125,7 +127,23 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
           netReceived: totalNet,
           remaining, 
           progress,
-          isPaid
+          isPaid,
+          itemStats: (selectedSale.items || []).map(item => {
+              const paidForItem = selectedSale.pagamentos_crediario
+                  ?.filter(p => p.product_variant_id === (item as any).produto_id)
+                  .reduce((sum, p) => sum + p.valor, 0) || 0;
+              
+              // Se houver pagamentos genéricos, o cálculo fica mais complexo, 
+              // mas para a UI vamos mostrar pelo menos o que foi vinculado especificamente.
+              return {
+                  id: item.id,
+                  variantId: item.produto_id,
+                  total: item.subtotal,
+                  paid: paidForItem,
+                  remaining: Math.max(0, item.subtotal - paidForItem),
+                  isPaid: paidForItem >= item.subtotal - 0.01
+              };
+          })
       };
   }, [selectedSale, getFeeInfo, calculateEffectiveSaleTotal]);
 
@@ -145,8 +163,15 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
     const amount = parseCurrency(amountToPayStr);
     if (amount <= 0 || !method || !selectedSale || !saleStats) return;
     
-    if (amount > saleStats.remaining + 0.01) {
-        alert("O valor informado é maior que o saldo devedor desta venda.");
+    // Validação de limite
+    const limit = selectedItem 
+        ? (saleStats.itemStats.find(s => s.id === selectedItem.id)?.remaining || 0)
+        : saleStats.remaining;
+
+    if (amount > limit + 0.01) {
+        alert(selectedItem 
+            ? "O valor informado é maior que o saldo devedor deste item."
+            : "O valor informado é maior que o saldo devedor desta venda.");
         return;
     }
 
@@ -157,7 +182,9 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
         selectedSale.id,
         method,
         user?.id || '',
-        method === 'Cartão de Crédito' ? installments : 1
+        method === 'Cartão de Crédito' ? installments : 1,
+        selectedItem ? (selectedItem as any).variant?.product?.id : undefined,
+        selectedItem ? (selectedItem as any).variant?.id : undefined
     );
     
     if (success) {
@@ -347,14 +374,26 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                                                         {feeVal > 0 && (
                                                           <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-50 dark:bg-red-900/20 rounded-md">
                                                               <span className="text-[10px] sm:text-xs font-bold text-red-600 dark:text-red-400">
-                                                                  - {formatCurrency(feeVal)} ({feePerc.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%)
+                                                                  - {formatCurrency(feeVal)}
                                                               </span>
                                                           </div>
                                                         )}
+                                                        {pay.product_variant_id && (
+                                                            <Badge variant="secondary" className="text-[8px] h-4 bg-purple-50 text-purple-700 border-purple-100 uppercase font-black">
+                                                                Item Específico
+                                                            </Badge>
+                                                        )}
                                                     </div>
-                                                    <p className="text-[10px] text-zinc-400 font-bold uppercase flex items-center gap-1 mt-0.5">
-                                                        <Calendar size={10} /> {new Date(pay.data).toLocaleDateString('pt-BR')} às {new Date(pay.data).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}
-                                                    </p>
+                                                    <div className="flex flex-col mt-0.5">
+                                                        {pay.product_variant_id && (
+                                                            <p className="text-[9px] font-bold text-purple-600 truncate mb-0.5">
+                                                                {selectedSale.items?.find(i => i.produto_id === pay.product_variant_id)?.nome_produto || 'Produto'}
+                                                            </p>
+                                                        )}
+                                                        <p className="text-[10px] text-zinc-400 font-bold uppercase flex items-center gap-1">
+                                                            <Calendar size={10} /> {new Date(pay.data).toLocaleDateString('pt-BR')} às {new Date(pay.data).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                                 <div className="text-right shrink-0">
                                                     <p className="text-[9px] sm:text-[10px] font-black text-zinc-400 uppercase">
@@ -394,9 +433,68 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                             <div className="flex-1 p-4 sm:p-6 lg:p-8 flex flex-col space-y-6 sm:space-y-8 overflow-y-auto custom-scrollbar">
                                 <div className="space-y-1">
                                     <h3 className="text-base sm:text-lg font-bold text-zinc-800 dark:text-white flex items-center gap-2">
-                                        <Wallet size={22} className="text-emerald-600 shrink-0" /> 4. Registrar Recebimento
+                                        <Package size={22} className="text-purple-600 shrink-0" /> 1. Pagamento por Item (Opcional)
                                     </h3>
-                                    <p className="text-xs text-zinc-500">Selecione o valor e a forma de pagamento do cliente.</p>
+                                    <p className="text-xs text-zinc-500">Selecione um item se desejar vincular o pagamento a ele.</p>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-2 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+                                    <button
+                                        onClick={() => {
+                                            setSelectedItem(null);
+                                            setAmountToPayStr('');
+                                        }}
+                                        className={`p-3 rounded-xl border text-left transition-all ${!selectedItem ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20 shadow-sm' : 'border-zinc-200 dark:border-zinc-800'}`}
+                                    >
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs font-bold uppercase">Pagamento Geral (Conta Total)</span>
+                                            {!selectedItem && <Check size={14} className="text-purple-600" />}
+                                        </div>
+                                    </button>
+
+                                    {selectedSale.items?.filter(i => i.status === 'sold').map(item => {
+                                        const stats = saleStats.itemStats.find(s => s.id === item.id);
+                                        const isSelected = selectedItem?.id === item.id;
+                                        const itemIsPaid = stats?.isPaid;
+
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                disabled={itemIsPaid}
+                                                onClick={() => {
+                                                    setSelectedItem(item);
+                                                    setAmountToPayStr(stats ? stats.remaining.toLocaleString('pt-BR', {minimumFractionDigits: 2}) : '');
+                                                }}
+                                                className={`p-3 rounded-xl border text-left transition-all relative ${isSelected ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20 shadow-sm' : itemIsPaid ? 'opacity-60 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-100 dark:border-zinc-800 cursor-not-allowed' : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
+                                            >
+                                                <div className="flex justify-between items-start">
+                                                    <div className="min-w-0 pr-2">
+                                                        <h4 className="text-xs font-bold truncate text-zinc-800 dark:text-zinc-200">{item.nome_produto}</h4>
+                                                        <p className="text-[10px] text-zinc-500 uppercase font-black">{item.tamanho} / {item.cor}</p>
+                                                    </div>
+                                                    <div className="text-right shrink-0">
+                                                        <p className="text-xs font-black text-zinc-900 dark:text-white">{formatCurrency(stats?.remaining || 0)}</p>
+                                                        {itemIsPaid && <Badge variant="success" className="text-[8px] h-4 mt-1">Pago</Badge>}
+                                                    </div>
+                                                </div>
+                                                {isSelected && <Check size={14} className="absolute right-2 bottom-2 text-purple-600" />}
+                                                
+                                                {/* Barra de progresso do item */}
+                                                {!itemIsPaid && stats && stats.paid > 0 && (
+                                                    <div className="mt-2 h-1 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-purple-500 rounded-full" style={{ width: `${(stats.paid / stats.total) * 100}%` }} />
+                                                    </div>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="space-y-1">
+                                    <h3 className="text-base sm:text-lg font-bold text-zinc-800 dark:text-white flex items-center gap-2">
+                                        <Wallet size={22} className="text-emerald-600 shrink-0" /> {selectedItem ? '2.' : '4.'} Forma de Pagamento
+                                    </h3>
+                                    <p className="text-xs text-zinc-500">Selecione a forma de pagamento do cliente.</p>
                                 </div>
 
                                 {/* GRID DE MÉTODOS (PADRÃO NOVA VENDA) */}

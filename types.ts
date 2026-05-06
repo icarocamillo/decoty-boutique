@@ -49,11 +49,17 @@ export interface SaleItem {
 
 export interface CrediarioPayment {
   id: string;
+  venda_id: string;
+  sale_item_id?: string;
+  product_id?: string;
+  product_variant_id?: string;
   data: string;
   valor: number;
+  valor_faltante?: number;
   valor_taxa: number; // Snapshot da taxa bancária no momento do pagamento
   metodo: string;
   responsavel_nome: string;
+  parcelas?: number;
 }
 
 export interface Sale {
