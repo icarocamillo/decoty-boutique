@@ -16,13 +16,13 @@ export const Footer: React.FC = () => {
               <span className="font-rouge text-2xl tracking-wide">Decoty Boutique</span>
             </div>
             <p className="text-zinc-500 text-sm leading-relaxed">
-              Curadoria de moda feminina com foco em estilo, elegância e as últimas tendências. Sinta-se única, sinta-se Decoty.
+              Sua boutique de moda feminina com foco em estilo, elegância e as últimas novidades. Sinta-se única, sinta-se Decoty.
             </p>
             <div className="flex items-center gap-4">
-              <a href="#" className="w-10 h-10 rounded-full border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-white transition-all">
+              <a href="https://www.instagram.com/decotydezilda/" className="w-10 h-10 rounded-full border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-white transition-all">
                 <Instagram size={18} />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-white transition-all">
+              <a href="https://www.facebook.com/decoty.boutique/" className="w-10 h-10 rounded-full border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-white transition-all">
                 <Facebook size={18} />
               </a>
             </div>
@@ -58,15 +58,19 @@ export const Footer: React.FC = () => {
             <ul className="space-y-4">
               <li className="flex items-center gap-3 text-sm text-zinc-400">
                 <Phone size={16} className="text-zinc-600" />
-                (11) 99999-9999
+                (19) 3571-5542 (Fixo)
+              </li>
+              <li className="flex items-center gap-3 text-sm text-zinc-400">
+                <Phone size={16} className="text-zinc-600" />
+                (19) 9 9752-6144 (WhatsApp)
               </li>
               <li className="flex items-center gap-3 text-sm text-zinc-400">
                 <Mail size={16} className="text-zinc-600" />
-                contato@decoty.com.br
+                decoty@hotmail.com.br
               </li>
               <li className="flex items-center gap-3 text-sm text-zinc-400">
                 <MapPin size={16} className="text-zinc-600" />
-                São Paulo, SP
+                Leme, São Paulo - SP
               </li>
             </ul>
           </div>
@@ -77,12 +81,12 @@ export const Footer: React.FC = () => {
             &copy; {new Date().getFullYear()} Decoty Boutique. Todos os direitos reservados.
           </p>
           <div className="flex gap-6">
-             {/* Payment Icons Placeholder */}
-             <div className="flex items-center gap-2 opacity-30 grayscale">
-                <div className="w-8 h-5 bg-white rounded-sm" />
-                <div className="w-8 h-5 bg-white rounded-sm" />
-                <div className="w-8 h-5 bg-white rounded-sm" />
-             </div>
+            {/* Payment Icons Placeholder */}
+            <div className="flex items-center gap-2 opacity-30 grayscale">
+              <div className="w-8 h-5 bg-white rounded-sm" />
+              <div className="w-8 h-5 bg-white rounded-sm" />
+              <div className="w-8 h-5 bg-white rounded-sm" />
+            </div>
           </div>
         </div>
       </div>

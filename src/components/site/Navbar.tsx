@@ -33,16 +33,15 @@ export const Navbar: React.FC = () => {
   ];
 
   return (
-    <nav 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled 
-          ? 'bg-white/80 backdrop-blur-md shadow-sm h-16' 
-          : 'bg-transparent h-20'
-      }`}
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
+        ? 'bg-white/80 backdrop-blur-md shadow-sm h-16'
+        : 'bg-transparent h-20'
+        }`}
     >
       <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 flex items-center justify-between">
         {/* Mobile Toggle */}
-        <button 
+        <button
           className="lg:hidden p-2 text-zinc-900"
           onClick={() => setIsMobileMenuOpen(true)}
         >
@@ -50,15 +49,15 @@ export const Navbar: React.FC = () => {
         </button>
 
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 group">
-          <BrandLogo size="md" className="transition-transform group-hover:scale-110" />
-          <span className="font-rouge text-xl sm:text-2xl hidden sm:block">Decoty Boutique</span>
+        <Link to="/" className="flex items-center gap-4 group">
+          <BrandLogo size="xl" className="transition-transform group-hover:scale-110" />
+          <span className="font-rouge text-xl sm:text-4xl hidden sm:block">Decoty Boutique</span>
         </Link>
 
         {/* Desktop Nav */}
         <div className="hidden lg:flex items-center gap-8">
           {navLinks.map((link) => (
-            <Link 
+            <Link
               key={link.path}
               to={link.path}
               className="text-sm font-medium text-zinc-600 hover:text-zinc-950 transition-colors relative group"
@@ -74,9 +73,9 @@ export const Navbar: React.FC = () => {
           <button className="p-2 text-zinc-600 hover:text-zinc-950 transition-colors">
             <Search size={20} />
           </button>
-          
-          <Link 
-            to={user ? "/my-account" : "/login"} 
+
+          <Link
+            to={user ? "/my-account" : "/login"}
             className="p-2 text-zinc-600 hover:text-zinc-950 transition-colors flex items-center gap-2"
           >
             <User size={20} />
@@ -87,8 +86,8 @@ export const Navbar: React.FC = () => {
 
           {/* ERP Access for staff */}
           {user && (userRole === 'manager' || userRole === 'salesperson') && (
-            <Link 
-              to="/erp/home" 
+            <Link
+              to="/erp/home"
               className="p-2 text-zinc-600 hover:text-zinc-950 transition-colors hidden sm:block"
               title="Acessar ERP"
             >
@@ -109,14 +108,14 @@ export const Navbar: React.FC = () => {
       <AnimatePresence>
         {isMobileMenuOpen && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileMenuOpen(false)}
               className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[60]"
             />
-            <motion.div 
+            <motion.div
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
@@ -132,7 +131,7 @@ export const Navbar: React.FC = () => {
 
               <div className="flex flex-col gap-6">
                 {navLinks.map((link) => (
-                  <Link 
+                  <Link
                     key={link.path}
                     to={link.path}
                     className="text-lg font-medium text-zinc-900 hover:text-zinc-500 transition-colors"
@@ -144,9 +143,9 @@ export const Navbar: React.FC = () => {
 
               <div className="absolute bottom-10 left-6 right-6">
                 {!user && (
-                   <Link to="/login" className="block w-full text-center py-3 bg-zinc-900 text-white rounded-xl font-bold">
+                  <Link to="/login" className="block w-full text-center py-3 bg-zinc-900 text-white rounded-xl font-bold">
                     Entrar na Conta
-                   </Link>
+                  </Link>
                 )}
               </div>
             </motion.div>
