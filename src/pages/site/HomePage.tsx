@@ -34,7 +34,7 @@ export const HomePage: React.FC = () => {
           >
             <div className="flex items-center gap-2 mb-4">
               <span className="w-12 h-px bg-white/60" />
-              <span className="text-xs uppercase tracking-[0.3em] font-bold text-white/80">Nova Coleção Primavera 2026</span>
+              <span className="text-xs uppercase tracking-[0.3em] font-bold text-white/80">Nova Coleção Outono & Inverno 2026</span>
             </div>
             <h1 className="text-5xl md:text-7xl font-serif mb-6 leading-tight">
               A elegância mora nos detalhes.
@@ -55,13 +55,13 @@ export const HomePage: React.FC = () => {
 
         {/* Floating Indicator */}
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce flex flex-col items-center">
-          <span className="text-[10px] uppercase font-black tracking-widest text-white/50 mb-2">Scroll</span>
+          <span className="text-[10px] uppercase font-black tracking-widest text-white/50 mb-2">Descubra Abaixo</span>
           <div className="w-px h-12 bg-gradient-to-b from-white/60 to-transparent" />
         </div>
       </section>
 
       {/* Featured Products Grid */}
-      <section className="py-24 bg-zinc-50/50">
+      <section className="py-10 bg-zinc-50/50">
         <div className="container mx-auto px-4 sm:px-6">
           <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-16">
             <div className="max-w-xl">
