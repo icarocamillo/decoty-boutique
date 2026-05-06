@@ -50,7 +50,7 @@ export const Navbar: React.FC = () => {
 
         {/* Logo */}
         <Link to="/" className="flex items-center gap-4 group">
-          <BrandLogo size="xl" className="transition-transform group-hover:scale-110" />
+          <BrandLogo size="md" className="transition-transform group-hover:scale-110" />
           <span className="font-rouge text-xl sm:text-4xl hidden sm:block">Decoty Boutique</span>
         </Link>
 
