@@ -26,7 +26,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({ className = '', size = 'md
    * Adicionamos um timestamp opcional apenas se houver erro persistente de cache, 
    * mas por padrão, o caminho absoluto é o mais seguro.
    */
-  const logoUrl = "/erp/decoty_logo.png";
+  const logoUrl = "/decoty_logo.png";
 
   return (
     <div className={`flex items-center justify-center overflow-hidden rounded-xl bg-zinc-950 shadow-lg border border-zinc-800 transition-all duration-300 select-none ${sizeClasses[size]} ${className}`}>
