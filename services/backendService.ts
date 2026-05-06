@@ -92,6 +92,7 @@ const SALE_WITH_ITEMS_JOIN = `
     *,
     variant:product_variants(
       id,
+      ui_id,
       cor,
       tamanho,
       product:products(id, nome, marca)
@@ -109,7 +110,8 @@ const flattenSaleItems = (sale: any): Sale => {
       nome_produto: item.variant?.product?.nome || item.nome_produto,
       marca: item.variant?.product?.marca || item.marca,
       cor: item.variant?.cor || item.cor,
-      tamanho: item.variant?.tamanho || item.tamanho
+      tamanho: item.variant?.tamanho || item.tamanho,
+      ui_id: item.variant?.ui_id || (item as any).ui_id
     }))
   };
 };

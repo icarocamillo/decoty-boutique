@@ -45,6 +45,7 @@ export interface SaleItem {
   status: 'sold' | 'returned'; 
   status_pagamento?: 'pago' | 'pendente';
   valor_estorno_unitario?: number; 
+  ui_id?: string | number;
 }
 
 export interface CrediarioPayment {

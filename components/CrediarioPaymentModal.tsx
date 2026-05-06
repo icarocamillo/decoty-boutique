@@ -361,6 +361,8 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                                            feePerc = (pay.valor_taxa / pay.valor) * 100;
                                         }
 
+                                        const itemInfo = pay.product_variant_id ? selectedSale.items?.find(i => i.id === pay.sale_item_id || i.produto_id === pay.product_variant_id) : null;
+
                                         return (
                                             <div key={pay.id} className="flex items-center gap-3 sm:gap-4 p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm transition-all hover:shadow-md">
                                                 <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 shadow-inner shrink-0">
@@ -379,16 +381,22 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                                                           </div>
                                                         )}
                                                         {pay.product_variant_id && (
-                                                            <Badge variant="secondary" className="text-[8px] h-4 bg-purple-50 text-purple-700 border-purple-100 uppercase font-black">
+                                                            <Badge variant="secondary" className="text-[8px] h-4 bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 uppercase font-black">
                                                                 Item Específico
-                                                            </Badge>
+                                                              </Badge>
                                                         )}
                                                     </div>
                                                     <div className="flex flex-col mt-0.5">
-                                                        {pay.product_variant_id && (
-                                                            <p className="text-[9px] font-bold text-purple-600 truncate mb-0.5">
-                                                                {selectedSale.items?.find(i => i.produto_id === pay.product_variant_id)?.nome_produto || 'Produto'}
-                                                            </p>
+                                                        {itemInfo && (
+                                                            <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                                                <span className="text-[8px] font-black text-zinc-400 opacity-60">ID: {itemInfo.ui_id || itemInfo.id.slice(0,8)}</span>
+                                                                <p className="text-[9px] font-bold text-zinc-700 dark:text-zinc-300 truncate">
+                                                                    {itemInfo.nome_produto}
+                                                                </p>
+                                                                <span className="text-[8px] font-bold text-zinc-400 uppercase">
+                                                                    • {itemInfo.tamanho} / {itemInfo.cor}
+                                                                </span>
+                                                            </div>
                                                         )}
                                                         <p className="text-[10px] text-zinc-400 font-bold uppercase flex items-center gap-1">
                                                             <Calendar size={10} /> {new Date(pay.data).toLocaleDateString('pt-BR')} às {new Date(pay.data).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}
@@ -433,66 +441,7 @@ export const CrediarioPaymentModal: React.FC<CrediarioPaymentModalProps> = ({ is
                             <div className="flex-1 p-4 sm:p-6 lg:p-8 flex flex-col space-y-6 sm:space-y-8 overflow-y-auto custom-scrollbar">
                                 <div className="space-y-1">
                                     <h3 className="text-base sm:text-lg font-bold text-zinc-800 dark:text-white flex items-center gap-2">
-                                        <Package size={22} className="text-purple-600 shrink-0" /> 1. Pagamento por Item (Opcional)
-                                    </h3>
-                                    <p className="text-xs text-zinc-500">Selecione um item se desejar vincular o pagamento a ele.</p>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-2 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
-                                    <button
-                                        onClick={() => {
-                                            setSelectedItem(null);
-                                            setAmountToPayStr('');
-                                        }}
-                                        className={`p-3 rounded-xl border text-left transition-all ${!selectedItem ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20 shadow-sm' : 'border-zinc-200 dark:border-zinc-800'}`}
-                                    >
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-xs font-bold uppercase">Pagamento Geral (Conta Total)</span>
-                                            {!selectedItem && <Check size={14} className="text-purple-600" />}
-                                        </div>
-                                    </button>
-
-                                    {selectedSale.items?.filter(i => i.status === 'sold').map(item => {
-                                        const stats = saleStats.itemStats.find(s => s.id === item.id);
-                                        const isSelected = selectedItem?.id === item.id;
-                                        const itemIsPaid = stats?.isPaid;
-
-                                        return (
-                                            <button
-                                                key={item.id}
-                                                disabled={itemIsPaid}
-                                                onClick={() => {
-                                                    setSelectedItem(item);
-                                                    setAmountToPayStr(stats ? stats.remaining.toLocaleString('pt-BR', {minimumFractionDigits: 2}) : '');
-                                                }}
-                                                className={`p-3 rounded-xl border text-left transition-all relative ${isSelected ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20 shadow-sm' : itemIsPaid ? 'opacity-60 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-100 dark:border-zinc-800 cursor-not-allowed' : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
-                                            >
-                                                <div className="flex justify-between items-start">
-                                                    <div className="min-w-0 pr-2">
-                                                        <h4 className="text-xs font-bold truncate text-zinc-800 dark:text-zinc-200">{item.nome_produto}</h4>
-                                                        <p className="text-[10px] text-zinc-500 uppercase font-black">{item.tamanho} / {item.cor}</p>
-                                                    </div>
-                                                    <div className="text-right shrink-0">
-                                                        <p className="text-xs font-black text-zinc-900 dark:text-white">{formatCurrency(stats?.remaining || 0)}</p>
-                                                        {itemIsPaid && <Badge variant="success" className="text-[8px] h-4 mt-1">Pago</Badge>}
-                                                    </div>
-                                                </div>
-                                                {isSelected && <Check size={14} className="absolute right-2 bottom-2 text-purple-600" />}
-                                                
-                                                {/* Barra de progresso do item */}
-                                                {!itemIsPaid && stats && stats.paid > 0 && (
-                                                    <div className="mt-2 h-1 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                                                        <div className="h-full bg-purple-500 rounded-full" style={{ width: `${(stats.paid / stats.total) * 100}%` }} />
-                                                    </div>
-                                                )}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-
-                                <div className="space-y-1">
-                                    <h3 className="text-base sm:text-lg font-bold text-zinc-800 dark:text-white flex items-center gap-2">
-                                        <Wallet size={22} className="text-emerald-600 shrink-0" /> {selectedItem ? '2.' : '4.'} Forma de Pagamento
+                                        <Wallet size={22} className="text-emerald-600 shrink-0" /> Forma de Pagamento
                                     </h3>
                                     <p className="text-xs text-zinc-500">Selecione a forma de pagamento do cliente.</p>
                                 </div>
