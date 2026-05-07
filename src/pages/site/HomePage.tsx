@@ -55,8 +55,8 @@ export const HomePage: React.FC = () => {
 
         {/* Floating Indicator */}
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce flex flex-col items-center">
-          <span className="text-[10px] uppercase font-black tracking-widest text-white/50 mb-2">Descubra Abaixo</span>
-          <div className="w-px h-12 bg-gradient-to-b from-white/60 to-transparent" />
+          <span className="text-[10px] uppercase font-black tracking-widest text-white mb-2">Descubra Abaixo</span>
+          <div className="w-px h-12 bg-gradient-to-b from-white to-transparent" />
         </div>
       </section>
 

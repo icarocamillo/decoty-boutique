@@ -63,7 +63,7 @@ export const CustomerLoginPage: React.FC = () => {
         <div className="relative z-10 text-center px-12">
            <BrandLogo size="lg" className="bg-white mx-auto mb-8 scale-150" />
            <h1 className="font-rouge text-6xl text-white mb-4">Decoty Boutique</h1>
-           <p className="text-zinc-400 text-lg tracking-widest uppercase font-light">Sua jornada de estilo começa aqui</p>
+           <p className="text-white text-lg tracking-widest uppercase font-light">Sua jornada de estilo começa aqui</p>
            
            <div className="mt-12 grid grid-cols-2 gap-8 text-left">
               <div className="p-6 border border-white/10 rounded-2xl backdrop-blur-sm">
@@ -71,14 +71,14 @@ export const CustomerLoginPage: React.FC = () => {
                     <CheckCircle2 size={18} className="text-zinc-400" />
                     Exclusividade
                  </div>
-                 <p className="text-zinc-500 text-sm">Acesso antecipado a novas coleções e peças limitadas.</p>
+                 <p className="text-white text-sm">Acesso antecipado a novas coleções e peças limitadas.</p>
               </div>
               <div className="p-6 border border-white/10 rounded-2xl backdrop-blur-sm">
                  <div className="text-white font-bold mb-2 flex items-center gap-2">
                     <CheckCircle2 size={18} className="text-zinc-400" />
                     Conveniência
                  </div>
-                 <p className="text-zinc-500 text-sm">Histórico de pedidos e checkout agilizado para suas compras.</p>
+                 <p className="text-white text-sm">Histórico de pedidos e checkout agilizado para suas compras.</p>
               </div>
            </div>
         </div>
