@@ -45,7 +45,7 @@ export const ForgotPasswordRequest: React.FC = () => {
           </p>
           <Button 
             className="w-full h-12 rounded-xl"
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/erp/login')}
           >
             Voltar para o Login
           </Button>
@@ -58,7 +58,7 @@ export const ForgotPasswordRequest: React.FC = () => {
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <button 
-          onClick={() => navigate('/login')}
+          onClick={() => navigate('/erp/login')}
           className="mb-6 flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors group"
         >
           <div className="p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 shadow-sm group-hover:shadow-md transition-all">

@@ -85,7 +85,7 @@ export const RegisterPage: React.FC = () => {
       setLoading(false);
     } else {
       alert("Cadastro realizado com sucesso! Faça login para acessar o sistema.");
-      navigate('/login');
+      navigate('/erp/login');
     }
   };
 
@@ -222,7 +222,7 @@ export const RegisterPage: React.FC = () => {
 
           <div className="mt-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
             Já possui uma conta?{' '}
-            <span onClick={() => navigate('/login')} className="font-semibold text-zinc-900 dark:text-white hover:underline cursor-pointer">
+            <span onClick={() => navigate('/erp/login')} className="font-semibold text-zinc-900 dark:text-white hover:underline cursor-pointer">
               Fazer Login
             </span>
           </div>

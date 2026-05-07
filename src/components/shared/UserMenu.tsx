@@ -28,7 +28,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/login');
+    navigate('/erp/login');
   };
 
   const roleLabel = userRole === 'manager' ? 'Gerente' : 'Vendedor';

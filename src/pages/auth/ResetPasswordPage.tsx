@@ -92,7 +92,7 @@ export const ResetPasswordPage: React.FC = () => {
           </p>
           <Button 
             className="w-full h-12 rounded-xl"
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/erp/login')}
           >
             Ir para o Sistema
           </Button>

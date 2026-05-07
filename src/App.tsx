@@ -27,6 +27,7 @@ import { HomePage } from '@/pages/site/HomePage';
 import { ProductDetailsPage } from '@/pages/site/ProductDetailsPage';
 import { CustomerProfilePage } from '@/pages/site/CustomerProfilePage';
 import { CheckoutPage } from '@/pages/site/CheckoutPage';
+import { CustomerLoginPage } from '@/pages/site/CustomerLoginPage';
 
 // Contexts & Shared
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
@@ -52,12 +53,13 @@ const App = () => {
             <Route path="/product/:id" element={<SiteLayout><ProductDetailsPage /></SiteLayout>} />
             <Route path="/checkout" element={<SiteLayout><CheckoutPage /></SiteLayout>} />
             <Route path="/my-account" element={<SiteLayout><CustomerProfilePage /></SiteLayout>} />
+            <Route path="/entrar" element={<CustomerLoginPage />} />
 
-            {/* ─── AUTH ROUTES ──────────────────────────────────────── */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordRequest />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            {/* ─── AUTH ROUTES (ERP) ─────────────────────────────────── */}
+            <Route path="/erp/login" element={<LoginPage />} />
+            <Route path="/erp/register" element={<RegisterPage />} />
+            <Route path="/erp/forgot-password" element={<ForgotPasswordRequest />} />
+            <Route path="/erp/reset-password" element={<ResetPasswordPage />} />
 
             {/* ─── ERP ROUTES (PROTECTED) ───────────────────────────── */}
             <Route path="/erp" element={<ProtectedRoute><ErpLayout><Navigate to="/erp/home" replace /></ErpLayout></ProtectedRoute>} />
@@ -72,7 +74,7 @@ const App = () => {
             <Route path="/erp/stock/adjustment" element={<ProtectedRoute><ErpLayout><StockAdjustmentPage /></ErpLayout></ProtectedRoute>} />
             <Route path="/erp/sales" element={<ProtectedRoute><ErpLayout><SalesPage /></ErpLayout></ProtectedRoute>} />
             <Route path="/erp/profile" element={<ProtectedRoute><ErpLayout><ErpProfilePage /></ErpLayout></ProtectedRoute>} />
-            
+
             {/* ERP Manager Routes */}
             <Route path="/erp/team" element={<ProtectedRoute><ManagerRoute><ErpLayout><TeamList /></ErpLayout></ManagerRoute></ProtectedRoute>} />
             <Route path="/erp/settings" element={<ProtectedRoute><ManagerRoute><ErpLayout><ErpSettingsPage /></ErpLayout></ManagerRoute></ProtectedRoute>} />

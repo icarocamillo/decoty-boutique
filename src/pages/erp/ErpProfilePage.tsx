@@ -105,7 +105,7 @@ export const ErpProfilePage: React.FC = () => {
         
         setTimeout(async () => {
             await signOut();
-            navigate('/login');
+            navigate('/erp/login');
         }, 3000);
 
       } else {

@@ -102,7 +102,7 @@ export const LoginPage: React.FC = () => {
                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Senha</label>
                  <button 
                    type="button"
-                   onClick={() => navigate('/forgot-password')}
+                   onClick={() => navigate('/erp/forgot-password')}
                    className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
                  >
                    Esqueceu a senha?
@@ -140,7 +140,7 @@ export const LoginPage: React.FC = () => {
 
           <div className="mt-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
             Não tem uma conta?{' '}
-            <Link to="/register" className="font-semibold text-zinc-900 dark:text-white hover:underline">
+            <Link to="/erp/register" className="font-semibold text-zinc-900 dark:text-white hover:underline">
               Cadastrar-se
             </Link>
           </div>

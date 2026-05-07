@@ -136,7 +136,7 @@ export const Navbar: React.FC = () => {
           </div>
 
           <Link
-            to={user ? "/my-account" : "/login"}
+            to={user ? "/my-account" : "/entrar"}
             className="p-2 text-zinc-600 hover:text-zinc-950 transition-colors flex items-center gap-2"
           >
             <User size={20} />
@@ -144,17 +144,6 @@ export const Navbar: React.FC = () => {
               {user ? 'Minha Conta' : 'Entrar'}
             </span>
           </Link>
-
-          {/* ERP Access for staff */}
-          {user && (userRole === 'manager' || userRole === 'salesperson') && (
-            <Link
-              to="/erp/home"
-              className="p-2 text-zinc-600 hover:text-zinc-950 transition-colors hidden sm:block"
-              title="Acessar ERP"
-            >
-              <Settings size={20} />
-            </Link>
-          )}
 
           <button className="p-2 text-zinc-600 hover:text-zinc-950 transition-colors relative">
             <ShoppingBag size={20} />
@@ -213,7 +202,7 @@ export const Navbar: React.FC = () => {
 
               <div className="absolute bottom-10 left-6 right-6">
                 {!user && (
-                  <Link to="/login" className="block w-full text-center py-3 bg-zinc-900 text-white rounded-xl font-bold">
+                  <Link to="/entrar" className="block w-full text-center py-3 bg-zinc-900 text-white rounded-xl font-bold">
                     Entrar na Conta
                   </Link>
                 )}
