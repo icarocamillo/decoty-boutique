@@ -1,12 +1,34 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { useData } from '@/contexts/DataContext';
 import { ProductCard } from '@/components/site/ProductCard';
 import { ShoppingBag, ArrowRight, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
+const HOME_PHRASES = [
+  "A elegância mora nos detalhes.",
+  "A elegância está no corte.",
+  "Sofisticação em cada costura.",
+  "O estilo vive nos detalhes.",
+  "A beleza está no acabamento.",
+  "Onde o detalhe faz a moda.",
+  "O segredo da peça está no detalhe.",
+  "Elegância é uma questão de detalhe.",
+  "O toque que define o estilo.",
+  "Moda se faz com detalhes.",
+  "A perfeição está no que ninguém vê.",
+  "Modernidade com detalhes que encantam.",
+  "Onde o clássico encontra o moderno.",
+  "Menos tendência, mais exclusividade."
+];
+
 export const HomePage: React.FC = () => {
   const { products, isLoading } = useData();
+
+  // Sorteia uma frase ao carregar a página
+  const randomHeadline = useMemo(() => {
+    return HOME_PHRASES[Math.floor(Math.random() * HOME_PHRASES.length)];
+  }, []);
 
   // Filtrar produtos que devem aparecer no site (se houver essa flag)
   // Como não temos a flag explicitamente em todos, vamos mostrar os que tem variantes
@@ -37,14 +59,14 @@ export const HomePage: React.FC = () => {
               <span className="text-xs uppercase tracking-[0.3em] font-bold text-white/80">Nova Coleção Outono & Inverno 2026</span>
             </div>
             <h1 className="text-5xl md:text-7xl font-serif mb-6 leading-tight">
-              A elegância mora nos detalhes.
+              {randomHeadline}
             </h1>
             <p className="text-lg text-white/80 mb-10 max-w-lg leading-relaxed">
               Descubra uma boutique exclusiva que celebra a feminilidade e o estilo moderno. Peças elegantes que contam sua história.
             </p>
             <div className="flex flex-wrap gap-4">
               <Button size="lg" className="bg-white text-black hover:bg-zinc-100 rounded-full px-8 h-14 text-base font-bold shadow-xl">
-                Ver Coleção
+                Nossa Vitrine
               </Button>
               <Button size="lg" variant="outline" className="!text-white border-white hover:bg-white hover:!text-black rounded-full px-8 h-14 text-base flex items-center gap-2 backdrop-blur-sm bg-white/10 font-bold transition-all duration-300">
                 Sobre a Decoty
@@ -54,7 +76,7 @@ export const HomePage: React.FC = () => {
         </div>
 
         {/* Floating Indicator */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce flex flex-col items-center">
+        <div className="absolute bottom-10 sm:bottom-12 landscape:bottom-4 left-[60%] sm:left-1/2 -translate-x-1/2 animate-bounce flex flex-col items-center z-10">
           <span className="text-[10px] uppercase font-black tracking-widest text-white mb-2">Descubra Abaixo</span>
           <div className="w-px h-12 bg-gradient-to-b from-white to-transparent" />
         </div>

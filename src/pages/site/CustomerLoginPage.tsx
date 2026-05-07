@@ -80,6 +80,20 @@ export const CustomerLoginPage: React.FC = () => {
                  </div>
                  <p className="text-white text-sm">Histórico de pedidos e checkout agilizado para suas compras.</p>
               </div>
+              <div className="p-6 border border-white/10 rounded-2xl backdrop-blur-sm">
+                 <div className="text-white font-bold mb-2 flex items-center gap-2">
+                    <CheckCircle2 size={18} className="text-zinc-400" />
+                    Inspiração
+                 </div>
+                 <p className="text-white text-sm">Tendências e dicas de estilo pensadas para elevar sua autoestima.</p>
+              </div>
+              <div className="p-6 border border-white/10 rounded-2xl backdrop-blur-sm">
+                 <div className="text-white font-bold mb-2 flex items-center gap-2">
+                    <CheckCircle2 size={18} className="text-zinc-400" />
+                    Organização
+                 </div>
+                 <p className="text-white text-sm">Selecione suas roupas favoritas para compra-las quando desejar.</p>
+              </div>
            </div>
         </div>
         
