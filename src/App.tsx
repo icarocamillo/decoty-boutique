@@ -35,13 +35,16 @@ import { HomePage } from '@/pages/site/HomePage';
 import { ProductListingPage } from '@/pages/site/ProductListingPage';
 import { ProductDetailsPage } from '@/pages/site/ProductDetailsPage';
 import { CustomerProfilePage } from '@/pages/site/CustomerProfilePage';
+import { FavoritesPage } from '@/pages/site/FavoritesPage';
 import { CheckoutPage } from '@/pages/site/CheckoutPage';
 import { CustomerLoginPage } from '@/pages/site/CustomerLoginPage';
 
 // Contexts & Shared
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { DataProvider } from '@/contexts/DataContext';
+import { CartProvider } from '@/contexts/CartContext';
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute';
+import { CartDrawer } from '@/components/site/CartDrawer';
 import { ErpLayout } from '@/layouts/ErpLayout';
 import { SiteLayout } from '@/layouts/SiteLayout';
 
@@ -57,43 +60,47 @@ const App = () => {
       <ScrollToTop />
       <AuthProvider>
         <DataProvider>
-          <Routes>
-            {/* ─── E-COMMERCE ROUTES ─────────────────────────────────── */}
-            <Route path="/" element={<SiteLayout><HomePage /></SiteLayout>} />
-            <Route path="/catalogo" element={<SiteLayout><ProductListingPage /></SiteLayout>} />
-            <Route path="/produto/:identifier" element={<SiteLayout><ProductDetailsPage /></SiteLayout>} />
-            <Route path="/checkout" element={<SiteLayout><CheckoutPage /></SiteLayout>} />
-            <Route path="/my-account" element={<SiteLayout><CustomerProfilePage /></SiteLayout>} />
-            <Route path="/entrar" element={<CustomerLoginPage />} />
+          <CartProvider>
+            <CartDrawer />
+            <Routes>
+              {/* ─── E-COMMERCE ROUTES ─────────────────────────────────── */}
+              <Route path="/" element={<SiteLayout><HomePage /></SiteLayout>} />
+              <Route path="/catalogo" element={<SiteLayout><ProductListingPage /></SiteLayout>} />
+              <Route path="/produto/:identifier" element={<SiteLayout><ProductDetailsPage /></SiteLayout>} />
+              <Route path="/checkout" element={<SiteLayout><CheckoutPage /></SiteLayout>} />
+              <Route path="/minha-conta" element={<SiteLayout><CustomerProfilePage /></SiteLayout>} />
+              <Route path="/minha-conta/favoritos" element={<SiteLayout><FavoritesPage /></SiteLayout>} />
+              <Route path="/entrar" element={<CustomerLoginPage />} />
 
-            {/* ─── AUTH ROUTES (ERP) ─────────────────────────────────── */}
-            <Route path="/erp/login" element={<LoginPage />} />
-            <Route path="/erp/register" element={<RegisterPage />} />
-            <Route path="/erp/forgot-password" element={<ForgotPasswordRequest />} />
-            <Route path="/erp/reset-password" element={<ResetPasswordPage />} />
+              {/* ─── AUTH ROUTES (ERP) ─────────────────────────────────── */}
+              <Route path="/erp/login" element={<LoginPage />} />
+              <Route path="/erp/register" element={<RegisterPage />} />
+              <Route path="/erp/forgot-password" element={<ForgotPasswordRequest />} />
+              <Route path="/erp/reset-password" element={<ResetPasswordPage />} />
 
-            {/* ─── ERP ROUTES (PROTECTED) ───────────────────────────── */}
-            <Route path="/erp" element={<ProtectedRoute><ErpLayout><Navigate to="/erp/home" replace /></ErpLayout></ProtectedRoute>} />
-            <Route path="/erp/home" element={<ProtectedRoute><ErpLayout><DashboardHome /></ErpLayout></ProtectedRoute>} />
-            <Route path="/erp/clients" element={<ProtectedRoute><ErpLayout><ClientList /></ErpLayout></ProtectedRoute>} />
-            <Route path="/erp/clients/:clientId/history" element={<ProtectedRoute><ErpLayout><ClientHistoryPage /></ErpLayout></ProtectedRoute>} />
-            <Route path="/erp/suppliers" element={<ProtectedRoute><ErpLayout><SupplierList /></ErpLayout></ProtectedRoute>} />
-            <Route path="/erp/products" element={<ProtectedRoute><ErpLayout><ProductList /></ErpLayout></ProtectedRoute>} />
-            <Route path="/erp/products/new" element={<ProtectedRoute><ErpLayout><ProductFormPage /></ErpLayout></ProtectedRoute>} />
-            <Route path="/erp/products/update/:id" element={<ProtectedRoute><ErpLayout><ProductFormPage /></ErpLayout></ProtectedRoute>} />
-            <Route path="/erp/stock" element={<ProtectedRoute><ErpLayout><StockList /></ErpLayout></ProtectedRoute>} />
-            <Route path="/erp/stock/adjustment" element={<ProtectedRoute><ErpLayout><StockAdjustmentPage /></ErpLayout></ProtectedRoute>} />
-            <Route path="/erp/sales" element={<ProtectedRoute><ErpLayout><SalesPage /></ErpLayout></ProtectedRoute>} />
-            <Route path="/erp/profile" element={<ProtectedRoute><ErpLayout><ErpProfilePage /></ErpLayout></ProtectedRoute>} />
+              {/* ─── ERP ROUTES (PROTECTED) ───────────────────────────── */}
+              <Route path="/erp" element={<ProtectedRoute><ErpLayout><Navigate to="/erp/home" replace /></ErpLayout></ProtectedRoute>} />
+              <Route path="/erp/home" element={<ProtectedRoute><ErpLayout><DashboardHome /></ErpLayout></ProtectedRoute>} />
+              <Route path="/erp/clients" element={<ProtectedRoute><ErpLayout><ClientList /></ErpLayout></ProtectedRoute>} />
+              <Route path="/erp/clients/:clientId/history" element={<ProtectedRoute><ErpLayout><ClientHistoryPage /></ErpLayout></ProtectedRoute>} />
+              <Route path="/erp/suppliers" element={<ProtectedRoute><ErpLayout><SupplierList /></ErpLayout></ProtectedRoute>} />
+              <Route path="/erp/products" element={<ProtectedRoute><ErpLayout><ProductList /></ErpLayout></ProtectedRoute>} />
+              <Route path="/erp/products/new" element={<ProtectedRoute><ErpLayout><ProductFormPage /></ErpLayout></ProtectedRoute>} />
+              <Route path="/erp/products/update/:id" element={<ProtectedRoute><ErpLayout><ProductFormPage /></ErpLayout></ProtectedRoute>} />
+              <Route path="/erp/stock" element={<ProtectedRoute><ErpLayout><StockList /></ErpLayout></ProtectedRoute>} />
+              <Route path="/erp/stock/adjustment" element={<ProtectedRoute><ErpLayout><StockAdjustmentPage /></ErpLayout></ProtectedRoute>} />
+              <Route path="/erp/sales" element={<ProtectedRoute><ErpLayout><SalesPage /></ErpLayout></ProtectedRoute>} />
+              <Route path="/erp/profile" element={<ProtectedRoute><ErpLayout><ErpProfilePage /></ErpLayout></ProtectedRoute>} />
 
-            {/* ERP Manager Routes */}
-            <Route path="/erp/team" element={<ProtectedRoute><ManagerRoute><ErpLayout><TeamList /></ErpLayout></ManagerRoute></ProtectedRoute>} />
-            <Route path="/erp/settings" element={<ProtectedRoute><ManagerRoute><ErpLayout><ErpSettingsPage /></ErpLayout></ManagerRoute></ProtectedRoute>} />
-            <Route path="/erp/reports" element={<ProtectedRoute><ManagerRoute><ErpLayout><ManagementReportPage /></ErpLayout></ManagerRoute></ProtectedRoute>} />
+              {/* ERP Manager Routes */}
+              <Route path="/erp/team" element={<ProtectedRoute><ManagerRoute><ErpLayout><TeamList /></ErpLayout></ManagerRoute></ProtectedRoute>} />
+              <Route path="/erp/settings" element={<ProtectedRoute><ManagerRoute><ErpLayout><ErpSettingsPage /></ErpLayout></ManagerRoute></ProtectedRoute>} />
+              <Route path="/erp/reports" element={<ProtectedRoute><ManagerRoute><ErpLayout><ManagementReportPage /></ErpLayout></ManagerRoute></ProtectedRoute>} />
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </CartProvider>
         </DataProvider>
       </AuthProvider>
     </BrowserRouter>

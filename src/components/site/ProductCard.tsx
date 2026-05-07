@@ -5,6 +5,8 @@ import { Product } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, Heart } from 'lucide-react';
+import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProductCardProps {
   product: Product;
@@ -12,6 +14,36 @@ interface ProductCardProps {
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const { addToCart } = useCart();
+  const { user } = useAuth();
+  
+  // Favoritos
+  const [isFavorite, setIsFavorite] = useState(() => {
+    const favorites = JSON.parse(localStorage.getItem('decoty_favorites') || '[]');
+    return favorites.includes(product.id);
+  });
+
+  const toggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user) {
+      alert('Você precisa estar logada para favoritar uma peça. Faça login para salvar seus favoritos!');
+      return;
+    }
+
+    const favorites = JSON.parse(localStorage.getItem('decoty_favorites') || '[]');
+    let newFavorites;
+    if (isFavorite) {
+      newFavorites = favorites.filter((id: string) => id !== product.id);
+    } else {
+      newFavorites = [...favorites, product.id];
+    }
+    localStorage.setItem('decoty_favorites', JSON.stringify(newFavorites));
+    setIsFavorite(!isFavorite);
+    // Disparar evento para outros componentes (se necessário)
+    window.dispatchEvent(new Event('favorites_updated'));
+  };
 
   // Encontrar o menor preço entre as variantes
   const minPrice = product.variants && product.variants.length > 0
@@ -38,8 +70,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       alert('Por favor, selecione um tamanho');
       return;
     }
-    console.log('Adicionado ao carrinho:', { product, selectedSize });
-    // Futura integração com carrinho real aqui
+    
+    const variant = product.variants?.find(v => v.tamanho === selectedSize);
+    if (variant) {
+      addToCart(product, variant, 1);
+    }
   };
 
   return (
@@ -59,8 +94,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </Link>
         
         {/* Heart Icon Overlay */}
-        <button className="absolute top-4 right-4 z-20 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-400 hover:text-red-500 transition-colors shadow-sm opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 duration-300">
-           <Heart size={16} />
+        <button 
+          onClick={toggleFavorite}
+          className={`absolute top-4 right-4 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 duration-300 ${
+            isFavorite ? 'bg-red-500 text-white opacity-100 translate-y-0' : 'bg-white/80 backdrop-blur-sm text-zinc-400 hover:text-red-500'
+          }`}
+        >
+           <Heart size={16} fill={isFavorite ? "currentColor" : "none"} />
         </button>
 
         {/* Hover Actions Overlay */}

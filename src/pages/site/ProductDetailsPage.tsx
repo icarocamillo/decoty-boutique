@@ -4,27 +4,68 @@ import { motion } from 'motion/react';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { ShoppingBag, ChevronLeft, Star, ShieldCheck, Truck, RotateCcw, Ruler, Crown } from 'lucide-react';
+import { ShoppingBag, ChevronLeft, Star, ShieldCheck, Truck, RotateCcw, Ruler, Crown, Heart } from 'lucide-react';
 import { SizeGuideModal } from '@/components/site/SizeGuideModal';
+import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const ProductDetailsPage: React.FC = () => {
   const { identifier } = useParams<{ identifier: string }>();
   const navigate = useNavigate();
   const { products, isLoading } = useData();
+  const { addToCart } = useCart();
+  const { user } = useAuth();
+  
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  const [isFavorite, setIsFavorite] = useState(false);
 
   const product = useMemo(() => {
     if (!identifier) return null;
     // Tenta encontrar pelo formato Decoty-X
+    let foundProduct;
     if (identifier.startsWith('Decoty-')) {
       const ui_id_str = identifier.replace('Decoty-', '');
       const ui_id = parseInt(ui_id_str);
-      return products.find(p => p.ui_id === ui_id);
+      foundProduct = products.find(p => p.ui_id === ui_id);
+    } else {
+      foundProduct = products.find(p => p.id === identifier);
     }
-    // Fallback para o ID original se necessário (pode acontecer se o cara colar um link antigo)
-    return products.find(p => p.id === identifier);
+    
+    if (foundProduct) {
+      const favorites = JSON.parse(localStorage.getItem('decoty_favorites') || '[]');
+      setIsFavorite(favorites.includes(foundProduct.id));
+    }
+    
+    return foundProduct;
   }, [identifier, products]);
+
+  const toggleFavorite = () => {
+    if (!user) {
+      alert('Você precisa estar logada para favoritar uma peça. Faça login para salvar seus favoritos!');
+      return;
+    }
+
+    if (!product) return;
+
+    const favorites = JSON.parse(localStorage.getItem('decoty_favorites') || '[]');
+    let newFavorites;
+    if (isFavorite) {
+      newFavorites = favorites.filter((id: string) => id !== product.id);
+    } else {
+      newFavorites = [...favorites, product.id];
+    }
+    localStorage.setItem('decoty_favorites', JSON.stringify(newFavorites));
+    setIsFavorite(!isFavorite);
+    window.dispatchEvent(new Event('favorites_updated'));
+  };
+
+  const handleAddToCart = () => {
+    if (product && selectedVariant) {
+      addToCart(product, selectedVariant, 1);
+    }
+  };
 
   const images = [
     "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1000&auto=format&fit=crop",
@@ -242,12 +283,24 @@ export const ProductDetailsPage: React.FC = () => {
               <div className="pt-4 flex flex-col sm:flex-row gap-4">
                 <Button 
                   size="lg" 
+                  onClick={handleAddToCart}
                   className="flex-1 h-14 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold flex items-center gap-3 shadow-xl border-none"
                   disabled={!selectedVariant || selectedVariant.quantidade_estoque <= 0}
                 >
                   <ShoppingBag size={20} />
                   Adicionar ao Carrinho
                 </Button>
+
+                <button 
+                  onClick={toggleFavorite}
+                  className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-all shadow-xl active:scale-95 ${
+                    isFavorite 
+                      ? 'bg-red-500 border-red-500 text-white shadow-red-200' 
+                      : 'bg-white border-zinc-100 text-zinc-400 hover:border-zinc-900 hover:text-zinc-900 shadow-zinc-100'
+                  }`}
+                >
+                   <Heart size={24} fill={isFavorite ? "currentColor" : "none"} />
+                </button>
               </div>
 
               {/* Perks */}
