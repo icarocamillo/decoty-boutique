@@ -18,46 +18,44 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
+  const installmentValue = minPrice / 5;
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className="group bg-white rounded-xl overflow-hidden border border-zinc-100 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col"
+      className="group flex flex-col"
     >
-      <Link to={`/product/${product.id}`} className="block relative aspect-[3/4] overflow-hidden bg-zinc-100">
+      <Link to={`/produto/Decoty-${product.ui_id}`} className="block relative aspect-[3/4] overflow-hidden bg-zinc-50 rounded-2xl mb-4">
         <img 
-          src={`https://images.unsplash.com/photo-1539109132314-3475961ecf4c?q=80&w=600&auto=format&fit=crop`} 
+          src={`https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600&auto=format&fit=crop`} 
           alt={product.nome}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
         />
-        {/* Badge de Marca */}
-        <div className="absolute top-3 left-3">
-          <span className="px-2 py-1 bg-white/90 backdrop-blur-sm text-[10px] font-bold uppercase tracking-wider text-zinc-900 rounded-full shadow-sm">
-            {product.marca}
-          </span>
-        </div>
+        {/* Heart Icon Overlay */}
+        <button className="absolute top-4 right-4 w-8 h-8 bg-white rounded-full flex items-center justify-center text-zinc-400 hover:text-red-500 transition-colors shadow-sm opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 duration-300">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+           </svg>
+        </button>
       </Link>
 
-      <div className="p-4 flex flex-col flex-1">
-        <div className="mb-2">
-           <h3 className="text-zinc-900 font-semibold text-sm line-clamp-1">{product.nome}</h3>
-           <p className="text-zinc-500 text-xs">{product.categoria}</p>
-        </div>
-
-        <div className="mt-auto flex items-center justify-between gap-2">
-          <div>
-            <p className="text-[10px] text-zinc-400 uppercase font-bold">A partir de</p>
-            <p className="text-lg font-black text-zinc-900 leading-none">
-              {formatCurrency(minPrice)}
-            </p>
-          </div>
-          
-          <Link to={`/product/${product.id}`}>
-            <Button size="sm" className="rounded-full px-4 h-9 shadow-sm">
-              Ver
-            </Button>
-          </Link>
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">{product.marca || 'Decoty'}</span>
+        <Link to={`/produto/Decoty-${product.ui_id}`}>
+          <h3 className="text-sm font-medium text-zinc-900 group-hover:text-zinc-600 transition-colors line-clamp-1">
+            {product.nome}
+          </h3>
+        </Link>
+        
+        <div className="mt-2 flex flex-col">
+          <p className="text-base font-bold text-zinc-900">
+            {formatCurrency(minPrice)}
+          </p>
+          <p className="text-[11px] text-zinc-500">
+            Em até 5x de <span className="font-semibold">{formatCurrency(installmentValue)}</span> sem juros
+          </p>
         </div>
       </div>
     </motion.div>

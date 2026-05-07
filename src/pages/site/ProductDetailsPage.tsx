@@ -4,16 +4,34 @@ import { motion } from 'motion/react';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { ShoppingBag, ChevronLeft, Star, ShieldCheck, Truck, RotateCcw } from 'lucide-react';
+import { ShoppingBag, ChevronLeft, Star, ShieldCheck, Truck, RotateCcw, Ruler, Crown } from 'lucide-react';
+import { SizeGuideModal } from '@/components/site/SizeGuideModal';
 
 export const ProductDetailsPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { identifier } = useParams<{ identifier: string }>();
   const navigate = useNavigate();
   const { products, isLoading } = useData();
+  const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   const product = useMemo(() => {
-    return products.find(p => p.id === id);
-  }, [id, products]);
+    if (!identifier) return null;
+    // Tenta encontrar pelo formato Decoty-X
+    if (identifier.startsWith('Decoty-')) {
+      const ui_id_str = identifier.replace('Decoty-', '');
+      const ui_id = parseInt(ui_id_str);
+      return products.find(p => p.ui_id === ui_id);
+    }
+    // Fallback para o ID original se necessário (pode acontecer se o cara colar um link antigo)
+    return products.find(p => p.id === identifier);
+  }, [identifier, products]);
+
+  const images = [
+    "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1539109132314-3475961ecf4c?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=1000&auto=format&fit=crop"
+  ];
 
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
@@ -51,7 +69,23 @@ export const ProductDetailsPage: React.FC = () => {
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
   const colors = Array.from(new Set(product.variants?.map(v => v.cor) || []));
-  const sizes = Array.from(new Set(product.variants?.map(v => v.tamanho) || []));
+  const rawSizes = Array.from(new Set(product.variants?.map(v => v.tamanho) || []));
+  
+  const sizes = useMemo(() => {
+    const order: Record<string, number> = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'G1': 6, 'G2': 7, 'G3': 8 };
+    return [...rawSizes].sort((a, b) => {
+      const aOrder = order[a.toUpperCase()];
+      const bOrder = order[b.toUpperCase()];
+      if (aOrder && bOrder) return aOrder - bOrder;
+      if (aOrder) return -1;
+      if (bOrder) return 1;
+      
+      const aNum = parseInt(a);
+      const bNum = parseInt(b);
+      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+      return a.localeCompare(b);
+    });
+  }, [rawSizes]);
 
   return (
     <div className="pb-20">
@@ -72,18 +106,29 @@ export const ProductDetailsPage: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="space-y-4"
           >
-            <div className="aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-100 shadow-2xl">
+            <div className="relative aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-100 shadow-2xl">
               <img 
-                src="https://images.unsplash.com/photo-1539109132314-3475961ecf4c?q=80&w=1000&auto=format&fit=crop" 
+                src={images[activeImageIndex]} 
                 alt={product.nome}
                 className="w-full h-full object-cover"
               />
+              {/* Peça Única Badge */}
+              <div className="absolute top-6 right-6">
+                <div className="bg-black/40 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full flex items-center gap-2 shadow-xl">
+                  <Crown size={16} className="text-white fill-white/20" />
+                  <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-white">Peça Única</span>
+                </div>
+              </div>
             </div>
-            {/* Thumbs placeholder */}
+            {/* Gallery Thumbs */}
             <div className="grid grid-cols-4 gap-4">
-               {[1,2,3,4].map(n => (
-                 <div key={n} className="aspect-square rounded-xl bg-zinc-100 overflow-hidden cursor-pointer border-2 border-transparent hover:border-zinc-900 transition-colors">
-                    <img src="https://images.unsplash.com/photo-1539109132314-3475961ecf4c?q=80&w=200&auto=format&fit=crop" className="w-full h-full object-cover opacity-60" />
+               {images.map((img, idx) => (
+                 <div 
+                   key={idx} 
+                   onClick={() => setActiveImageIndex(idx)}
+                   className={`aspect-square rounded-xl bg-zinc-50 overflow-hidden cursor-pointer border-2 transition-all duration-300 ${activeImageIndex === idx ? 'border-zinc-900 scale-105 shadow-md' : 'border-transparent hover:border-zinc-200 opacity-60'}`}
+                 >
+                    <img src={img} className="w-full h-full object-cover" />
                  </div>
                ))}
             </div>
@@ -105,10 +150,19 @@ export const ProductDetailsPage: React.FC = () => {
                   <span className="text-zinc-400 text-xs ml-1">(4.9)</span>
                 </div>
               </div>
-              <h1 className="text-4xl md:text-5xl font-serif text-zinc-950 mb-4">{product.nome}</h1>
-              <p className="text-3xl font-black text-zinc-900">
-                {selectedVariant ? formatCurrency(selectedVariant.preco_venda) : 'Preço sob consulta'}
-              </p>
+              <h1 className="text-4xl md:text-5xl font-serif text-zinc-950 mb-2">{product.nome}</h1>
+              <p className="text-[10px] uppercase font-bold tracking-widest text-zinc-400 mb-4">Referência: Decoty-{product.ui_id}</p>
+              
+              <div className="space-y-1">
+                <p className="text-3xl font-black text-zinc-900">
+                  {selectedVariant ? formatCurrency(selectedVariant.preco_venda) : 'Preço sob consulta'}
+                </p>
+                {selectedVariant && (
+                   <p className="text-sm text-zinc-500 font-medium">
+                     Ou até 5x de <span className="text-zinc-900 font-bold">{formatCurrency(selectedVariant.preco_venda / 5)}</span> sem juros
+                   </p>
+                )}
+              </div>
             </div>
 
             <div className="space-y-8">
@@ -137,7 +191,16 @@ export const ProductDetailsPage: React.FC = () => {
 
               {/* Tamanhos */}
               <div>
-                <span className="text-[10px] uppercase font-black tracking-widest text-zinc-400 block mb-3">Tamanho</span>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] uppercase font-black tracking-widest text-zinc-400 block">Tamanho</span>
+                  <button 
+                    onClick={() => setIsSizeGuideOpen(true)}
+                    className="flex items-center gap-1.5 text-[10px] uppercase font-black tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors"
+                  >
+                    <Ruler size={14} />
+                    Guia de tamanhos
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-3">
                   {sizes.map(tamanho => {
                     const variant = product.variants?.find(v => v.tamanho === tamanho && (selectedVariant?.cor === v.cor));
@@ -168,7 +231,7 @@ export const ProductDetailsPage: React.FC = () => {
               {/* Descrição */}
               <div>
                 <span className="text-[10px] uppercase font-black tracking-widest text-zinc-400 block mb-3">Sobre a Peça</span>
-                <p className="text-zinc-600 leading-relaxed">
+                <p className="text-zinc-600 leading-relaxed whitespace-pre-wrap">
                   {product.descricao || 'Nenhuma descrição disponível para este produto.'}
                 </p>
               </div>
@@ -182,9 +245,6 @@ export const ProductDetailsPage: React.FC = () => {
                 >
                   <ShoppingBag size={20} />
                   Adicionar ao Carrinho
-                </Button>
-                <Button variant="outline" size="lg" className="h-14 w-14 rounded-2xl border-zinc-200 flex items-center justify-center p-0">
-                   <Star size={20} className="text-zinc-400 hover:text-amber-500 transition-colors" />
                 </Button>
               </div>
 
@@ -222,6 +282,8 @@ export const ProductDetailsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <SizeGuideModal isOpen={isSizeGuideOpen} onClose={() => setIsSizeGuideOpen(false)} />
     </div>
   );
 };

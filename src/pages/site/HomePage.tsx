@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useData } from '@/contexts/DataContext';
 import { ProductCard } from '@/components/site/ProductCard';
@@ -65,9 +66,11 @@ export const HomePage: React.FC = () => {
               Descubra uma boutique exclusiva que celebra a feminilidade e o estilo moderno. Peças elegantes que contam sua história.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Button size="lg" className="bg-white text-black hover:bg-zinc-100 rounded-full px-8 h-14 text-base font-bold shadow-xl">
-                Nossa Vitrine
-              </Button>
+              <Link to="/catalogo">
+                <Button size="lg" className="bg-white text-black hover:bg-zinc-100 rounded-full px-8 h-14 text-base font-bold shadow-xl">
+                  Nossa Vitrine
+                </Button>
+              </Link>
               <Button size="lg" variant="outline" className="!text-white border-white hover:bg-white hover:!text-black rounded-full px-8 h-14 text-base flex items-center gap-2 backdrop-blur-sm bg-white/10 font-bold transition-all duration-300">
                 Sobre a Decoty
               </Button>

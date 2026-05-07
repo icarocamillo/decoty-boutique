@@ -24,6 +24,7 @@ import { ErpProfilePage } from '@/pages/erp/ErpProfilePage';
 
 // Site Pages
 import { HomePage } from '@/pages/site/HomePage';
+import { ProductListingPage } from '@/pages/site/ProductListingPage';
 import { ProductDetailsPage } from '@/pages/site/ProductDetailsPage';
 import { CustomerProfilePage } from '@/pages/site/CustomerProfilePage';
 import { CheckoutPage } from '@/pages/site/CheckoutPage';
@@ -50,7 +51,8 @@ const App = () => {
           <Routes>
             {/* ─── E-COMMERCE ROUTES ─────────────────────────────────── */}
             <Route path="/" element={<SiteLayout><HomePage /></SiteLayout>} />
-            <Route path="/product/:id" element={<SiteLayout><ProductDetailsPage /></SiteLayout>} />
+            <Route path="/catalogo" element={<SiteLayout><ProductListingPage /></SiteLayout>} />
+            <Route path="/produto/:identifier" element={<SiteLayout><ProductDetailsPage /></SiteLayout>} />
             <Route path="/checkout" element={<SiteLayout><CheckoutPage /></SiteLayout>} />
             <Route path="/my-account" element={<SiteLayout><CustomerProfilePage /></SiteLayout>} />
             <Route path="/entrar" element={<CustomerLoginPage />} />

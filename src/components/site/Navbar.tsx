@@ -29,38 +29,41 @@ export const Navbar: React.FC = () => {
   const navLinks = [
     {
       name: 'Novidades',
-      path: '/',
-      items: [{ name: 'Confira os lançamentos', path: '/' }]
+      path: '/catalogo',
+      items: [
+        { name: 'Confira os lançamentos', path: '/catalogo?sort=newest' },
+        { name: 'Ver Tudo', path: '/catalogo' }
+      ]
     },
     {
       name: 'Coleções',
-      path: '#',
+      path: '/catalogo',
       items: [
-        { name: 'Primavera / Verão 2026', path: '/category/colecao-primavera' },
-        { name: 'Outono / Inverno 2026', path: '/category/colecao-inverno' }
+        { name: 'Primavera / Verão 2026', path: '/catalogo?collection=primavera' },
+        { name: 'Outono / Inverno 2026', path: '/catalogo?collection=inverno' }
       ]
     },
     {
       name: 'Categorias',
-      path: '#',
+      path: '/catalogo',
       items: [
-        { name: 'Vestidos', path: '/category/vestidos' },
-        { name: 'Blusas', path: '/category/blusas' },
-        { name: 'Camisas', path: '/category/camisas' },
-        { name: 'Calças', path: '/category/calcas' },
-        { name: 'Saias', path: '/category/saias' },
-        { name: 'Casacos', path: '/category/casacos' },
-        { name: 'Jaquetas', path: '/category/jaquetas' },
-        { name: 'Bermudas', path: '/category/bermudas' }
+        { name: 'Vestidos', path: '/catalogo?category=Vestidos' },
+        { name: 'Blusas', path: '/catalogo?category=Blusas' },
+        { name: 'Camisas', path: '/catalogo?category=Camisas' },
+        { name: 'Calças', path: '/catalogo?category=Calcas' },
+        { name: 'Saias', path: '/catalogo?category=Saias' },
+        { name: 'Casacos', path: '/catalogo?category=Casacos' },
+        { name: 'Jaquetas', path: '/catalogo?category=Jaquetas' },
+        { name: 'Bermudas', path: '/catalogo?category=Bermudas' }
       ]
     },
     {
       name: 'Acessórios',
-      path: '#',
+      path: '/catalogo',
       items: [
-        { name: 'Pulseiras', path: '/category/pulseiras' },
-        { name: 'Brincos', path: '/category/brincos' },
-        { name: 'Colares', path: '/category/colares' }
+        { name: 'Pulseiras', path: '/catalogo?category=Pulseiras' },
+        { name: 'Brincos', path: '/catalogo?category=Brincos' },
+        { name: 'Colares', path: '/catalogo?category=Colares' }
       ]
     },
   ];
