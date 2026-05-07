@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingBag, User, Search, Menu, X, Settings } from 'lucide-react';
+import { ShoppingBag, User, Search, Menu, X, Settings, ChevronDown } from 'lucide-react';
 import { BrandLogo } from '@/components/shared/BrandLogo';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const location = useLocation();
   const { user, userRole } = useAuth();
 
@@ -26,10 +27,42 @@ export const Navbar: React.FC = () => {
   }, [location.pathname]);
 
   const navLinks = [
-    { name: 'Novidades', path: '/' },
-    { name: 'Vestidos', path: '/category/vestidos' },
-    { name: 'Blusas', path: '/category/blusas' },
-    { name: 'Acessórios', path: '/category/acessorios' },
+    {
+      name: 'Novidades',
+      path: '/',
+      items: [{ name: 'Confira os lançamentos', path: '/' }]
+    },
+    {
+      name: 'Coleções',
+      path: '#',
+      items: [
+        { name: 'Primavera / Verão 2026', path: '/category/colecao-primavera' },
+        { name: 'Outono / Inverno 2026', path: '/category/colecao-inverno' }
+      ]
+    },
+    {
+      name: 'Categorias',
+      path: '#',
+      items: [
+        { name: 'Vestidos', path: '/category/vestidos' },
+        { name: 'Blusas', path: '/category/blusas' },
+        { name: 'Camisas', path: '/category/camisas' },
+        { name: 'Calças', path: '/category/calcas' },
+        { name: 'Saias', path: '/category/saias' },
+        { name: 'Casacos', path: '/category/casacos' },
+        { name: 'Jaquetas', path: '/category/jaquetas' },
+        { name: 'Bermudas', path: '/category/bermudas' }
+      ]
+    },
+    {
+      name: 'Acessórios',
+      path: '#',
+      items: [
+        { name: 'Pulseiras', path: '/category/pulseiras' },
+        { name: 'Brincos', path: '/category/brincos' },
+        { name: 'Colares', path: '/category/colares' }
+      ]
+    },
   ];
 
   return (
@@ -39,7 +72,7 @@ export const Navbar: React.FC = () => {
         : 'bg-transparent h-20'
         }`}
     >
-      <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 flex items-center justify-between">
+      <div className="w-full h-full px-2 sm:px-6 flex items-center justify-between gap-4">
         {/* Mobile Toggle */}
         <button
           className="lg:hidden p-2 text-zinc-900"
@@ -48,39 +81,67 @@ export const Navbar: React.FC = () => {
           <Menu size={24} />
         </button>
 
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-4 group">
+        {/* Logo - Extreme Left */}
+        <Link to="/" className="flex items-center gap-2 sm:gap-4 group shrink-0">
           <BrandLogo size="md" className="transition-transform group-hover:scale-110" />
           <span className="font-rouge text-xl sm:text-4xl hidden sm:block">Decoty Boutique</span>
         </Link>
 
-        {/* Desktop Nav */}
-        <div className="hidden lg:flex items-center gap-8">
+        {/* Desktop Nav - Middle */}
+        <div className="hidden lg:flex items-center gap-8 mx-auto h-full">
           {navLinks.map((link) => (
-            <Link
-              key={link.path}
-              to={link.path}
-              className="text-sm font-medium text-zinc-600 hover:text-zinc-950 transition-colors relative group"
+            <div
+              key={link.name}
+              className="relative h-full flex items-center group"
+              onMouseEnter={() => setActiveDropdown(link.name)}
+              onMouseLeave={() => setActiveDropdown(null)}
             >
-              {link.name}
+              <button
+                className="text-sm font-medium text-zinc-600 hover:text-zinc-950 transition-colors flex items-center gap-1 py-4"
+              >
+                {link.name}
+                <ChevronDown size={14} className="transition-transform group-hover:rotate-180" />
+              </button>
+
+              {/* Dropdown Menu */}
+              <div className="absolute top-full left-0 w-64 bg-white/95 backdrop-blur-md border border-zinc-100 shadow-xl rounded-2xl p-4 opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all z-50">
+                <div className="grid grid-cols-1 gap-2">
+                  {link.items.map((item) => (
+                    <Link
+                      key={item.name}
+                      to={item.path}
+                      className="text-sm text-zinc-500 hover:text-zinc-950 hover:bg-zinc-50 p-2 rounded-xl transition-all"
+                    >
+                      {item.name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-zinc-900 transition-all group-hover:w-full" />
-            </Link>
+            </div>
           ))}
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2 sm:gap-4">
-          <button className="p-2 text-zinc-600 hover:text-zinc-950 transition-colors">
-            <Search size={20} />
-          </button>
+        {/* Actions - Extreme Right */}
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          {/* Rounded Search Box */}
+          <div className="hidden md:flex items-center bg-zinc-100/80 backdrop-blur-sm border border-zinc-200 rounded-full px-4 py-2 w-48 lg:w-80 group focus-within:ring-2 focus-within:ring-zinc-900 transition-all">
+            <Search size={18} className="text-zinc-400 group-focus-within:text-zinc-900" />
+            <input
+              type="text"
+              placeholder="Qual peça está procurando?"
+              className="bg-transparent border-none outline-none text-xs ml-2 w-full text-zinc-900 placeholder:text-zinc-400 font-medium"
+            />
+          </div>
 
           <Link
             to={user ? "/my-account" : "/login"}
             className="p-2 text-zinc-600 hover:text-zinc-950 transition-colors flex items-center gap-2"
           >
             <User size={20} />
-            <span className="hidden md:inline text-xs font-semibold uppercase tracking-wider">
-              {user ? 'Minha Conta' : 'Login'}
+            <span className="hidden xl:inline text-xs font-semibold uppercase tracking-wider">
+              {user ? 'Minha Conta' : 'Entrar'}
             </span>
           </Link>
 
@@ -129,15 +190,24 @@ export const Navbar: React.FC = () => {
                 </button>
               </div>
 
-              <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-8 overflow-y-auto max-h-[calc(100vh-200px)] pr-2">
                 {navLinks.map((link) => (
-                  <Link
-                    key={link.path}
-                    to={link.path}
-                    className="text-lg font-medium text-zinc-900 hover:text-zinc-500 transition-colors"
-                  >
-                    {link.name}
-                  </Link>
+                  <div key={link.name} className="flex flex-col gap-4">
+                    <h4 className="text-lg font-serif text-zinc-900 border-b border-zinc-100 pb-2 flex items-center justify-between">
+                      {link.name}
+                    </h4>
+                    <div className="flex flex-col gap-3 pl-4">
+                      {link.items.map((item) => (
+                        <Link
+                          key={item.name}
+                          to={item.path}
+                          className="text-base text-zinc-500 hover:text-zinc-950 transition-colors"
+                        >
+                          {item.name}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
 

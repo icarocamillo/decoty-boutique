@@ -46,7 +46,7 @@ export const HomePage: React.FC = () => {
               <Button size="lg" className="bg-white text-black hover:bg-zinc-100 rounded-full px-8 h-14 text-base font-bold shadow-xl">
                 Ver Coleção
               </Button>
-              <Button size="lg" variant="outline" className="text-white border-white/30 hover:bg-white/10 rounded-full px-8 h-14 text-base flex items-center gap-2 backdrop-blur-sm">
+              <Button size="lg" variant="outline" className="!text-white border-white hover:bg-white hover:!text-black rounded-full px-8 h-14 text-base flex items-center gap-2 backdrop-blur-sm bg-white/10 font-bold transition-all duration-300">
                 Sobre a Decoty
               </Button>
             </div>
