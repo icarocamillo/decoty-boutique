@@ -58,15 +58,19 @@ export const Footer: React.FC = () => {
             <ul className="space-y-4">
               <li className="flex items-center gap-3 text-sm text-zinc-400">
                 <Phone size={16} className="text-zinc-600" />
-                (19) 3571-5542 (Fixo)
+                (19) 3571-2644
               </li>
               <li className="flex items-center gap-3 text-sm text-zinc-400">
                 <Phone size={16} className="text-zinc-600" />
-                (19) 9 9752-6144 (WhatsApp)
+                <a href="https://api.whatsapp.com/send?phone=5519997526144" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                  (19) 9 9752-6144 (WhatsApp)
+                </a>
               </li>
               <li className="flex items-center gap-3 text-sm text-zinc-400">
                 <Mail size={16} className="text-zinc-600" />
-                decoty@hotmail.com.br
+                <a href="mailto:decoty@hotmail.com.br" className="hover:text-white transition-colors">
+                  decoty@hotmail.com.br
+                </a>
               </li>
               <li className="flex items-center gap-3 text-sm text-zinc-400">
                 <MapPin size={16} className="text-zinc-600" />
