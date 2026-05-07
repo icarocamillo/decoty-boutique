@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useData } from '@/contexts/DataContext';
 import { ProductCard } from '@/components/site/ProductCard';
-import { ShoppingBag, ArrowRight, Sparkles } from 'lucide-react';
+import { ShoppingBag, ArrowRight, Sparkles, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 const HOME_PHRASES = [
@@ -38,7 +38,7 @@ export const HomePage: React.FC = () => {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative h-[80vh] min-h-[600px] flex items-center overflow-hidden">
+      <section className="relative h-screen min-h-[600px] flex items-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img
             src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop"
@@ -55,23 +55,23 @@ export const HomePage: React.FC = () => {
             transition={{ duration: 0.8 }}
             className="max-w-2xl text-white"
           >
-            <div className="flex items-center gap-2 mb-4">
-              <span className="w-12 h-px bg-white/60" />
-              <span className="text-xs uppercase tracking-[0.3em] font-bold text-white/80">Nova Coleção Outono & Inverno 2026</span>
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <span className="w-8 sm:w-12 h-px bg-white/60" />
+              <span className="text-[10px] sm:text-xs uppercase tracking-[0.3em] font-bold text-white/80">Nova Coleção Outono & Inverno 2026</span>
             </div>
-            <h1 className="text-5xl md:text-7xl font-serif mb-6 leading-tight">
+            <h1 className="text-4xl md:text-7xl font-serif mb-4 sm:mb-6 leading-tight">
               {randomHeadline}
             </h1>
-            <p className="text-lg text-white/80 mb-10 max-w-lg leading-relaxed">
+            <p className="text-base sm:text-lg text-white/80 mb-8 sm:mb-10 max-w-lg leading-relaxed">
               Descubra uma boutique exclusiva que celebra a feminilidade e o estilo moderno. Peças elegantes que contam sua história.
             </p>
-            <div className="flex flex-wrap gap-4">
-              <Link to="/catalogo">
-                <Button size="lg" className="bg-white text-black hover:bg-zinc-100 rounded-full px-8 h-14 text-base font-bold shadow-xl">
+            <div className="flex flex-wrap gap-3 sm:gap-4">
+              <Link to="/catalogo" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full sm:w-56 bg-white text-black hover:bg-zinc-100 rounded-full h-12 sm:h-14 text-sm sm:text-base font-bold shadow-xl">
                   Nossa Vitrine
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="!text-white border-white hover:bg-white hover:!text-black rounded-full px-8 h-14 text-base flex items-center gap-2 backdrop-blur-sm bg-white/10 font-bold transition-all duration-300">
+              <Button size="lg" variant="outline" className="w-full sm:w-56 !text-white border-white hover:bg-white hover:!text-black rounded-full h-12 sm:h-14 text-sm sm:text-base flex items-center justify-center gap-2 backdrop-blur-sm bg-white/10 font-bold transition-all duration-300">
                 Sobre a Decoty
               </Button>
             </div>
@@ -79,9 +79,11 @@ export const HomePage: React.FC = () => {
         </div>
 
         {/* Floating Indicator */}
-        <div className="absolute bottom-10 sm:bottom-12 landscape:bottom-4 left-[60%] sm:left-1/2 -translate-x-1/2 animate-bounce flex flex-col items-center z-10">
-          <span className="text-[10px] uppercase font-black tracking-widest text-white mb-2">Descubra Abaixo</span>
-          <div className="w-px h-12 bg-gradient-to-b from-white to-transparent" />
+        <div className="absolute bottom-6 sm:bottom-12 landscape:bottom-4 inset-x-0 flex flex-col items-center z-10 pointer-events-none">
+          <div className="animate-bounce flex flex-col items-center pointer-events-auto">
+            <span className="text-[10px] uppercase font-black tracking-widest text-white -mb-1">Descubra abaixo</span>
+            <ChevronDown className="text-white" strokeWidth={1} size={48} />
+          </div>
         </div>
       </section>
 
@@ -95,7 +97,7 @@ export const HomePage: React.FC = () => {
                 <span className="text-xs uppercase font-black tracking-widest">Destaques</span>
               </div>
               <h2 className="text-3xl md:text-4xl font-serif text-zinc-950">Favoritos da Temporada</h2>
-              <p className="text-zinc-500 mt-2">Escolha as peças que estão fazendo sucesso entre nossas clientes.</p>
+              <p className="text-zinc-500 mt-2">Escolha as peças mais procuradas entre nossas clientes.</p>
             </div>
             <Button variant="link" className="text-zinc-900 font-bold flex items-center gap-2 p-0 h-auto group">
               Ver todos os produtos <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
