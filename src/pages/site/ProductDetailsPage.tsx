@@ -28,7 +28,7 @@ export const ProductDetailsPage: React.FC = () => {
 
   const images = [
     "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1000&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1539109132314-3475961ecf4c?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1539109131314-3475961ecf4c?q=80&w=1000&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1000&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=1000&auto=format&fit=crop"
   ];
@@ -73,7 +73,9 @@ export const ProductDetailsPage: React.FC = () => {
   
   const sizes = useMemo(() => {
     const order: Record<string, number> = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'G1': 6, 'G2': 7, 'G3': 8 };
-    return [...rawSizes].sort((a, b) => {
+    const sizesArray = rawSizes as string[];
+    
+    return [...sizesArray].sort((a, b) => {
       const aOrder = order[a.toUpperCase()];
       const bOrder = order[b.toUpperCase()];
       if (aOrder && bOrder) return aOrder - bOrder;
@@ -240,7 +242,7 @@ export const ProductDetailsPage: React.FC = () => {
               <div className="pt-4 flex flex-col sm:flex-row gap-4">
                 <Button 
                   size="lg" 
-                  className="flex-1 h-14 rounded-2xl bg-zinc-900 text-white hover:bg-black font-bold flex items-center gap-3 shadow-xl"
+                  className="flex-1 h-14 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold flex items-center gap-3 shadow-xl border-none"
                   disabled={!selectedVariant || selectedVariant.quantidade_estoque <= 0}
                 >
                   <ShoppingBag size={20} />

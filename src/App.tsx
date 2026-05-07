@@ -1,5 +1,13 @@
-import React from 'react';
-import { Routes, Route, Navigate, BrowserRouter } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Routes, Route, Navigate, BrowserRouter, useLocation } from 'react-router-dom';
+
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+};
 
 // Auth Pages
 import { LoginPage } from '@/pages/auth/LoginPage';
@@ -46,6 +54,7 @@ const ManagerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 const App = () => {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <AuthProvider>
         <DataProvider>
           <Routes>

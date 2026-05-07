@@ -20,7 +20,8 @@ export const ProductListingPage: React.FC = () => {
     size: searchParams.getAll('size'),
     minPrice: parseInt(searchParams.get('minPrice') || '0'),
     maxPrice: parseInt(searchParams.get('maxPrice') || '2000'),
-    sort: searchParams.get('sort') || 'newest'
+    sort: searchParams.get('sort') || 'newest',
+    search: searchParams.get('search') || ''
   }), [searchParams]);
 
   // Extrair opções únicas para os filtros
@@ -51,6 +52,19 @@ export const ProductListingPage: React.FC = () => {
   // Lógica de Filtragem e Ordenação
   const filteredProducts = useMemo(() => {
     let result = products.filter(p => {
+      // 0. Busca por Texto (Search)
+      if (activeFilters.search) {
+        const query = activeFilters.search.toLowerCase();
+        const matchesName = p.nome.toLowerCase().includes(query);
+        const matchesCategory = p.categoria?.toLowerCase().includes(query);
+        const matchesBrand = (p.marca || 'Decoty').toLowerCase().includes(query);
+        const matchesDescription = p.descricao?.toLowerCase().includes(query);
+        
+        if (!matchesName && !matchesCategory && !matchesBrand && !matchesDescription) {
+          return false;
+        }
+      }
+
       // 1. Filtro de Categoria
       if (activeFilters.category.length > 0 && !activeFilters.category.includes(p.categoria)) {
         return false;
@@ -116,11 +130,32 @@ export const ProductListingPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-white pb-20">
       {/* Hero Header */}
-      <div className="bg-zinc-50 pt-32 pb-16 px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">Nossa Coleção</span>
-            <h1 className="text-4xl md:text-5xl font-serif text-zinc-900">Catálogo Completo</h1>
+      <div className="relative h-[40vh] min-h-[320px] flex items-center overflow-hidden">
+        <div className="absolute inset-0 z-0">
+          <img
+            src="https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?q=80&w=2070&auto=format&fit=crop"
+            alt="Boutique Curadoria"
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+          />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+        </div>
+
+        <div className="relative z-10 w-full px-4 sm:px-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase font-bold tracking-[0.3em] text-white/80">
+                {activeFilters.search ? 'Resultados da Busca' : 'Nossa Coleção'}
+              </span>
+              <h1 className="text-4xl md:text-6xl font-serif text-white tracking-tight">
+                {activeFilters.search ? `"${activeFilters.search}"` : 'Catálogo Completo'}
+              </h1>
+              {!activeFilters.search && (
+                <p className="text-white/60 text-sm max-w-md mt-2 leading-relaxed">
+                  Explore nossa curadoria exclusiva de peças que unem elegância, conforto e o melhor das tendências para o seu dia a dia.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
