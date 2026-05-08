@@ -16,17 +16,17 @@ export const CheckoutPage: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
   const [installments, setInstallments] = useState(1);
 
-  const formatCurrency = (val: number) => 
+  const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
   const discountInfo = useMemo(() => {
     if (!paymentDiscounts) return { percent: 0, value: 0 };
-    
+
     let percent = 0;
     if (paymentMethod === 'pix') percent = paymentDiscounts.pix || 0;
     else if (paymentMethod === 'debito') percent = paymentDiscounts.debit || 0;
     else if (paymentMethod === 'credito' && installments === 1) percent = paymentDiscounts.credit_spot || 0;
-    
+
     const value = cartTotal * (percent / 100);
     return { percent, value };
   }, [paymentMethod, paymentDiscounts, cartTotal, installments]);
@@ -34,15 +34,15 @@ export const CheckoutPage: React.FC = () => {
   const finalTotal = cartTotal - discountInfo.value;
 
   const handleCheckoutWhatsApp = () => {
-    const phone = "5519992524387";
+    const phone = "5519997526144";
     const businessName = "Decoty Boutique";
-    
-    let message = `Olá ${businessName}! ✨\n\nGostaria de finalizar meu pedido:\n\n`;
-    
+
+    let message = `Olá ${businessName}! \n\nGostaria de finalizar meu pedido:\n\n`;
+
     cart.forEach(item => {
       message += `• *${item.nome}*\n  Cor: ${item.cor} | Tam: ${item.tamanho}\n  Qtd: ${item.quantidade}x ${formatCurrency(item.preco_unitario)}\n\n`;
     });
-    
+
     const paymentLabel = {
       pix: 'PIX',
       credito: installments === 1 ? 'Cartão de Crédito (À Vista)' : `Cartão de Crédito (${installments}x)`,
@@ -58,7 +58,7 @@ export const CheckoutPage: React.FC = () => {
       message += `*Parcelamento:* ${installments}x de ${formatCurrency(finalTotal / installments)}\n`;
     }
     message += `*Total Final: ${formatCurrency(finalTotal)}*`;
-    
+
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
   };
@@ -74,7 +74,7 @@ export const CheckoutPage: React.FC = () => {
   return (
     <div className="py-12 bg-white min-h-[calc(100vh-80px)]">
       <div className="container mx-auto px-4 sm:px-6">
-        
+
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12 border-b border-zinc-100 pb-12">
             <div className="max-w-xl">
@@ -110,7 +110,7 @@ export const CheckoutPage: React.FC = () => {
                     <h2 className="text-xl font-serif font-black text-zinc-900 uppercase">Confira seu pedido</h2>
                   </div>
                   {cart.map((item) => (
-                    <motion.div 
+                    <motion.div
                       key={item.produto_id}
                       layout
                       initial={{ opacity: 0, y: 20 }}
@@ -119,8 +119,8 @@ export const CheckoutPage: React.FC = () => {
                     >
                       {/* Image container with blur effect on hover */}
                       <div className="relative w-full sm:w-40 aspect-[3/4] rounded-2xl overflow-hidden shrink-0 shadow-sm">
-                        <img 
-                          src={`https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=400`} 
+                        <img
+                          src={`https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=400`}
                           alt={item.nome}
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         />
@@ -137,7 +137,7 @@ export const CheckoutPage: React.FC = () => {
                               {item.nome}
                             </h3>
                           </div>
-                          <button 
+                          <button
                             onClick={() => removeFromCart(item.produto_id)}
                             className="w-10 h-10 rounded-full bg-white border border-zinc-100 flex items-center justify-center text-zinc-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 transition-all shadow-sm active:scale-95"
                           >
@@ -156,14 +156,14 @@ export const CheckoutPage: React.FC = () => {
 
                         <div className="mt-auto flex items-center justify-between pt-4 border-t border-zinc-100/50">
                           <div className="flex items-center gap-3 bg-white border border-zinc-100 rounded-2xl p-1.5 shadow-sm">
-                            <button 
+                            <button
                               onClick={() => handleUpdateQuantity(item.produto_id, item.quantidade - 1, item)}
                               className="w-8 h-8 flex items-center justify-center hover:bg-zinc-50 rounded-xl transition-all text-zinc-400 hover:text-zinc-900"
                             >
                               <Minus size={14} />
                             </button>
                             <span className="w-8 text-center text-sm font-black text-zinc-900 leading-none">{item.quantidade}</span>
-                            <button 
+                            <button
                               onClick={() => handleUpdateQuantity(item.produto_id, item.quantidade + 1, item)}
                               className="w-8 h-8 flex items-center justify-center hover:bg-zinc-50 rounded-xl transition-all text-zinc-400 hover:text-zinc-900"
                             >
@@ -171,8 +171,8 @@ export const CheckoutPage: React.FC = () => {
                             </button>
                           </div>
                           <div className="text-right">
-                             <p className="text-2xl font-black text-zinc-900">{formatCurrency(item.subtotal)}</p>
-                             <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">{formatCurrency(item.preco_unitario)} / un</p>
+                            <p className="text-2xl font-black text-zinc-900">{formatCurrency(item.subtotal)}</p>
+                            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">{formatCurrency(item.preco_unitario)} / un</p>
                           </div>
                         </div>
                       </div>
@@ -186,7 +186,7 @@ export const CheckoutPage: React.FC = () => {
                   {/* Payment Method Selection - Now in Black Card */}
                   <Card className="!p-0 border border-white/5 bg-zinc-950/80 backdrop-blur-xl text-white rounded-[2rem] shadow-2xl overflow-hidden relative">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-3xl -mr-12 -mt-12" />
-                    
+
                     <div className="p-6 space-y-6">
                       <div className="flex items-center gap-3 relative z-10">
                         <div className="w-10 h-10 rounded-full bg-white text-zinc-900 flex items-center justify-center text-xs font-black shrink-0">02</div>
@@ -208,23 +208,20 @@ export const CheckoutPage: React.FC = () => {
                               setPaymentMethod(method.id as PaymentMethod);
                               if (method.id !== 'credito') setInstallments(1);
                             }}
-                            className={`group relative p-4 rounded-2xl border transition-all duration-300 text-left overflow-hidden cursor-pointer ${
-                              paymentMethod === method.id 
-                                ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.1)]' 
+                            className={`group relative p-4 rounded-2xl border transition-all duration-300 text-left overflow-hidden cursor-pointer ${paymentMethod === method.id
+                                ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.1)]'
                                 : 'border-zinc-800 hover:border-zinc-700 bg-zinc-800/50'
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center gap-4">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${
-                                paymentMethod === method.id ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-zinc-800 text-zinc-500 group-hover:text-white'
-                              }`}>
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${paymentMethod === method.id ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-zinc-800 text-zinc-500 group-hover:text-white'
+                                }`}>
                                 {typeof method.icon === 'function' ? <method.icon /> : <method.icon size={20} strokeWidth={1.5} />}
                               </div>
-                              
+
                               <div className="flex-1">
-                                <p className={`font-black uppercase tracking-widest text-[10px] mb-0.5 transition-colors ${
-                                  paymentMethod === method.id ? 'text-emerald-400' : 'text-zinc-300'
-                                }`}>{method.label}</p>
+                                <p className={`font-black uppercase tracking-widest text-[10px] mb-0.5 transition-colors ${paymentMethod === method.id ? 'text-emerald-400' : 'text-zinc-300'
+                                  }`}>{method.label}</p>
                                 <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-tighter leading-none">{method.desc}</p>
                               </div>
                             </div>
@@ -240,18 +237,17 @@ export const CheckoutPage: React.FC = () => {
                                         e.stopPropagation();
                                         setInstallments(n);
                                       }}
-                                      className={`h-9 rounded-lg border text-[10px] font-black transition-all ${
-                                        installments === n 
-                                          ? 'border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                                      className={`h-9 rounded-lg border text-[10px] font-black transition-all ${installments === n
+                                          ? 'border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
                                           : 'border-zinc-700 bg-zinc-800/80 text-zinc-500 hover:text-white'
-                                      }`}
+                                        }`}
                                     >
                                       {n}x
                                     </button>
                                   ))}
                                 </div>
                                 <p className="text-[9px] text-emerald-400 font-black uppercase tracking-widest text-center">
-                                  {installments === 1 
+                                  {installments === 1
                                     ? `Total: ${formatCurrency(finalTotal)} à vista`
                                     : `${installments}x de ${formatCurrency(finalTotal / installments)}`}
                                 </p>
@@ -281,7 +277,7 @@ export const CheckoutPage: React.FC = () => {
                             <span className="uppercase tracking-widest font-bold text-[10px]">Subtotal</span>
                             <span className="font-bold">{formatCurrency(cartTotal)}</span>
                           </div>
-                          
+
                           {discountInfo.value > 0 && (
                             <div className="flex justify-between text-emerald-400 text-sm animate-in fade-in slide-in-from-right-2 duration-500">
                               <span className="uppercase tracking-widest font-black text-[10px] flex items-center gap-1.5">
@@ -303,7 +299,7 @@ export const CheckoutPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <Button 
+                        <Button
                           className="w-full h-16 rounded-[1.25rem] bg-zinc-800 hover:bg-emerald-600 text-white font-black uppercase tracking-[0.2em] text-[11px] transition-all relative z-10 flex items-center justify-center gap-3 shadow-xl active:scale-[0.98] border-none"
                           onClick={handleCheckoutWhatsApp}
                         >
@@ -333,41 +329,41 @@ export const CheckoutPage: React.FC = () => {
       <AnimatePresence>
         {stockError && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
-             <motion.div 
-               initial={{ opacity: 0 }}
-               animate={{ opacity: 1 }}
-               exit={{ opacity: 0 }}
-               onClick={() => setStockError(null)}
-               className="absolute inset-0 bg-zinc-950/40 backdrop-blur-md"
-             />
-             <motion.div
-               initial={{ opacity: 0, scale: 0.9, y: 20 }}
-               animate={{ opacity: 1, scale: 1, y: 0 }}
-               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-               className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden p-8 sm:p-10"
-             >
-                <div className="flex flex-col items-center text-center">
-                   <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-6">
-                      <AlertCircle size={40} strokeWidth={1.5} />
-                   </div>
-                   <h3 className="text-2xl font-serif font-black text-zinc-900 mb-4">Estoque insuficiente</h3>
-                   <p className="text-zinc-500 leading-relaxed mb-8">
-                     {stockError}
-                   </p>
-                   <Button 
-                     onClick={() => setStockError(null)}
-                     className="w-full h-14 rounded-2xl bg-zinc-900 text-white font-bold"
-                   >
-                     Entendido
-                   </Button>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setStockError(null)}
+              className="absolute inset-0 bg-zinc-950/40 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden p-8 sm:p-10"
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-6">
+                  <AlertCircle size={40} strokeWidth={1.5} />
                 </div>
-                <button 
-                   onClick={() => setStockError(null)}
-                   className="absolute top-6 right-6 p-2 text-zinc-400 hover:text-zinc-900 transition-colors"
+                <h3 className="text-2xl font-serif font-black text-zinc-900 mb-4">Estoque insuficiente</h3>
+                <p className="text-zinc-500 leading-relaxed mb-8">
+                  {stockError}
+                </p>
+                <Button
+                  onClick={() => setStockError(null)}
+                  className="w-full h-14 rounded-2xl bg-zinc-900 text-white font-bold"
                 >
-                   <X size={24} />
-                </button>
-             </motion.div>
+                  Entendido
+                </Button>
+              </div>
+              <button
+                onClick={() => setStockError(null)}
+                className="absolute top-6 right-6 p-2 text-zinc-400 hover:text-zinc-900 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
