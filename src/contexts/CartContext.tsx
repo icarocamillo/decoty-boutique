@@ -33,7 +33,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (existingItem) {
         const newQuantity = existingItem.quantidade + quantity;
         if (newQuantity > variant.quantidade_estoque) {
-          alert(`Desculpe, temos apenas ${variant.quantidade_estoque} unidades em estoque.`);
           return prev;
         }
         return prev.map(item =>
@@ -75,7 +74,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCart(prev => prev.map(item => {
       if (item.produto_id === variantId) {
         if (quantity > item.estoque_maximo) {
-            alert(`Desculpe, temos apenas ${item.estoque_maximo} unidades em estoque.`);
             return item;
         }
         return { ...item, quantidade: quantity, subtotal: quantity * item.preco_unitario };

@@ -96,15 +96,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         {/* Heart Icon Overlay */}
         <button 
           onClick={toggleFavorite}
-          className={`absolute top-4 right-4 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 duration-300 ${
-            isFavorite ? 'bg-red-500 text-white opacity-100 translate-y-0' : 'bg-white/80 backdrop-blur-sm text-zinc-400 hover:text-red-500'
+          className={`absolute top-4 right-4 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm lg:opacity-0 lg:group-hover:opacity-100 transform lg:translate-y-2 lg:group-hover:translate-y-0 duration-300 ${
+            isFavorite ? 'bg-red-500 text-white opacity-100 translate-y-0' : 'bg-white/80 backdrop-blur-sm text-zinc-400 hover:text-red-500 opacity-100 translate-y-0'
           }`}
         >
            <Heart size={16} fill={isFavorite ? "currentColor" : "none"} />
         </button>
 
         {/* Hover Actions Overlay */}
-        <div className="absolute inset-x-0 bottom-0 z-10 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent translate-y-full group-hover:translate-y-0 transition-transform duration-300 pointer-events-none group-hover:pointer-events-auto">
+        <div className="absolute inset-x-0 bottom-0 z-10 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent translate-y-full lg:group-hover:translate-y-0 transition-transform duration-300 pointer-events-none lg:group-hover:pointer-events-auto hidden lg:block">
           <div className="flex flex-col gap-4">
             {/* Size Selector */}
             <div className="flex flex-wrap gap-2 justify-center">

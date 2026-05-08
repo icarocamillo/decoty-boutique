@@ -16,7 +16,7 @@ export const Navbar: React.FC = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const isPDP = location.pathname.startsWith('/produto/');
+  const isInverse = location.pathname.startsWith('/produto/') || location.pathname === '/finalizar-pedido';
   const { user, userRole } = useAuth();
   const { cartCount, setIsCartOpen } = useCart();
 
@@ -85,12 +85,12 @@ export const Navbar: React.FC = () => {
     },
   ];
 
-  const bgColor = isPDP 
+  const bgColor = isInverse 
     ? 'bg-zinc-950/80 backdrop-blur-md shadow-lg'
     : (isScrolled ? 'bg-white/40 backdrop-blur-lg shadow-sm' : 'bg-transparent');
   
-  const textColor = isPDP ? 'text-white' : 'text-zinc-900';
-  const subTextColor = isPDP ? 'text-white/60 hover:text-white' : 'text-zinc-600 hover:text-zinc-950';
+  const textColor = isInverse ? 'text-white' : 'text-zinc-900';
+  const subTextColor = isInverse ? 'text-white/60 hover:text-white' : 'text-zinc-600 hover:text-zinc-950';
 
   return (
     <>
@@ -159,7 +159,7 @@ export const Navbar: React.FC = () => {
                   </div>
                 </div>
 
-                <span className={`absolute -bottom-1 left-0 w-0 h-0.5 transition-all group-hover:w-full ${isPDP ? 'bg-white' : 'bg-zinc-900'}`} />
+                <span className={`absolute -bottom-1 left-0 w-0 h-0.5 transition-all group-hover:w-full ${isInverse ? 'bg-white' : 'bg-zinc-900'}`} />
               </div>
             ))}
           </div>
@@ -179,19 +179,19 @@ export const Navbar: React.FC = () => {
           <form 
             onSubmit={handleSearch}
             className={`hidden xl:flex items-center backdrop-blur-sm border rounded-full px-4 py-2 xl:w-64 xl:ml-8 group transition-all ${
-              isPDP 
+              isInverse 
                 ? 'bg-white/10 border-white/20 focus-within:ring-white/30 focus-within:ring-2' 
                 : 'bg-zinc-100/80 border-zinc-200 focus-within:ring-2 focus-within:ring-zinc-900'
             }`}
           >
-            <Search size={18} className={`shrink-0 ${isPDP ? 'text-white/40 group-focus-within:text-white' : 'text-zinc-400 group-focus-within:text-zinc-900'}`} />
+            <Search size={18} className={`shrink-0 ${isInverse ? 'text-white/40 group-focus-within:text-white' : 'text-zinc-400 group-focus-within:text-zinc-900'}`} />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Qual peça está procurando?"
               className={`bg-transparent border-none outline-none text-xs ml-2 w-full font-medium ${
-                isPDP ? 'text-white placeholder:text-white/30' : 'text-zinc-900 placeholder:text-zinc-400'
+                isInverse ? 'text-white placeholder:text-white/30' : 'text-zinc-900 placeholder:text-zinc-400'
               }`}
             />
           </form>

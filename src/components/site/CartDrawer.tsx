@@ -39,7 +39,7 @@ export const CartDrawer: React.FC = () => {
                   <ShoppingBag size={20} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-serif font-bold text-zinc-900">Sua Sacola</h2>
+                  <h2 className="text-lg font-serif font-bold text-zinc-900">Seu pedido</h2>
                   <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">
                     {cartCount === 1 ? '1 item' : `${cartCount} itens`}
                   </p>
@@ -61,7 +61,7 @@ export const CartDrawer: React.FC = () => {
                     <ShoppingBag size={40} />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-zinc-500 font-medium">Sua sacola está vazia</p>
+                    <p className="text-zinc-500 font-medium">Seu pedido está vazio</p>
                     <p className="text-xs text-zinc-400">Que tal explorar nossas novidades?</p>
                   </div>
                   <button
@@ -119,7 +119,7 @@ export const CartDrawer: React.FC = () => {
                               <Plus size={14} />
                             </button>
                           </div>
-                          <span className="text-sm font-serif font-bold text-zinc-900">{formatCurrency(item.subtotal)}</span>
+                          <span className="text-sm font-bold text-zinc-900">{formatCurrency(item.subtotal)}</span>
                         </div>
                       </div>
                     </motion.div>
@@ -136,23 +136,23 @@ export const CartDrawer: React.FC = () => {
                     <span>Subtotal</span>
                     <span>{formatCurrency(cartTotal)}</span>
                   </div>
-                  <div className="flex justify-between text-zinc-900 font-serif font-bold text-xl">
+                  <div className="flex justify-between text-zinc-900 font-bold text-xl">
                     <span>Total</span>
                     <span>{formatCurrency(cartTotal)}</span>
                   </div>
                 </div>
                 
                 <p className="text-[10px] text-zinc-400 text-center uppercase tracking-widest font-bold">
-                  Frete e descontos calculados no checkout
+                  Descontos calculados no checkout
                 </p>
 
                 <div className="flex flex-col gap-3">
                   <Link
-                    to="/checkout"
+                    to="/finalizar-pedido"
                     onClick={() => setIsCartOpen(false)}
-                    className="w-full bg-[#115533] hover:bg-[#0d4429] text-white py-4 rounded-2xl flex items-center justify-center gap-3 text-xs uppercase font-black tracking-[0.2em] transition-all shadow-xl shadow-emerald-900/10 active:scale-[0.98]"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl flex items-center justify-center gap-3 text-xs uppercase font-black tracking-[0.2em] transition-all shadow-xl shadow-emerald-500/20 active:scale-[0.98]"
                   >
-                    Finalizar Compra
+                    Finalizar Pedido
                     <ArrowRight size={18} />
                   </Link>
                   <button

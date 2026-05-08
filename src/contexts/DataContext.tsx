@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { backendService } from '@/services/backendService';
-import { Sale, ChartDataPoint, Client, Product, StockEntry, Supplier, UserProfile } from '@/types';
+import { Sale, ChartDataPoint, Client, Product, StockEntry, Supplier, UserProfile, PaymentDiscounts } from '@/types';
 import { useAuth } from './AuthContext';
 import { PaymentFees } from '@/services/backendService';
 
@@ -16,6 +16,7 @@ interface DataContextType {
   suppliers: Supplier[];
   users: UserProfile[];
   paymentFees: PaymentFees | null;
+  paymentDiscounts: PaymentDiscounts | null;
   chartData: ChartDataPoint[];
   topBrand: string;
   isLoading: boolean;
@@ -42,6 +43,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [paymentFees, setPaymentFees] = useState<PaymentFees | null>(null);
+  const [paymentDiscounts, setPaymentDiscounts] = useState<PaymentDiscounts | null>(null);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [topBrand, setTopBrand] = useState<string>('-');
 
@@ -67,7 +69,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       backendService.getSuppliers(),
       backendService.getTopSellingBrand(),
       backendService.getUsers(),
-      backendService.getPaymentFees()
+      backendService.getPaymentFees(),
+      backendService.getPaymentDiscounts()
     ]);
 
     const results = await Promise.race([fetchPromise, timeoutPromise]);
@@ -76,7 +79,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (results === null) return false;
 
     const [recentSales, dashboardChart, clientData, productData, stockData,
-           supplierData, brand, usersData, feesData] =
+           supplierData, brand, usersData, feesData, discountsData] =
       results.map(r => r.status === 'fulfilled' ? r.value : null) as any;
 
     setSales(recentSales || []);
@@ -88,6 +91,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTopBrand(brand || '-');
     setUsers(usersData || []);
     setPaymentFees(feesData || null);
+    setPaymentDiscounts(discountsData || null);
     setLastUpdated(new Date());
     return true;
   }, []);
@@ -237,7 +241,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <DataContext.Provider value={{
       clients, products, sales, salesReport, receiptsReport,
       clientSales, clientStockHistory, stockEntries, suppliers,
-      users, paymentFees, chartData, topBrand,
+      users, paymentFees, paymentDiscounts, chartData, topBrand,
       isLoading, isRefreshing,
       refreshData, fetchSalesReport, fetchManagementReport, fetchClientHistory,
       lastUpdated

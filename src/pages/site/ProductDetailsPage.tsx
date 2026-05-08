@@ -301,57 +301,57 @@ export const ProductDetailsPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Add to Cart */}
-              <div className="pt-4 flex flex-col sm:flex-row gap-4">
+              {/* Add to Cart & Favorite */}
+              <div className="pt-4 flex flex-row gap-3">
                 <Button 
                   size="lg" 
                   onClick={handleAddToCart}
-                  className="flex-1 h-14 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold flex items-center gap-3 shadow-xl border-none"
+                  className="flex-1 h-16 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold flex items-center justify-center gap-3 shadow-xl border-none transition-all active:scale-95"
                   disabled={!selectedVariant || selectedVariant.quantidade_estoque <= 0}
                 >
-                  <ShoppingBag size={20} />
-                  Adicionar ao Carrinho
+                  <ShoppingBag size={22} />
+                  <span className="text-sm">Adicionar ao Carrinho</span>
                 </Button>
 
                 <button 
                   onClick={toggleFavorite}
-                  className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-all shadow-xl active:scale-95 ${
+                  className={`w-16 h-16 rounded-2xl flex items-center justify-center border-2 transition-all shadow-xl active:scale-95 ${
                     isFavorite 
                       ? 'bg-red-500 border-red-500 text-white shadow-red-200' 
                       : 'bg-white border-zinc-100 text-zinc-400 hover:border-zinc-900 hover:text-zinc-900 shadow-zinc-100'
                   }`}
                 >
-                   <Heart size={24} fill={isFavorite ? "currentColor" : "none"} />
+                   <Heart size={26} fill={isFavorite ? "currentColor" : "none"} />
                 </button>
               </div>
 
               {/* Perks */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-10 border-t border-zinc-100">
-                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-900">
-                       <Truck size={18} />
+              <div className="grid grid-cols-3 gap-2 sm:gap-6 pt-10 border-t border-zinc-100">
+                 <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-900 shrink-0">
+                       <Truck size={16} className="sm:w-[18px] sm:h-[18px]" />
                     </div>
                     <div>
-                       <p className="text-xs font-bold text-zinc-900">Frete Grátis</p>
-                       <p className="text-[10px] text-zinc-500">Acima de R$ 300</p>
+                       <p className="text-[10px] sm:text-xs font-bold text-zinc-900 leading-tight">Frete Grátis</p>
+                       <p className="text-[9px] sm:text-[10px] text-zinc-500 leading-tight">Acima R$ 300</p>
                     </div>
                  </div>
-                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-900">
-                       <RotateCcw size={18} />
+                 <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-900 shrink-0">
+                       <RotateCcw size={16} className="sm:w-[18px] sm:h-[18px]" />
                     </div>
                     <div>
-                       <p className="text-xs font-bold text-zinc-900">Troca Fácil</p>
-                       <p className="text-[10px] text-zinc-500">Até 30 dias</p>
+                       <p className="text-[10px] sm:text-xs font-bold text-zinc-900 leading-tight">Troca Fácil</p>
+                       <p className="text-[9px] sm:text-[10px] text-zinc-500 leading-tight">Até 30 dias</p>
                     </div>
                  </div>
-                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-900">
-                       <ShieldCheck size={18} />
+                 <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-900 shrink-0">
+                       <ShieldCheck size={16} className="sm:w-[18px] sm:h-[18px]" />
                     </div>
                     <div>
-                       <p className="text-xs font-bold text-zinc-900">Pagamento Seguro</p>
-                       <p className="text-[10px] text-zinc-500">Cartão ou PIX</p>
+                       <p className="text-[10px] sm:text-xs font-bold text-zinc-900 leading-tight">Pgto Seguro</p>
+                       <p className="text-[9px] sm:text-[10px] text-zinc-500 leading-tight">Cartão ou PIX</p>
                     </div>
                  </div>
               </div>
