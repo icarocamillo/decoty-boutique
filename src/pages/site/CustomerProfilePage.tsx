@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { User, Package, Heart, Settings, LogOut, ChevronRight, Lock, Save, MessageCircle } from 'lucide-react';
+import { User, Package, Heart, Settings, LogOut, ChevronRight, Lock, Save, MessageCircle, Gift } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -102,7 +102,7 @@ export const CustomerProfilePage: React.FC = () => {
                {activeTab === 'orders' ? (
                  <>
                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-2xl font-serif text-zinc-950">Histórico de Pedidos</h3>
+                      <h3 className="text-2xl font-serif text-zinc-950">Minhas Solicitações de Pedidos no WhatsApp</h3>
                    </div>
 
                    {orders.length === 0 ? (
@@ -231,26 +231,29 @@ export const CustomerProfilePage: React.FC = () => {
                )}
 
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
-                  <Card className="p-6 bg-zinc-900 text-white border-none shadow-xl overflow-hidden relative rounded-3xl">
+                  <Card className="p-7 bg-zinc-950 text-white border border-amber-500/20 shadow-2xl shadow-amber-900/10 overflow-hidden relative rounded-3xl group">
                      <div className="relative z-10">
-                        <h4 className="text-lg font-serif mb-2">Clube Decoty Privé</h4>
-                        <p className="text-white/60 text-xs mb-4">Você tem 350 pontos acumulados.</p>
-                        <Button size="sm" className="bg-white text-black hover:bg-zinc-100 rounded-full font-bold">Resgatar Cupom</Button>
+                        <h4 className="text-xl font-serif mb-1 text-amber-100">Vale Presente</h4>
+                        <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-5">Mimos especiais Decoty</p>
+                        <Button size="sm" className="bg-amber-500 text-black hover:bg-amber-600 rounded-full font-black text-[10px] uppercase tracking-widest px-6 h-9 transition-all border-none">Resgatar Agora</Button>
                      </div>
-                     <div className="absolute -right-4 -bottom-4 opacity-10">
-                        <Heart size={120} fill="white" />
+                     <div className="absolute -right-6 -bottom-6 opacity-20 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-12">
+                        <Gift size={140} className="text-amber-500" />
                      </div>
+                     <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
                   </Card>
-                  <Card className="p-6 bg-white border-none shadow-sm border border-zinc-100 rounded-3xl">
+                  <Card className="p-7 bg-white border border-zinc-100 shadow-sm rounded-3xl">
                      <h4 className="text-lg font-serif mb-2 text-zinc-950">Precisa de Ajuda?</h4>
-                     <p className="text-zinc-500 text-xs mb-4">Nossa equipe de suporte está pronta para te atender.</p>
+                     <p className="text-zinc-500 text-[11px] mb-6 leading-relaxed font-medium">
+                        Estamos prontas para te atender e tirar as suas dúvidas.
+                     </p>
                      <a 
                       href="https://api.whatsapp.com/send?phone=5519997526144" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-2 px-6 h-10 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-full text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-200"
+                      className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-8 h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-emerald-100"
                      >
-                        <MessageCircle size={16} />
+                        <MessageCircle size={18} />
                         Falar no WhatsApp
                      </a>
                   </Card>

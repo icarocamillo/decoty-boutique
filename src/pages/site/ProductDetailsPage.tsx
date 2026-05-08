@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { ShoppingBag, ChevronLeft, ChevronRight, Star, ShieldCheck, Truck, RotateCcw, Ruler, Crown, Heart } from 'lucide-react';
+import { ShoppingBag, ChevronLeft, ChevronRight, Star, ShieldCheck, Truck, RotateCcw, Ruler, Crown, Heart, MessageCircle, Phone } from 'lucide-react';
 import { SizeGuideModal } from '@/components/site/SizeGuideModal';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -325,35 +325,52 @@ export const ProductDetailsPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* Perks */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-6 pt-10 border-t border-zinc-100">
-                 <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2 sm:gap-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-900 shrink-0">
-                       <Truck size={16} className="sm:w-[18px] sm:h-[18px]" />
+              {/* Perks / Benefits Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-10 border-t border-zinc-100">
+                 <div className="bg-zinc-800/80 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl flex flex-col items-center text-center justify-center min-h-[90px] group hover:bg-zinc-700/80 transition-all">
+                    <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 mb-1.5">
+                       <Truck size={14} />
                     </div>
-                    <div>
-                       <p className="text-[10px] sm:text-xs font-bold text-zinc-900 leading-tight">Frete Grátis</p>
-                       <p className="text-[9px] sm:text-[10px] text-zinc-500 leading-tight">Acima R$ 300</p>
-                    </div>
-                 </div>
-                 <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2 sm:gap-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-900 shrink-0">
-                       <RotateCcw size={16} className="sm:w-[18px] sm:h-[18px]" />
-                    </div>
-                    <div>
-                       <p className="text-[10px] sm:text-xs font-bold text-zinc-900 leading-tight">Troca Fácil</p>
-                       <p className="text-[9px] sm:text-[10px] text-zinc-500 leading-tight">Até 30 dias</p>
+                    <div className="space-y-1">
+                       <p className="text-[10px] font-black text-white uppercase tracking-wider leading-none">Entregas</p>
+                       <p className="text-[8px] font-medium text-zinc-300 uppercase tracking-tighter line-clamp-2 px-0.5">Somente Leme - SP</p>
                     </div>
                  </div>
-                 <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2 sm:gap-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-900 shrink-0">
-                       <ShieldCheck size={16} className="sm:w-[18px] sm:h-[18px]" />
+
+                 <div className="bg-zinc-800/80 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl flex flex-col items-center text-center justify-center min-h-[90px] group hover:bg-zinc-700/80 transition-all">
+                    <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 mb-1.5">
+                       <RotateCcw size={14} />
                     </div>
-                    <div>
-                       <p className="text-[10px] sm:text-xs font-bold text-zinc-900 leading-tight">Pgto Seguro</p>
-                       <p className="text-[9px] sm:text-[10px] text-zinc-500 leading-tight">Cartão ou PIX</p>
+                    <div className="space-y-1">
+                       <p className="text-[10px] font-black text-white uppercase tracking-wider leading-none">Trocas</p>
+                       <p className="text-[8px] font-medium text-zinc-300 uppercase tracking-tighter line-clamp-2 px-0.5">Até 15 dias</p>
                     </div>
                  </div>
+
+                 <div className="bg-zinc-800/80 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl flex flex-col items-center text-center justify-center min-h-[90px] group hover:bg-zinc-700/80 transition-all">
+                    <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 mb-1.5">
+                       <ShieldCheck size={14} />
+                    </div>
+                    <div className="space-y-1">
+                       <p className="text-[10px] font-black text-white uppercase tracking-wider leading-none">Pgto. Seguro</p>
+                       <p className="text-[8px] font-medium text-zinc-300 uppercase tracking-tighter line-clamp-2 px-0.5">Cartão ou PIX</p>
+                    </div>
+                 </div>
+
+                 <a 
+                   href="https://api.whatsapp.com/send?phone=5519997526144" 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   className="bg-zinc-800/80 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl flex flex-col items-center text-center justify-center min-h-[90px] group hover:bg-zinc-700/80 transition-all"
+                 >
+                    <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 mb-1.5">
+                       <Phone size={14} />
+                    </div>
+                    <div className="space-y-1">
+                       <p className="text-[10px] font-black text-white uppercase tracking-wider leading-none">Dúvidas?</p>
+                       <p className="text-[8px] font-medium text-zinc-300 uppercase tracking-tighter line-clamp-2 px-0.5">Falar na loja</p>
+                    </div>
+                 </a>
               </div>
             </div>
           </div>

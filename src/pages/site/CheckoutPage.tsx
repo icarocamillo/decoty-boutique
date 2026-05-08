@@ -209,8 +209,8 @@ export const CheckoutPage: React.FC = () => {
                               if (method.id !== 'credito') setInstallments(1);
                             }}
                             className={`group relative p-4 rounded-2xl border transition-all duration-300 text-left overflow-hidden cursor-pointer ${paymentMethod === method.id
-                                ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.1)]'
-                                : 'border-zinc-800 hover:border-zinc-700 bg-zinc-800/50'
+                              ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.1)]'
+                              : 'border-zinc-800 hover:border-zinc-700 bg-zinc-800/50'
                               }`}
                           >
                             <div className="flex items-center gap-4">
@@ -238,8 +238,8 @@ export const CheckoutPage: React.FC = () => {
                                         setInstallments(n);
                                       }}
                                       className={`h-9 rounded-lg border text-[10px] font-black transition-all ${installments === n
-                                          ? 'border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                                          : 'border-zinc-700 bg-zinc-800/80 text-zinc-500 hover:text-white'
+                                        ? 'border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                        : 'border-zinc-700 bg-zinc-800/80 text-zinc-500 hover:text-white'
                                         }`}
                                     >
                                       {n}x

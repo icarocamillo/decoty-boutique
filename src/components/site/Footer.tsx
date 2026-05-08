@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 export const Footer: React.FC = () => {
   return (
     <footer className="bg-zinc-950 text-white pt-20 pb-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <div className="w-full px-4 sm:px-6 lg:px-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
           {/* Brand Col */}
           <div className="space-y-6">
@@ -15,14 +15,14 @@ export const Footer: React.FC = () => {
               <BrandLogo size="md" className="brightness-200" />
               <span className="font-rouge text-2xl tracking-wide">Decoty Boutique</span>
             </div>
-            <p className="text-zinc-500 text-sm leading-relaxed">
+            <p className="text-zinc-500 text-sm leading-relaxed max-w-md">
               Sua boutique de moda feminina com foco em estilo, elegância e as últimas novidades. Sinta-se única, sinta-se Decoty.
             </p>
             <div className="flex items-center gap-4">
-              <a href="https://www.instagram.com/decotydezilda/" className="w-10 h-10 rounded-full border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-white transition-all">
+              <a href="https://www.instagram.com/decotydezilda/" className="w-10 h-10 rounded-full bg-zinc-900/50 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-900 transition-all">
                 <Instagram size={18} />
               </a>
-              <a href="https://www.facebook.com/decoty.boutique/" className="w-10 h-10 rounded-full border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:border-white transition-all">
+              <a href="https://www.facebook.com/decoty.boutique/" className="w-10 h-10 rounded-full bg-zinc-900/50 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-900 transition-all">
                 <Facebook size={18} />
               </a>
             </div>
@@ -80,7 +80,7 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        <div className="pt-10 border-t border-zinc-900 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="pt-10 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-white/5">
           <p className="text-zinc-600 text-xs text-center sm:text-left">
             &copy; {new Date().getFullYear()} Decoty Boutique. Todos os direitos reservados.
           </p>

@@ -61,14 +61,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     const fetchPromise = Promise.allSettled([
-      backendService.getRecentSales(),
-      backendService.getDashboardChartData(),
-      backendService.getClients(),
+      session ? backendService.getRecentSales() : Promise.resolve([]),
+      session ? backendService.getDashboardChartData() : Promise.resolve([]),
+      session ? backendService.getClients() : Promise.resolve([]),
       backendService.getProducts(),
-      backendService.getStockEntries(),
-      backendService.getSuppliers(),
-      backendService.getTopSellingBrand(),
-      backendService.getUsers(),
+      session ? backendService.getStockEntries() : Promise.resolve([]),
+      session ? backendService.getSuppliers() : Promise.resolve([]),
+      session ? backendService.getTopSellingBrand() : Promise.resolve('-'),
+      session ? backendService.getUsers() : Promise.resolve([]),
       backendService.getPaymentFees(),
       backendService.getPaymentDiscounts()
     ]);
@@ -94,7 +94,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPaymentDiscounts(discountsData || null);
     setLastUpdated(new Date());
     return true;
-  }, []);
+  }, [session]);
 
   const refreshData = useCallback(async () => {
     // Cancela retry pendente se houver
@@ -196,12 +196,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Busca inicial quando a sessão está pronta
+  // Busca inicial e quando a sessão muda
   useEffect(() => {
-    if (session) {
-      refreshData();
-    }
-  }, [session, refreshData]);
+    refreshData();
+  }, [refreshData, session]);
 
   // Ao voltar para a aba: aguarda 1s antes de tentar (deixa conexão se reestabelecer)
   useEffect(() => {

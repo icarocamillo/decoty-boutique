@@ -17,8 +17,13 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isInverse = location.pathname.startsWith('/produto/') || location.pathname === '/finalizar-pedido';
-  const { user, userRole } = useAuth();
+  const { user, userRole, userName } = useAuth();
   const { cartCount, setIsCartOpen } = useCart();
+
+  const getFirstName = (name: string | null) => {
+    if (!name) return '';
+    return name.trim().split(' ')[0];
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -180,7 +185,7 @@ export const Navbar: React.FC = () => {
             onSubmit={handleSearch}
             className={`hidden xl:flex items-center backdrop-blur-sm border rounded-full px-4 py-2 xl:w-64 xl:ml-8 group transition-all ${
               isInverse 
-                ? 'bg-white/10 border-white/20 focus-within:ring-white/30 focus-within:ring-2' 
+                ? 'bg-zinc-900/50 border-white/10 focus-within:ring-white/10 focus-within:ring-2' 
                 : 'bg-zinc-100/80 border-zinc-200 focus-within:ring-2 focus-within:ring-zinc-900'
             }`}
           >
@@ -202,7 +207,7 @@ export const Navbar: React.FC = () => {
           >
             <User size={20} />
             <span className="hidden xl:inline text-xs font-semibold uppercase tracking-wider">
-              {user ? 'Minha Conta' : 'Entrar'}
+              {user ? `Olá, ${getFirstName(userName)}` : 'Entrar'}
             </span>
           </Link>
 
@@ -227,23 +232,34 @@ export const Navbar: React.FC = () => {
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          className="xl:hidden fixed top-[64px] left-0 right-0 bg-white/40 backdrop-blur-lg border-b border-zinc-100 z-40 overflow-hidden shadow-lg"
+          className={`xl:hidden fixed ${isScrolled ? 'top-16' : 'top-20'} left-0 right-0 backdrop-blur-xl border-b z-40 overflow-hidden shadow-lg ${
+            isInverse ? 'bg-zinc-950/80 border-white/5' : 'bg-white/40 border-zinc-100'
+          } transition-all duration-300`}
         >
           <div className="px-4 py-4 max-w-2xl mx-auto">
-            <form onSubmit={handleSearch} className="relative flex items-center bg-zinc-100/40 backdrop-blur-md rounded-2xl px-4 py-3 border border-zinc-200/50 group focus-within:ring-2 focus-within:ring-zinc-900/10 transition-all">
-              <Search size={20} className="text-zinc-400 group-focus-within:text-zinc-900 transition-colors" />
+            <form 
+              onSubmit={handleSearch} 
+              className={`relative flex items-center backdrop-blur-md rounded-2xl px-4 py-3 border transition-all ${
+                isInverse 
+                  ? 'bg-zinc-900/50 border-white/10 focus-within:ring-2 focus-within:ring-white/10' 
+                  : 'bg-zinc-100/40 border-zinc-200/50 focus-within:ring-2 focus-within:ring-zinc-900/10'
+              }`}
+            >
+              <Search size={20} className={`transition-colors ${isInverse ? 'text-white/40 group-focus-within:text-white' : 'text-zinc-400 group-focus-within:text-zinc-900'}`} />
               <input 
                 autoFocus
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="O que você deseja encontrar?"
-                className="bg-transparent border-none outline-none text-base ml-3 w-full text-zinc-900 placeholder:text-zinc-400 font-medium"
+                className={`bg-transparent border-none outline-none text-base ml-3 w-full font-medium ${
+                  isInverse ? 'text-white placeholder:text-white/30' : 'text-zinc-900 placeholder:text-zinc-400'
+                }`}
               />
               <button 
                 type="button" 
                 onClick={() => setIsSearchOpen(false)}
-                className="ml-2 p-1 text-zinc-400 hover:text-zinc-900 transition-colors"
+                className={`ml-2 p-1 transition-colors ${isInverse ? 'text-white/40 hover:text-white' : 'text-zinc-400 hover:text-zinc-900'}`}
               >
                 <X size={20} />
               </button>
@@ -303,7 +319,12 @@ export const Navbar: React.FC = () => {
             </div>
 
             <div className="mt-auto pt-6 border-t border-zinc-100">
-              {!user && (
+              {user ? (
+                <Link to="/minha-conta" className="flex items-center justify-center gap-3 w-full text-center py-3 bg-zinc-950 text-white rounded-xl font-bold">
+                  <User size={18} />
+                  Olá, {getFirstName(userName)}
+                </Link>
+              ) : (
                 <Link to="/entrar" className="block w-full text-center py-3 bg-zinc-900 text-white rounded-xl font-bold">
                   Entrar na Conta
                 </Link>

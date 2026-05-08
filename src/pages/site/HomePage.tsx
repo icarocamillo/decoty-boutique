@@ -77,7 +77,7 @@ export const HomePage: React.FC = () => {
             <div className="flex flex-wrap gap-3 sm:gap-4">
               <Link to="/catalogo" className="w-full sm:w-auto">
                 <Button size="lg" className="w-full sm:w-48 bg-white text-black hover:bg-zinc-100 rounded-full h-12 text-sm font-bold shadow-xl">
-                  Nossa Vitrine
+                  Vitrine de Hoje
                 </Button>
               </Link>
               <Button size="lg" variant="outline" className="w-full sm:w-48 !text-white border-white hover:bg-white hover:!text-black rounded-full h-12 text-sm flex items-center justify-center gap-2 backdrop-blur-sm bg-white/10 font-bold transition-all duration-300">
