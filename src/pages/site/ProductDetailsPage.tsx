@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { ShoppingBag, ChevronLeft, Star, ShieldCheck, Truck, RotateCcw, Ruler, Crown, Heart } from 'lucide-react';
+import { ShoppingBag, ChevronLeft, ChevronRight, Star, ShieldCheck, Truck, RotateCcw, Ruler, Crown, Heart } from 'lucide-react';
 import { SizeGuideModal } from '@/components/site/SizeGuideModal';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -69,7 +69,7 @@ export const ProductDetailsPage: React.FC = () => {
 
   const images = [
     "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1000&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1539109131314-3475961ecf4c?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=1000&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1000&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=1000&auto=format&fit=crop"
   ];
@@ -149,7 +149,29 @@ export const ProductDetailsPage: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="space-y-4"
           >
-            <div className="relative aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-100 shadow-2xl">
+            <div className="relative aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-100 shadow-2xl group/gallery">
+              {/* Navigation Arrows */}
+              <div className="absolute inset-0 z-30 flex items-center justify-between px-4 opacity-0 group-hover/gallery:opacity-100 transition-all duration-300 pointer-events-none">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveImageIndex(prev => (prev === 0 ? images.length - 1 : prev - 1));
+                  }}
+                  className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/40 transition-colors pointer-events-auto shadow-lg"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveImageIndex(prev => (prev === images.length - 1 ? 0 : prev + 1));
+                  }}
+                  className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/40 transition-colors pointer-events-auto shadow-lg"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </div>
+
               <img 
                 src={images[activeImageIndex]} 
                 alt={product.nome}

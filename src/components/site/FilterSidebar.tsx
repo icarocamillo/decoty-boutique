@@ -18,6 +18,30 @@ interface FilterSidebarProps {
   onCloseMobile?: () => void;
 }
 
+const COLOR_MAP: Record<string, string> = {
+  'Preto': '#000000',
+  'Branco': '#FFFFFF',
+  'Vermelho': '#EE423E',
+  'Azul': '#2152CE',
+  'Azul Marinho': '#000080',
+  'Verde': '#26A65B',
+  'Rosa': '#FFC0CB',
+  'Amarelo': '#F9D423',
+  'Cinza': '#95A5A6',
+  'Bege': '#F5F5DC',
+  'Off White': '#FAF9F6',
+  'Vinho': '#722F37',
+  'Nude': '#E3BC9A',
+  'Dourado': '#D4AF37',
+  'Prata': '#C0C0C0',
+  'Marrom': '#8B4513',
+  'Laranja': '#E67E22',
+  'Roxo': '#8E44AD',
+  'Fúcsia': '#FF00FF',
+  'Verde Militar': '#4B5320',
+  'Terracota': '#E2725B',
+};
+
 export const FilterSidebar: React.FC<FilterSidebarProps> = ({
   categories,
   colors,
@@ -50,7 +74,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full px-4">
       <div className="flex items-center justify-between lg:mb-8 mb-4">
         <h2 className="text-xl font-serif text-zinc-900">Filtrar</h2>
         <button 
@@ -93,7 +117,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
         <div>
           <SectionTitle id="color" title="Cores" />
           {openSections.color && (
-            <div className="pt-4 grid grid-cols-5 gap-2">
+            <div className="pt-4 grid grid-cols-5 gap-y-4 gap-x-2 px-1.5 pb-2">
               {colors.map((color) => {
                 const isActive = activeFilters.color.includes(color);
                 return (
@@ -105,7 +129,14 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
                   >
                     <div 
                       className="w-full h-full rounded-full shadow-inner" 
-                      style={{ backgroundColor: color === 'Multicor' ? 'transparent' : color.toLowerCase(), backgroundImage: color === 'Multicor' ? 'linear-gradient(45deg, red, yellow, blue)' : 'none' }}
+                      style={{ 
+                        backgroundColor: color === 'Multicor' 
+                          ? 'transparent' 
+                          : (COLOR_MAP[color] || color.toLowerCase()), 
+                        backgroundImage: color === 'Multicor' 
+                          ? 'linear-gradient(45deg, red, yellow, blue)' 
+                          : 'none' 
+                      }}
                     />
                   </button>
                 );

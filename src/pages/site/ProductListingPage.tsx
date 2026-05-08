@@ -160,7 +160,7 @@ export const ProductListingPage: React.FC = () => {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
         {/* Top bar control */}
         <div className="flex items-center justify-between py-4 border-y border-zinc-100 mb-8 sticky top-[64px] bg-white z-40">
           <div className="flex items-center gap-4">
