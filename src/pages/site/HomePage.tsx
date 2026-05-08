@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useData } from '@/contexts/DataContext';
 import { ProductCard } from '@/components/site/ProductCard';
 import { ShoppingBag, ArrowRight, Sparkles, ChevronDown } from 'lucide-react';
@@ -25,6 +25,15 @@ const HOME_PHRASES = [
 
 export const HomePage: React.FC = () => {
   const { products, isLoading } = useData();
+  const [scrollY, setScrollY] = React.useState(0);
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Sorteia uma frase ao carregar a página
   const randomHeadline = useMemo(() => {
@@ -38,7 +47,7 @@ export const HomePage: React.FC = () => {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative h-screen min-h-[600px] flex items-center overflow-hidden">
+      <section className="relative h-[50vh] min-h-[550px] flex items-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img
             src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop"
@@ -48,7 +57,7 @@ export const HomePage: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
         </div>
 
-        <div className="container mx-auto px-4 sm:px-6 z-10">
+        <div className="container mx-auto px-4 sm:px-6 z-10 pt-16 sm:pt-20">
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
@@ -59,38 +68,50 @@ export const HomePage: React.FC = () => {
               <span className="w-8 sm:w-12 h-px bg-white/60" />
               <span className="text-[10px] sm:text-xs uppercase tracking-[0.3em] font-bold text-white/80">Nova Coleção Outono & Inverno 2026</span>
             </div>
-            <h1 className="text-4xl md:text-7xl font-serif mb-4 sm:mb-6 leading-tight">
+            <h1 className="text-4xl md:text-6xl font-serif mb-4 sm:mb-6 leading-tight">
               {randomHeadline}
             </h1>
-            <p className="text-base sm:text-lg text-white/80 mb-8 sm:mb-10 max-w-lg leading-relaxed">
+            <p className="text-sm sm:text-base text-white/80 mb-6 sm:mb-8 max-w-lg leading-relaxed">
               Descubra uma boutique exclusiva que celebra a feminilidade e o estilo moderno. Peças elegantes que contam sua história.
             </p>
             <div className="flex flex-wrap gap-3 sm:gap-4">
               <Link to="/catalogo" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-56 bg-white text-black hover:bg-zinc-100 rounded-full h-12 sm:h-14 text-sm sm:text-base font-bold shadow-xl">
+                <Button size="lg" className="w-full sm:w-48 bg-white text-black hover:bg-zinc-100 rounded-full h-12 text-sm font-bold shadow-xl">
                   Nossa Vitrine
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="w-full sm:w-56 !text-white border-white hover:bg-white hover:!text-black rounded-full h-12 sm:h-14 text-sm sm:text-base flex items-center justify-center gap-2 backdrop-blur-sm bg-white/10 font-bold transition-all duration-300">
+              <Button size="lg" variant="outline" className="w-full sm:w-48 !text-white border-white hover:bg-white hover:!text-black rounded-full h-12 text-sm flex items-center justify-center gap-2 backdrop-blur-sm bg-white/10 font-bold transition-all duration-300">
                 Sobre a Decoty
               </Button>
             </div>
           </motion.div>
         </div>
-
-        {/* Floating Indicator */}
-        <div className="absolute bottom-6 sm:bottom-12 landscape:bottom-4 inset-x-0 flex flex-col items-center z-10 pointer-events-none">
-          <div className="animate-bounce flex flex-col items-center pointer-events-auto">
-            <span className="text-[10px] uppercase font-black tracking-widest text-white -mb-1">Descubra abaixo</span>
-            <ChevronDown className="text-white" strokeWidth={1} size={48} />
-          </div>
-        </div>
       </section>
 
       {/* Featured Products Grid */}
-      <section className="py-10 bg-zinc-50/50">
+      <section className="pt-10 pb-20 bg-zinc-50/50 relative">
+        {/* Floating Indicator - Alinhado com Destaques e totalmente preto */}
+        <AnimatePresence>
+          {scrollY === 0 && (
+            <div className="absolute top-4 inset-x-0 flex justify-center pointer-events-none z-20">
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 40, scale: 0.8 }}
+                transition={{ duration: 0.5, ease: "circOut" }}
+                className="flex flex-col items-center will-change-transform"
+              >
+                <div className="animate-bounce flex flex-col items-center">
+                  <span className="text-[9px] uppercase font-black tracking-widest text-zinc-950 -mb-1">Descubra abaixo</span>
+                  <ChevronDown className="text-zinc-950" strokeWidth={1} size={32} />
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         <div className="container mx-auto px-4 sm:px-6">
-          <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-16">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-16">
             <div className="max-w-xl">
               <div className="flex items-center gap-2 text-zinc-400 mb-2">
                 <Sparkles size={16} />
