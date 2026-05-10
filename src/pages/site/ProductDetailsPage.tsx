@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/Button';
@@ -8,6 +8,7 @@ import { ShoppingBag, ChevronLeft, ChevronRight, Star, ShieldCheck, Truck, Rotat
 import { SizeGuideModal } from '@/components/site/SizeGuideModal';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { getColorValue } from '@/utils/colorUtils';
 
 export const ProductDetailsPage: React.FC = () => {
   const { identifier } = useParams<{ identifier: string }>();
@@ -23,14 +24,25 @@ export const ProductDetailsPage: React.FC = () => {
 
   const product = useMemo(() => {
     if (!identifier) return null;
-    // Tenta encontrar pelo formato Decoty-X
+    
     let foundProduct;
-    if (identifier.startsWith('Decoty-')) {
-      const ui_id_str = identifier.replace('Decoty-', '');
-      const ui_id = parseInt(ui_id_str);
+    
+    // Tenta o novo formato: {slug}-{ui_id}
+    const match = identifier.match(/(.+)-(\d+)$/);
+    if (match) {
+      const ui_id = parseInt(match[2]);
       foundProduct = products.find(p => p.ui_id === ui_id);
-    } else {
-      foundProduct = products.find(p => p.id === identifier);
+    } 
+    
+    // Fallback para formato antigo Decoty-X ou UUID direto se não encontrou no formato novo
+    if (!foundProduct) {
+      if (identifier.startsWith('Decoty-')) {
+        const ui_id_str = identifier.replace('Decoty-', '');
+        const ui_id = parseInt(ui_id_str);
+        foundProduct = products.find(p => p.ui_id === ui_id);
+      } else {
+        foundProduct = products.find(p => p.id === identifier);
+      }
     }
     
     if (foundProduct) {
@@ -67,20 +79,93 @@ export const ProductDetailsPage: React.FC = () => {
     }
   };
 
-  const images = [
-    "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1000&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=1000&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1000&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=1000&auto=format&fit=crop"
-  ];
+  const [searchParams] = useSearchParams();
+  const initialColor = searchParams.get('cor');
 
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+
+  // Selecionar variante inicial baseada no parâmetro de cor ou na foto principal do catálogo
+  React.useEffect(() => {
+    if (product && product.variants && !selectedVariantId) {
+      if (initialColor) {
+        const variantByColor = product.variants.find(v => v.cor === initialColor);
+        if (variantByColor) {
+          setSelectedVariantId(variantByColor.id);
+          return;
+        }
+      }
+      
+      // Fallback 1: Cor da foto principal do catálogo
+      const mainImage = product.images?.find(img => img.is_default_product_photo);
+      if (mainImage && mainImage.cor) {
+        const variantByMainImg = product.variants.find(v => v.cor === mainImage.cor);
+        if (variantByMainImg) {
+          setSelectedVariantId(variantByMainImg.id);
+          return;
+        }
+      }
+
+      // Fallback 2: Primeira variante disponível
+      if (product.variants.length > 0) {
+        setSelectedVariantId(product.variants[0].id);
+      }
+    }
+  }, [product, initialColor, selectedVariantId]);
 
   const selectedVariant = useMemo(() => {
     if (!product || !product.variants) return null;
     if (selectedVariantId) return product.variants.find(v => v.id === selectedVariantId);
     return product.variants[0];
   }, [product, selectedVariantId]);
+
+  const productImages = useMemo(() => {
+    if (!product || !product.images || product.images.length === 0) {
+      return [
+        "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1000&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=1000&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1000&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=1000&auto=format&fit=crop"
+      ];
+    }
+
+    const allImages = [...product.images].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    
+    if (selectedVariant?.cor) {
+      const colorImages = allImages.filter(img => img.cor === selectedVariant.cor);
+      
+      // Prioriza imagens da cor selecionada. Se não houver, mostra as gerais (sem cor).
+      // Se não houver nenhuma, mostra todas como fallback.
+      const imagesToShow = colorImages.length > 0 
+        ? colorImages 
+        : allImages.filter(img => !img.cor).length > 0
+          ? allImages.filter(img => !img.cor)
+          : allImages;
+      
+      return [...imagesToShow].sort((a, b) => {
+        if (a.is_main && !b.is_main) return -1;
+        if (!a.is_main && b.is_main) return 1;
+        return (a.display_order || 0) - (b.display_order || 0);
+      }).map(img => img.url);
+    }
+
+    return allImages.map(img => img.url);
+  }, [product, selectedVariant]);
+
+  React.useEffect(() => {
+    setActiveImageIndex(0);
+  }, [selectedVariant?.cor]);
+
+  const thumbnailRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollThumbnails = (direction: 'left' | 'right') => {
+    if (thumbnailRef.current) {
+      const scrollAmount = 150;
+      thumbnailRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -109,7 +194,7 @@ export const ProductDetailsPage: React.FC = () => {
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-  const colors = Array.from(new Set(product.variants?.map(v => v.cor) || []));
+  const colors = Array.from(new Set(product.variants?.map(v => v.cor || '') || [])) as string[];
   const rawSizes = Array.from(new Set(product.variants?.map(v => v.tamanho) || []));
   
   const sizes = useMemo(() => {
@@ -149,34 +234,50 @@ export const ProductDetailsPage: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="space-y-4"
           >
-            <div className="relative aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-100 shadow-2xl group/gallery">
-              {/* Navigation Arrows */}
-              <div className="absolute inset-0 z-30 flex items-center justify-between px-4 opacity-0 group-hover/gallery:opacity-100 transition-all duration-300 pointer-events-none">
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveImageIndex(prev => (prev === 0 ? images.length - 1 : prev - 1));
-                  }}
-                  className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/40 transition-colors pointer-events-auto shadow-lg"
-                >
-                  <ChevronLeft size={24} />
-                </button>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveImageIndex(prev => (prev === images.length - 1 ? 0 : prev + 1));
-                  }}
-                  className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/40 transition-colors pointer-events-auto shadow-lg"
-                >
-                  <ChevronRight size={24} />
-                </button>
-              </div>
-
-              <img 
-                src={images[activeImageIndex]} 
+            <div className="relative aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-100 shadow-2xl group/gallery touch-none">
+              {/* Main Image with Swipe Support */}
+              <motion.img 
+                key={activeImageIndex}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                onDragEnd={(_, info) => {
+                  const threshold = 50;
+                  if (info.offset.x > threshold) {
+                    setActiveImageIndex(prev => (prev === 0 ? productImages.length - 1 : prev - 1));
+                  } else if (info.offset.x < -threshold) {
+                    setActiveImageIndex(prev => (prev === productImages.length - 1 ? 0 : prev + 1));
+                  }
+                }}
+                src={productImages[activeImageIndex]} 
                 alt={product.nome}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover select-none"
               />
+
+              {/* Navigation Arrows & Click Handlers */}
+              <div className="absolute inset-0 z-20 pointer-events-none">
+                {/* Left Click Region */}
+                <div 
+                  className="absolute inset-y-0 left-0 w-1/4 pointer-events-auto cursor-pointer"
+                  onClick={() => setActiveImageIndex(prev => (prev === 0 ? productImages.length - 1 : prev - 1))}
+                />
+                {/* Right Click Region */}
+                <div 
+                  className="absolute inset-y-0 right-0 w-1/4 pointer-events-auto cursor-pointer"
+                  onClick={() => setActiveImageIndex(prev => (prev === productImages.length - 1 ? 0 : prev + 1))}
+                />
+
+                {/* Arrow Icons - Only visible on hover/group */}
+                <div className="absolute inset-0 flex items-center justify-between px-6 opacity-0 group-hover/gallery:opacity-100 transition-all duration-300">
+                  <div className="text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
+                    <ChevronLeft size={48} strokeWidth={1} />
+                  </div>
+                  <div className="text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
+                    <ChevronRight size={48} strokeWidth={1} />
+                  </div>
+                </div>
+              </div>
               {/* Peça Única Badge */}
               <div className="absolute top-6 right-6">
                 <div className="bg-black/40 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full flex items-center gap-2 shadow-xl">
@@ -185,17 +286,40 @@ export const ProductDetailsPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            {/* Gallery Thumbs */}
-            <div className="grid grid-cols-4 gap-4">
-               {images.map((img, idx) => (
-                 <div 
-                   key={idx} 
-                   onClick={() => setActiveImageIndex(idx)}
-                   className={`aspect-square rounded-xl bg-zinc-50 overflow-hidden cursor-pointer border-2 transition-all duration-300 ${activeImageIndex === idx ? 'border-zinc-900 scale-105 shadow-md' : 'border-transparent hover:border-zinc-200 opacity-60'}`}
-                 >
-                    <img src={img} className="w-full h-full object-cover" />
-                 </div>
-               ))}
+            {/* Gallery Thumbs Carousel */}
+            <div className="relative group/thumbs pt-2">
+              {productImages.length > 4 && (
+                <>
+                  <button 
+                    onClick={() => scrollThumbnails('left')}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/80 backdrop-blur-md shadow-md flex items-center justify-center text-zinc-900 border border-zinc-100 opacity-0 group-hover/thumbs:opacity-100 transition-opacity"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button 
+                    onClick={() => scrollThumbnails('right')}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/80 backdrop-blur-md shadow-md flex items-center justify-center text-zinc-900 border border-zinc-100 opacity-0 group-hover/thumbs:opacity-100 transition-opacity"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </>
+              )}
+              
+              <div 
+                ref={thumbnailRef}
+                className="flex gap-3 overflow-x-auto scrollbar-hide snap-x no-scrollbar"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {productImages.map((img, idx) => (
+                  <div 
+                    key={idx} 
+                    onClick={() => setActiveImageIndex(idx)}
+                    className={`shrink-0 w-20 sm:w-24 aspect-square rounded-xl bg-zinc-50 overflow-hidden cursor-pointer border-2 transition-all duration-300 snap-start ${activeImageIndex === idx ? 'border-zinc-900 scale-105 shadow-md' : 'border-transparent hover:border-zinc-200 opacity-60'}`}
+                  >
+                    <img src={img} className="w-full h-full object-cover" alt={`${product.nome} - ${idx + 1}`} />
+                  </div>
+                ))}
+              </div>
             </div>
           </motion.div>
 
@@ -233,24 +357,36 @@ export const ProductDetailsPage: React.FC = () => {
             <div className="space-y-8">
               {/* Cores */}
               <div>
-                <span className="text-[10px] uppercase font-black tracking-widest text-zinc-400 block mb-3">Cores Disponíveis</span>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] uppercase font-black tracking-widest text-zinc-400 block">Cores Disponíveis</span>
+                  {selectedVariant?.cor && (
+                    <span className="text-xs font-bold text-zinc-900">{selectedVariant.cor}</span>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-3">
-                  {colors.map(cor => (
-                    <button 
-                      key={cor}
-                      className={`px-4 py-2 rounded-full text-xs font-bold border transition-all ${
-                        selectedVariant?.cor === cor 
-                          ? 'bg-zinc-900 border-zinc-900 text-white shadow-lg' 
-                          : 'bg-white border-zinc-200 text-zinc-600 hover:border-zinc-900'
-                      }`}
-                      onClick={() => {
-                        const variant = product.variants?.find(v => v.cor === cor);
-                        if (variant) setSelectedVariantId(variant.id);
-                      }}
-                    >
-                      {cor}
-                    </button>
-                  ))}
+                  {colors.map(cor => {
+                    const isSelected = selectedVariant?.cor === cor;
+                    return (
+                      <button 
+                        key={cor}
+                        title={cor}
+                        className={`w-10 h-10 rounded-full border-2 transition-all p-0.5 flex items-center justify-center ${
+                          isSelected 
+                            ? 'border-zinc-900 scale-110 shadow-md ring-2 ring-zinc-900 ring-offset-2' 
+                            : 'border-zinc-100 hover:border-zinc-300'
+                        }`}
+                        onClick={() => {
+                          const variant = product.variants?.find(v => v.cor === cor);
+                          if (variant) setSelectedVariantId(variant.id);
+                        }}
+                      >
+                        <div 
+                          className="w-full h-full rounded-full shadow-inner"
+                          style={{ background: getColorValue(cor) }}
+                        />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -302,7 +438,7 @@ export const ProductDetailsPage: React.FC = () => {
               </div>
 
               {/* Add to Cart & Favorite */}
-              <div className="pt-4 flex flex-row gap-3">
+              <div className="pt-2 flex flex-row gap-3">
                 <Button 
                   size="lg" 
                   onClick={handleAddToCart}
@@ -326,34 +462,34 @@ export const ProductDetailsPage: React.FC = () => {
               </div>
 
               {/* Perks / Benefits Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-10 border-t border-zinc-100">
-                 <div className="bg-zinc-800/80 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl flex flex-col items-center text-center justify-center min-h-[90px] group hover:bg-zinc-700/80 transition-all">
-                    <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 mb-1.5">
-                       <Truck size={14} />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-8 border-t border-zinc-100">
+                 <div className="bg-zinc-800/90 backdrop-blur-xl border border-white/10 p-2 rounded-2xl flex flex-col items-center text-center justify-center min-h-[100px] group hover:bg-zinc-700/90 transition-all shadow-lg">
+                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 mb-2 group-hover:scale-110 transition-transform">
+                       <Truck size={16} />
                     </div>
                     <div className="space-y-1">
-                       <p className="text-[10px] font-black text-white uppercase tracking-wider leading-none">Entregas</p>
-                       <p className="text-[8px] font-medium text-zinc-300 uppercase tracking-tighter line-clamp-2 px-0.5">Somente Leme - SP</p>
+                       <p className="text-[10px] font-black text-white uppercase tracking-[0.1em] leading-none">Entregas</p>
+                       <p className="text-[9px] font-medium text-zinc-300 uppercase tracking-tighter line-clamp-2 px-1">Somente Leme - SP</p>
                     </div>
                  </div>
 
-                 <div className="bg-zinc-800/80 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl flex flex-col items-center text-center justify-center min-h-[90px] group hover:bg-zinc-700/80 transition-all">
-                    <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 mb-1.5">
-                       <RotateCcw size={14} />
+                 <div className="bg-zinc-800/90 backdrop-blur-xl border border-white/10 p-2 rounded-2xl flex flex-col items-center text-center justify-center min-h-[100px] group hover:bg-zinc-700/90 transition-all shadow-lg">
+                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 mb-2 group-hover:scale-110 transition-transform">
+                       <RotateCcw size={16} />
                     </div>
                     <div className="space-y-1">
-                       <p className="text-[10px] font-black text-white uppercase tracking-wider leading-none">Trocas</p>
-                       <p className="text-[8px] font-medium text-zinc-300 uppercase tracking-tighter line-clamp-2 px-0.5">Até 15 dias</p>
+                       <p className="text-[10px] font-black text-white uppercase tracking-[0.1em] leading-none">Trocas</p>
+                       <p className="text-[9px] font-medium text-zinc-300 uppercase tracking-tighter line-clamp-2 px-1">Até 15 dias</p>
                     </div>
                  </div>
 
-                 <div className="bg-zinc-800/80 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl flex flex-col items-center text-center justify-center min-h-[90px] group hover:bg-zinc-700/80 transition-all">
-                    <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 mb-1.5">
-                       <ShieldCheck size={14} />
+                 <div className="bg-zinc-800/90 backdrop-blur-xl border border-white/10 p-2 rounded-2xl flex flex-col items-center text-center justify-center min-h-[100px] group hover:bg-zinc-700/90 transition-all shadow-lg">
+                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 mb-2 group-hover:scale-110 transition-transform">
+                       <ShieldCheck size={16} />
                     </div>
                     <div className="space-y-1">
-                       <p className="text-[10px] font-black text-white uppercase tracking-wider leading-none">Pgto. Seguro</p>
-                       <p className="text-[8px] font-medium text-zinc-300 uppercase tracking-tighter line-clamp-2 px-0.5">Cartão ou PIX</p>
+                       <p className="text-[10px] font-black text-white uppercase tracking-[0.1em] leading-none">Pgto. Seguro</p>
+                       <p className="text-[9px] font-medium text-zinc-300 uppercase tracking-tighter line-clamp-2 px-1">Cartão ou PIX</p>
                     </div>
                  </div>
 
@@ -361,14 +497,14 @@ export const ProductDetailsPage: React.FC = () => {
                    href="https://api.whatsapp.com/send?phone=5519997526144" 
                    target="_blank" 
                    rel="noopener noreferrer"
-                   className="bg-zinc-800/80 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl flex flex-col items-center text-center justify-center min-h-[90px] group hover:bg-zinc-700/80 transition-all"
+                   className="bg-zinc-800/90 backdrop-blur-xl border border-white/10 p-2 rounded-2xl flex flex-col items-center text-center justify-center min-h-[100px] group hover:bg-zinc-700/90 transition-all shadow-lg"
                  >
-                    <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 mb-1.5">
-                       <Phone size={14} />
+                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0 mb-2 group-hover:scale-110 transition-transform">
+                       <Phone size={16} />
                     </div>
                     <div className="space-y-1">
-                       <p className="text-[10px] font-black text-white uppercase tracking-wider leading-none">Dúvidas?</p>
-                       <p className="text-[8px] font-medium text-zinc-300 uppercase tracking-tighter line-clamp-2 px-0.5">Falar na loja</p>
+                       <p className="text-[10px] font-black text-white uppercase tracking-[0.1em] leading-none">Dúvidas?</p>
+                       <p className="text-[9px] font-medium text-zinc-300 uppercase tracking-tighter line-clamp-2 px-1">Falar na loja</p>
                     </div>
                  </a>
               </div>

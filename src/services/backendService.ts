@@ -1,4 +1,4 @@
-import { Client, Product, ProductVariant, Sale, SaleItem, StockEntry, Supplier, PaymentDiscounts, PaymentFees, CartItem, UserProfile, CrediarioPayment } from '@/types';
+import { Client, Product, ProductVariant, Sale, SaleItem, StockEntry, Supplier, PaymentDiscounts, PaymentFees, CartItem, UserProfile, CrediarioPayment, ProductImage } from '@/types';
 import { getSupabase, isSupabaseConfigured } from '@/services/supabaseClient';
 import { MOCK_CLIENTS, MOCK_PRODUCTS, MOCK_INITIAL_SALES, MOCK_STOCK_ENTRIES, MOCK_SUPPLIERS } from '@/constants';
 
@@ -421,7 +421,8 @@ export const backendService = {
         .from('products')
         .select(`
           *,
-          variants:product_variants(*)
+          variants:product_variants(*),
+          images:product_images(*)
         `)
         .order('nome');
       if (error) {
@@ -433,7 +434,109 @@ export const backendService = {
     return getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
   },
 
-  createProduct: async (product: Omit<Product, 'id' | 'ui_id' | 'created_at'>, initialVariants: Omit<ProductVariant, 'id' | 'product_variant_id' | 'created_at'>[], userId: string): Promise<boolean> => {
+  getProductImages: async (productId: string): Promise<ProductImage[]> => {
+    if (isSupabaseConfigured()) {
+      const { data, error } = await getSupabase()
+        .from('product_images')
+        .select('*')
+        .eq('product_id', productId)
+        .order('display_order');
+      if (error) {
+        console.error("Erro ao buscar imagens do produto:", error);
+        return [];
+      }
+      return data || [];
+    }
+    return [];
+  },
+
+  uploadProductImage: async (file: File, productId: string, cor?: string): Promise<string | null> => {
+    if (isSupabaseConfigured()) {
+      const fileExt = file.name.split('.').pop();
+      // Normalizar nome da cor para pasta (Remover espaços, acentos e colocar em minúsculo)
+      const corPath = cor ? cor.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-') : 'geral';
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `products/${productId}/${corPath}/${fileName}`;
+
+      const { data, error } = await getSupabase()
+        .storage
+        .from('product-images')
+        .upload(filePath, file);
+
+      if (error) {
+        console.error("Erro ao fazer upload da imagem:", error);
+        return null;
+      }
+
+      const { data: { publicUrl } } = getSupabase()
+        .storage
+        .from('product-images')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    }
+    return null;
+  },
+
+  saveProductImage: async (image: Omit<ProductImage, 'id' | 'created_at'>): Promise<ProductImage | null> => {
+    if (isSupabaseConfigured()) {
+      const { data, error } = await getSupabase()
+        .from('product_images')
+        .insert([image])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error("Erro ao salvar referência da imagem:", error);
+        return null;
+      }
+      return data;
+    }
+    return null;
+  },
+
+  updateProductImage: async (image: Partial<ProductImage> & { id: string }): Promise<boolean> => {
+    if (isSupabaseConfigured()) {
+      const { error } = await getSupabase()
+        .from('product_images')
+        .update(image)
+        .eq('id', image.id);
+      return !error;
+    }
+    return false;
+  },
+
+  deleteProductImage: async (imageId: string, imageUrl: string): Promise<boolean> => {
+    if (isSupabaseConfigured()) {
+      // Deletar do banco
+      const { error: dbError } = await getSupabase()
+        .from('product_images')
+        .delete()
+        .eq('id', imageId);
+      
+      if (dbError) {
+        console.error("Erro ao deletar imagem do banco:", dbError);
+        return false;
+      }
+
+      // Tentar deletar do storage (opcional, se der erro no storage não impede de deletar no banco)
+      try {
+        // Extrair o path relativo ao bucket da URL pública
+        const urlParts = imageUrl.split('/product-images/');
+        if (urlParts.length > 1) {
+          const filePath = urlParts[1];
+          await getSupabase().storage.from('product-images').remove([filePath]);
+        }
+      } catch (e) {
+        console.error("Erro ao deletar arquivo físico:", e);
+      }
+
+      return true;
+    }
+    return false;
+  },
+
+  createProduct: async (product: Omit<Product, 'id' | 'ui_id' | 'created_at'>, initialVariants: Omit<ProductVariant, 'id' | 'product_variant_id' | 'created_at'>[], userId: string): Promise<Product | null> => {
     if (isSupabaseConfigured()) {
         const { data: parent, error: parentError } = await getSupabase()
             .from('products')
@@ -443,7 +546,7 @@ export const backendService = {
             
         if (parentError || !parent) {
             console.error("Erro ao criar produto pai:", parentError);
-            return false;
+            return null;
         }
 
         const variantsToInsert = initialVariants.map((v, index) => {
@@ -462,7 +565,7 @@ export const backendService = {
 
         if (variantError) {
             console.error("Erro ao criar variantes:", variantError);
-            return false;
+            return null;
         }
 
         // Log inicial de estoque para cada variante
@@ -479,9 +582,9 @@ export const backendService = {
                 }
             }
         }
-        return true;
+        return parent;
     }
-    return false;
+    return null;
   },
 
   updateProduct: async (product: Partial<Product> & { id: string }, variants: (Partial<ProductVariant> & { id?: string })[], userId: string): Promise<boolean> => {

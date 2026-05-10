@@ -42,6 +42,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         );
       }
 
+      const getVariantImage = () => {
+        if (!product.images || product.images.length === 0) return undefined;
+        
+        // 1. Destaque da cor
+        const mainColorImage = product.images.find(img => img.cor === variant.cor && img.is_main);
+        if (mainColorImage) return mainColorImage.url;
+        
+        // 2. Qualquer da cor
+        const colorImage = product.images.find(img => img.cor === variant.cor);
+        if (colorImage) return colorImage.url;
+        
+        // 3. Principal do catálogo
+        const defaultImage = product.images.find(img => img.is_default_product_photo);
+        if (defaultImage) return defaultImage.url;
+        
+        // 4. Primeira disponível
+        return product.images[0].url;
+      };
+
       const newItem: CartItem = {
         produto_id: variant.id,
         parent_id: product.id,
@@ -53,7 +72,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         preco_custo: variant.preco_custo,
         quantidade: quantity,
         subtotal: quantity * variant.preco_venda,
-        estoque_maximo: variant.quantidade_estoque
+        estoque_maximo: variant.quantidade_estoque,
+        imagem: getVariantImage()
       };
 
       return [...prev, newItem];

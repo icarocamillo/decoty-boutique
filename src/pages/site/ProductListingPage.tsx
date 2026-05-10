@@ -12,6 +12,15 @@ export const ProductListingPage: React.FC = () => {
   const { products, isLoading } = useData();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 200);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Estados dos filtros derivados da URL
   const activeFilters = useMemo(() => ({
@@ -24,30 +33,78 @@ export const ProductListingPage: React.FC = () => {
     search: searchParams.get('search') || ''
   }), [searchParams]);
 
-  // Extrair opções únicas para os filtros
+  // Extrair opções únicas para os filtros (Dinâmico/Faceted)
   const filterOptions = useMemo(() => {
+    // Para uma melhor UX de filtros, calculamos as opções disponíveis 
+    // baseadas nos filtros das OUTRAS dimensões.
+    
+    // Helper para verificar se um produto bate com a busca
+    const matchesSearch = (p: Product) => {
+      if (!activeFilters.search) return true;
+      const query = activeFilters.search.toLowerCase();
+      return (
+        p.nome.toLowerCase().includes(query) ||
+        p.categoria?.toLowerCase().includes(query) ||
+        (p.marca || 'Decoty').toLowerCase().includes(query) ||
+        p.descricao?.toLowerCase().includes(query)
+      );
+    };
+
     const categories = new Set<string>();
     const colors = new Set<string>();
     const sizes = new Set<string>();
 
     products.forEach(p => {
-      if (p.categoria) categories.add(p.categoria);
-      p.variants?.forEach(v => {
-        if (v.cor) colors.add(v.cor);
-        if (v.tamanho) sizes.add(v.tamanho);
+      if (!matchesSearch(p)) return;
+
+      // 1. Categorias possíveis 
+      // (Respeita cor e tamanho ativos)
+      const hasStockInCurrentColorSize = p.variants?.some(v => {
+        const mColor = activeFilters.color.length === 0 || activeFilters.color.includes(v.cor);
+        const mSize = activeFilters.size.length === 0 || activeFilters.size.includes(v.tamanho);
+        return mColor && mSize && v.quantidade_estoque > 0;
       });
+      if (hasStockInCurrentColorSize && p.categoria) categories.add(p.categoria);
+
+      // 2. Cores possíveis 
+      // (Respeita categoria e tamanho ativos)
+      const matchesCategory = activeFilters.category.length === 0 || activeFilters.category.includes(p.categoria);
+      if (matchesCategory) {
+        p.variants?.forEach(v => {
+          const mSize = activeFilters.size.length === 0 || activeFilters.size.includes(v.tamanho);
+          if (mSize && v.quantidade_estoque > 0 && v.cor) {
+            colors.add(v.cor);
+          }
+        });
+      }
+
+      // 3. Tamanhos possíveis (O ponto principal solicitado)
+      // (Respeita categoria e cor ativos)
+      if (matchesCategory) {
+        p.variants?.forEach(v => {
+          const mColor = activeFilters.color.length === 0 || activeFilters.color.includes(v.cor);
+          if (mColor && v.quantidade_estoque > 0 && v.tamanho) {
+            sizes.add(v.tamanho);
+          }
+        });
+      }
     });
+
+    // Se um filtro está ativo mas não teria resultados, mantemos ele na lista 
+    // para evitar que a opção suma da tela enquanto o usuário a está desmarcando.
+    activeFilters.category.forEach(c => categories.add(c));
+    activeFilters.color.forEach(c => colors.add(c));
+    activeFilters.size.forEach(s => sizes.add(s));
 
     return {
       categories: Array.from(categories).sort(),
       colors: Array.from(colors).sort(),
       sizes: Array.from(sizes).sort((a, b) => {
-         // Ordenação básica de tamanhos P, M, G...
          const order: Record<string, number> = { 'P': 1, 'M': 2, 'G': 3, 'GG': 4, 'G1': 5 };
          return (order[a] || 99) - (order[b] || 99);
       })
     };
-  }, [products]);
+  }, [products, activeFilters]);
 
   // Lógica de Filtragem e Ordenação
   const filteredProducts = useMemo(() => {
@@ -95,6 +152,50 @@ export const ProductListingPage: React.FC = () => {
 
     return result;
   }, [products, activeFilters]);
+
+  // Grid de Produtos a serem exibidos (expandidos por cor se houver múltiplos filtros de cor)
+  const displayProducts = useMemo(() => {
+    const expanded: any[] = [];
+    
+    filteredProducts.forEach(p => {
+      // Cores a considerar: se houver filtro de cor, usa as do filtro. Senão, cores do produto.
+      const colorsInProduct = Array.from(new Set(p.variants?.map(v => v.cor))).filter(Boolean) as string[];
+      
+      const colorsToExpand = activeFilters.color.length > 0 
+        ? activeFilters.color.filter(c => colorsInProduct.includes(c))
+        : colorsInProduct;
+
+      if (colorsToExpand.length === 0) {
+        // Se não tem cores/variantes (produto simples), adiciona como um só
+        expanded.push({ displayId: p.id, product: p, preferredColor: undefined });
+        return;
+      }
+
+      colorsToExpand.forEach(color => {
+        // INTERSECÇÃO INTELIGENTE: Verifica se esta cor possui variantes 
+        // que atendem aos OUTROS filtros ativos (Tamanho e Preço)
+        const hasValidVariantForThisColor = p.variants?.some(v => {
+          if (v.cor !== color) return false;
+          
+          const matchesSize = activeFilters.size.length === 0 || activeFilters.size.includes(v.tamanho);
+          const matchesPrice = v.preco_venda >= activeFilters.minPrice && v.preco_venda <= activeFilters.maxPrice;
+          const hasStock = v.quantidade_estoque > 0;
+          
+          return matchesSize && matchesPrice && hasStock;
+        });
+
+        if (hasValidVariantForThisColor) {
+          expanded.push({
+            displayId: `${p.id}-${color}`,
+            product: p,
+            preferredColor: color
+          });
+        }
+      });
+    });
+
+    return expanded;
+  }, [filteredProducts, activeFilters]);
 
   // Handlers
   const handleFilterChange = (type: 'category' | 'color' | 'size', value: string) => {
@@ -162,7 +263,11 @@ export const ProductListingPage: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
         {/* Top bar control */}
-        <div className="flex items-center justify-between py-4 border-y border-zinc-100 mb-8 sticky top-[64px] bg-white z-40">
+        <div className={`flex items-center justify-between py-4 mb-8 sticky top-[64px] z-40 transition-all duration-300 ${
+          isScrolled 
+            ? 'bg-white/40 backdrop-blur-lg shadow-sm px-6 -mx-6 border-b border-zinc-100' 
+            : 'bg-white border-y border-zinc-100'
+        }`}>
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsMobileFiltersOpen(true)}
@@ -172,7 +277,7 @@ export const ProductListingPage: React.FC = () => {
               Filtrar
             </button>
             <p className="text-sm text-zinc-500 hidden sm:block">
-              Mostrando <span className="font-bold text-zinc-900">{filteredProducts.length}</span> produtos
+              Mostrando <span className="font-bold text-zinc-900">{displayProducts.length}</span> {displayProducts.length === 1 ? 'produto' : 'produtos'}
             </p>
           </div>
 
@@ -210,10 +315,14 @@ export const ProductListingPage: React.FC = () => {
           <div className="flex-1">
             {isLoading ? (
               <PLPSkeleton />
-            ) : filteredProducts.length > 0 ? (
+            ) : displayProducts.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-3 gap-x-4 gap-y-10 md:gap-x-8 md:gap-y-12">
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                {displayProducts.map((item) => (
+                  <ProductCard 
+                    key={item.displayId} 
+                    product={item.product} 
+                    preferredColor={item.preferredColor} 
+                  />
                 ))}
               </div>
             ) : (

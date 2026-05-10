@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product } from '@/types';
 import { Button } from '@/components/ui/Button';
@@ -10,9 +10,10 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface ProductCardProps {
   product: Product;
+  preferredColor?: string;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, preferredColor }) => {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const { addToCart } = useCart();
   const { user } = useAuth();
@@ -50,18 +51,49 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     ? Math.min(...product.variants.map(v => v.preco_venda))
     : 0;
 
-  // Extrair tamanhos únicos e ordenar corretamente
-  const sizes = product.variants 
-    ? (Array.from(new Set(product.variants.map(v => v.tamanho))) as string[]).sort((a, b) => {
-        const order = ['PP', 'P', 'M', 'G', 'GG', 'G1', 'G2', 'G3', 'G4', 'G5'];
-        return order.indexOf(a) - order.indexOf(b);
-      })
-    : [];
+  // Extrair tamanhos únicos filtrados pela cor e ordenar corretamente
+  const sizes = useMemo(() => {
+    if (!product.variants) return [];
+    
+    // Filtrar variantes pela cor preferida (se houver) e que tenham estoque
+    const relevantVariants = preferredColor 
+      ? product.variants.filter(v => v.cor === preferredColor && v.quantidade_estoque > 0)
+      : product.variants.filter(v => v.quantidade_estoque > 0);
+      
+    return (Array.from(new Set(relevantVariants.map(v => v.tamanho))) as string[]).sort((a, b) => {
+      const order = ['PP', 'P', 'M', 'G', 'GG', 'G1', 'G2', 'G3', 'G4', 'G5', 'UN'];
+      const indexA = order.indexOf(a);
+      const indexB = order.indexOf(b);
+      return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
+    });
+  }, [product.variants, preferredColor]);
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
   const installmentValue = minPrice / 5;
+
+  const mainImage = useMemo(() => {
+    if (!product.images || product.images.length === 0) {
+      return `https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600&auto=format&fit=crop`;
+    }
+
+    // 1. Prioridade: Se houver uma cor preferida (do filtro)
+    if (preferredColor) {
+      const colorMain = product.images.find(img => img.cor === preferredColor && img.is_main);
+      if (colorMain) return colorMain.url;
+      
+      const colorAny = product.images.find(img => img.cor === preferredColor);
+      if (colorAny) return colorAny.url;
+    }
+
+    // 2. Foto padrão do catálogo
+    const defaultPhoto = product.images.find(img => img.is_default_product_photo);
+    if (defaultPhoto) return defaultPhoto.url;
+
+    // 3. Primeira foto disponível
+    return product.images[0].url;
+  }, [product.images, preferredColor]);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -71,7 +103,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       return;
     }
     
-    const variant = product.variants?.find(v => v.tamanho === selectedSize);
+    const variant = product.variants?.find(v => 
+      v.tamanho === selectedSize && 
+      (!preferredColor || v.cor === preferredColor)
+    );
     if (variant) {
       addToCart(product, variant, 1);
     }
@@ -85,9 +120,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       className="group flex flex-col relative"
     >
       <div className="relative aspect-[3/4] overflow-hidden bg-zinc-50 rounded-2xl mb-4">
-        <Link to={`/produto/Decoty-${product.ui_id}`} className="block w-full h-full">
+        <Link to={`/produto/${product.slug}-${product.ui_id}${preferredColor ? `?cor=${preferredColor}` : ''}`} className="block w-full h-full">
           <img 
-            src={`https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600&auto=format&fit=crop`} 
+            src={mainImage} 
             alt={product.nome}
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
@@ -143,9 +178,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
       <div className="flex flex-col gap-1">
         <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">{product.marca || 'Decoty'}</span>
-        <Link to={`/produto/Decoty-${product.ui_id}`}>
+        <Link to={`/produto/${product.slug}-${product.ui_id}${preferredColor ? `?cor=${preferredColor}` : ''}`}>
           <h3 className="text-sm font-medium text-zinc-900 group-hover:text-zinc-600 transition-colors line-clamp-1">
-            {product.nome}
+            {product.nome}{preferredColor ? ` - ${preferredColor}` : ''}
           </h3>
         </Link>
         

@@ -72,7 +72,7 @@ export const Navbar: React.FC = () => {
         { name: 'Vestidos', path: '/catalogo?category=Vestidos' },
         { name: 'Blusas', path: '/catalogo?category=Blusas' },
         { name: 'Camisas', path: '/catalogo?category=Camisas' },
-        { name: 'Calças', path: '/catalogo?category=Calcas' },
+        { name: 'Calças', path: '/catalogo?category=Calças' },
         { name: 'Saias', path: '/catalogo?category=Saias' },
         { name: 'Casacos', path: '/catalogo?category=Casacos' },
         { name: 'Jaquetas', path: '/catalogo?category=Jaquetas' },

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
+import { getColorValue } from '@/utils/colorUtils';
 
 interface FilterSidebarProps {
   categories: string[];
@@ -17,30 +18,6 @@ interface FilterSidebarProps {
   onClearFilters: () => void;
   onCloseMobile?: () => void;
 }
-
-const COLOR_MAP: Record<string, string> = {
-  'Preto': '#000000',
-  'Branco': '#FFFFFF',
-  'Vermelho': '#EE423E',
-  'Azul': '#2152CE',
-  'Azul Marinho': '#000080',
-  'Verde': '#26A65B',
-  'Rosa': '#FFC0CB',
-  'Amarelo': '#F9D423',
-  'Cinza': '#95A5A6',
-  'Bege': '#F5F5DC',
-  'Off White': '#FAF9F6',
-  'Vinho': '#722F37',
-  'Nude': '#E3BC9A',
-  'Dourado': '#D4AF37',
-  'Prata': '#C0C0C0',
-  'Marrom': '#8B4513',
-  'Laranja': '#E67E22',
-  'Roxo': '#8E44AD',
-  'Fúcsia': '#FF00FF',
-  'Verde Militar': '#4B5320',
-  'Terracota': '#E2725B',
-};
 
 export const FilterSidebar: React.FC<FilterSidebarProps> = ({
   categories,
@@ -130,12 +107,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
                     <div 
                       className="w-full h-full rounded-full shadow-inner" 
                       style={{ 
-                        backgroundColor: color === 'Multicor' 
-                          ? 'transparent' 
-                          : (COLOR_MAP[color] || color.toLowerCase()), 
-                        backgroundImage: color === 'Multicor' 
-                          ? 'linear-gradient(45deg, red, yellow, blue)' 
-                          : 'none' 
+                        background: getColorValue(color)
                       }}
                     />
                   </button>

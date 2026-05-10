@@ -12,6 +12,19 @@ export interface Product {
   slug: string;
   created_at: string;
   variants?: ProductVariant[];
+  images?: ProductImage[];
+}
+
+export interface ProductImage {
+  id: string;
+  product_id: string;
+  cor: string | null;
+  url: string;
+  is_main: boolean;
+  is_default_product_photo: boolean;
+  display_order: number;
+  alt_text: string | null;
+  created_at: string;
 }
 
 export interface ProductVariant {
@@ -105,6 +118,7 @@ export interface CartItem {
   quantidade: number;
   subtotal: number;
   estoque_maximo: number;
+  imagem?: string;
   desconto?: number;
   percentual_desconto?: number;
 }

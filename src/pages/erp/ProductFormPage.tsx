@@ -1,14 +1,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Package, Check, Loader2, Tag, Layers, Plus, Minus, ArrowLeft, Save, AlertCircle, Barcode, Hash, Trash2 } from 'lucide-react';
+import { Package, Check, Loader2, Tag, Layers, Plus, Minus, ArrowLeft, Save, AlertCircle, Barcode, Hash, Trash2, Image as ImageIcon, Upload, Star, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { backendService } from '@/services/backendService';
-import { ProductSize, Product, Supplier } from '@/types';
+import { ProductSize, Product, Supplier, ProductImage } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
+import { COLOR_CATALOG, getColorValue, normalizeColorName } from '@/utils/colorUtils';
 
 // Categorias segregadas
 const CLOTHING_CATEGORIES = ['Vestidos', 'Blusas', 'Camisas', 'Calças', 'Saias', 'Casacos', 'Jaquetas', 'Bermudas'];
@@ -44,6 +45,11 @@ export const ProductFormPage: React.FC = () => {
   const [variants, setVariants] = useState<any[]>([
     { cor: '', tamanho: '', preco_custo: '', preco_venda: '', quantidade_estoque: '0', sku: '', ean: '', original_estoque: 0 }
   ]);
+
+  const [images, setImages] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadTargetColor, setUploadTargetColor] = useState('');
+  const [focusedVariantIndex, setFocusedVariantIndex] = useState<number | null>(null);
 
   const productToEdit = useMemo(() => {
     if (!id) return null;
@@ -146,6 +152,12 @@ export const ProductFormPage: React.FC = () => {
           ean: v.ean || ''
         })));
       }
+
+      if (productToEdit.images) {
+        setImages(productToEdit.images);
+      } else {
+        setImages([]);
+      }
       setFetching(false);
     } else if (!id) {
       setFetching(false);
@@ -221,6 +233,132 @@ export const ProductFormPage: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (!id && !productToEdit) {
+      // Para novo produto, mantemos os arquivos em estado local para upload posterior
+      const newFiles = Array.from(files).map((file: File) => ({
+        file,
+        preview: URL.createObjectURL(file),
+        cor: '',
+        is_main: false,
+        is_default_product_photo: false,
+        display_order: images.length
+      }));
+      setImages([...images, ...newFiles]);
+      return;
+    }
+
+    // Para produto existente, faz upload imediato
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const url = await backendService.uploadProductImage(file as File, productToEdit!.id, uploadTargetColor);
+        if (url) {
+          const newImage: Omit<ProductImage, 'id' | 'created_at'> = {
+            product_id: productToEdit!.id,
+            url,
+            cor: uploadTargetColor || '',
+            is_main: false,
+            is_default_product_photo: images.length === 0,
+            display_order: images.length,
+            alt_text: formData.nome
+          };
+          const saved = await backendService.saveProductImage(newImage);
+          if (saved) {
+            setImages(prev => [...prev, saved]);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Erro no upload:", error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const updateImageField = async (imageId: string, field: string, value: any) => {
+    // Se for um objeto local (novo produto), atualizamos apenas o estado
+    const imgIndex = images.findIndex(img => (img.id === imageId || img.preview === imageId));
+    if (imgIndex === -1) return;
+
+    const isLocal = !images[imgIndex].id;
+
+    if (isLocal) {
+      const updated = [...images];
+      updated[imgIndex][field] = value;
+      
+      // Se for is_default_product_photo, desmarcar as outras
+      if (field === 'is_default_product_photo' && value === true) {
+        updated.forEach((img, idx) => {
+          if (idx !== imgIndex) img.is_default_product_photo = false;
+        });
+      }
+      // Se for is_main, desmarcar outras da mesma cor
+      if (field === 'is_main' && value === true) {
+        const currentCor = updated[imgIndex].cor;
+        updated.forEach((img, idx) => {
+          if (idx !== imgIndex && img.cor === currentCor) img.is_main = false;
+        });
+      }
+
+      setImages(updated);
+    } else {
+      // Produto existente, atualiza no banco
+      const updatedData: any = { id: imageId, [field]: value };
+      
+      // Lógica de exclusividade
+      if (field === 'is_default_product_photo' && value === true) {
+        // Desmarcar todas as outras do produto
+        for (const img of images) {
+          if (img.id !== imageId && img.is_default_product_photo) {
+            await backendService.updateProductImage({ id: img.id, is_default_product_photo: false });
+          }
+        }
+      }
+
+      if (field === 'is_main' && value === true) {
+        const currentCor = images[imgIndex].cor;
+        for (const img of images) {
+          if (img.id !== imageId && img.cor === currentCor && img.is_main) {
+            await backendService.updateProductImage({ id: img.id, is_main: false });
+          }
+        }
+      }
+
+      const success = await backendService.updateProductImage(updatedData);
+      if (success) {
+        setImages(prev => prev.map(img => img.id === imageId ? { ...img, [field]: value } : img));
+        // Recarregar para garantir sincronia se houver mudanças de exclusividade
+        if (field === 'is_default_product_photo' || field === 'is_main') {
+           const latest = await backendService.getProductImages(productToEdit!.id);
+           setImages(latest);
+        }
+      }
+    }
+  };
+
+  const removeImage = async (index: number) => {
+    const img = images[index];
+    if (!img.id) {
+      // Local
+      setImages(images.filter((_, i) => i !== index));
+    } else {
+      // Banco
+      const success = await backendService.deleteProductImage(img.id, img.url);
+      if (success) {
+        setImages(images.filter((_, i) => i !== index));
+      }
+    }
+  };
+
+  const productColors = useMemo(() => {
+    const colors = variants.map(v => v.cor).filter(Boolean);
+    return Array.from(new Set(colors)).sort();
+  }, [variants]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) {
@@ -243,13 +381,45 @@ export const ProductFormPage: React.FC = () => {
       ...v,
       preco_custo: parseCurrency(v.preco_custo),
       preco_venda: parseCurrency(v.preco_venda),
-      quantidade_estoque: parseInt(v.quantidade_estoque) || 0
+      quantidade_estoque: parseInt(v.quantidade_estoque) || 0,
+      sku: v.sku?.trim() || null,
+      ean: v.ean?.trim() || null
     }));
 
     try {
-      const success = id && productToEdit
-        ? await backendService.updateProduct({ ...parentPayload, id: productToEdit.id } as any, variantsPayload as any, user?.id || '')
-        : await backendService.createProduct(parentPayload as any, variantsPayload as any, user?.id || '');
+      let productId = id && productToEdit ? productToEdit.id : null;
+      let success = false;
+
+      if (id && productToEdit) {
+        success = await backendService.updateProduct({ ...parentPayload, id: productToEdit.id } as any, variantsPayload as any, user?.id || '');
+      } else {
+        const newProduct = await backendService.createProduct(parentPayload as any, variantsPayload as any, user?.id || '');
+        if (newProduct) {
+          productId = newProduct.id;
+          success = true;
+
+          // Se for novo produto, faz o upload das imagens agora
+          if (images.length > 0) {
+            for (const img of images) {
+              const fileImg = img.file as File | undefined;
+              if (fileImg) {
+                 const url = await backendService.uploadProductImage(fileImg, productId, img.cor);
+                 if (url) {
+                   await backendService.saveProductImage({
+                     product_id: productId,
+                     url,
+                     cor: img.cor || null,
+                     is_main: img.is_main,
+                     is_default_product_photo: img.is_default_product_photo,
+                     display_order: img.display_order,
+                     alt_text: parentPayload.nome
+                   });
+                 }
+              }
+            }
+          }
+        }
+      }
 
       if (success) {
         await refreshData();
@@ -410,6 +580,127 @@ export const ProductFormPage: React.FC = () => {
           </Card>
         </div>
 
+        {/* Galeria de Fotos */}
+        <div className="w-full">
+          <Card className="p-6 border-0 shadow-sm bg-white dark:bg-zinc-900">
+            <div className="flex justify-between items-center border-b border-zinc-100 dark:border-zinc-800 pb-2 mb-6">
+              <h3 className="text-sm font-bold text-zinc-400 uppercase flex items-center gap-2">
+                <ImageIcon size={16} className="text-zinc-400" /> Galeria de Fotos
+              </h3>
+              <div className="flex items-center gap-3">
+                {productColors.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase">Pasta:</span>
+                    <select
+                      value={uploadTargetColor}
+                      onChange={(e) => setUploadTargetColor(e.target.value)}
+                      className="text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2 py-1 outline-none font-bold"
+                    >
+                      <option value="">Geral</option>
+                      {productColors.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                )}
+                <div className="relative">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="image-upload"
+                    disabled={uploading}
+                  />
+                  <label
+                    htmlFor="image-upload"
+                    className={`flex items-center gap-2 px-4 py-2 bg-zinc-950 text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-zinc-800 transition-all ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                    Adicionar Fotos
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+              {images.map((img, index) => (
+                <div key={img.id || img.preview} className="group relative flex flex-col bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 overflow-hidden hover:shadow-md transition-all">
+                  <div className="aspect-square relative flex items-center justify-center overflow-hidden bg-black">
+                    <img 
+                      src={img.url || img.preview} 
+                      alt={img.alt_text || 'Foto do produto'} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    
+                    {/* Botão Remover */}
+                    <button 
+                      onClick={() => removeImage(index)}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+
+                    {/* Badges de Status */}
+                    <div className="absolute bottom-2 left-2 flex gap-1">
+                      {img.is_default_product_photo && (
+                        <Badge className="bg-amber-500 text-white border-0 text-[8px] h-4">PRINCIPAL</Badge>
+                      )}
+                      {img.is_main && (
+                        <Badge className="bg-emerald-500 text-white border-0 text-[8px] h-4">Destaque Cor</Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-3 space-y-3">
+                    {/* Vínculo de Cor */}
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-zinc-400 uppercase">Vincular Cor</label>
+                      <select
+                        value={img.cor || ''}
+                        onChange={(e) => updateImageField(img.id || img.preview, 'cor', e.target.value)}
+                        className="w-full text-xs bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2 py-1 outline-none font-medium"
+                      >
+                        <option value="">Sem cor vinculada</option>
+                        {productColors.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Controles de Destaque */}
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => updateImageField(img.id || img.preview, 'is_default_product_photo', !img.is_default_product_photo)}
+                        className={`flex items-center gap-1.5 text-[9px] font-bold uppercase transition-all ${img.is_default_product_photo ? 'text-amber-600' : 'text-zinc-400 hover:text-amber-500'}`}
+                      >
+                        <Star size={12} fill={img.is_default_product_photo ? "currentColor" : "none"} />
+                        Principal Catálogo
+                      </button>
+
+                      <button
+                        disabled={!img.cor}
+                        onClick={() => updateImageField(img.id || img.preview, 'is_main', !img.is_main)}
+                        className={`flex items-center gap-1.5 text-[9px] font-bold uppercase transition-all disabled:opacity-30 ${img.is_main ? 'text-emerald-600' : 'text-zinc-400 hover:text-emerald-500'}`}
+                      >
+                        <ImageIcon size={12} />
+                        Principal da Cor
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {images.length === 0 && (
+                <label 
+                  htmlFor="image-upload"
+                  className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl hover:border-zinc-400 dark:hover:border-zinc-600 cursor-pointer transition-all gap-2 text-zinc-400"
+                >
+                  <Upload size={24} />
+                  <span className="text-[10px] font-bold tracking-wider">ADICIONAR FOTOS</span>
+                </label>
+              )}
+            </div>
+          </Card>
+        </div>
+
         {/* Inferior: Variantes (Full Width) */}
         <div className="w-full space-y-6">
           <Card className="p-6 border-0 shadow-sm bg-white dark:bg-zinc-900 h-full flex flex-col">
@@ -471,16 +762,61 @@ export const ProductFormPage: React.FC = () => {
                     </div>
 
                     {/* Cor */}
-                    <div className="lg:col-span-2">
+                    <div className="lg:col-span-2 relative">
                       <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">Cor</label>
-                      <input
-                        type="text"
-                        name="cor"
-                        value={v.cor}
-                        placeholder="Ex: Vermelho"
-                        onChange={(e) => handleVariantChange(index, e)}
-                        className="w-full h-8 px-3 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-1 focus:ring-zinc-400 outline-none"
-                      />
+                      <div className="relative flex items-center group">
+                        <input
+                          type="text"
+                          name="cor"
+                          autoComplete="off"
+                          value={v.cor}
+                          placeholder="Ex: Vermelho"
+                          onFocus={() => setFocusedVariantIndex(index)}
+                          onBlur={() => setTimeout(() => setFocusedVariantIndex(null), 200)}
+                          onChange={(e) => handleVariantChange(index, e)}
+                          className="w-full h-8 pl-3 pr-8 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-1 focus:ring-zinc-400 outline-none"
+                        />
+                        {v.cor && (
+                          <div 
+                            className="absolute right-2 w-4 h-4 rounded-full border border-zinc-200 dark:border-zinc-600 shadow-sm transition-transform group-hover:scale-125 pointer-events-none"
+                            style={{ background: getColorValue(v.cor) }}
+                          />
+                        )}
+
+                        {/* Custom Dropdown Suggestions */}
+                        {focusedVariantIndex === index && (
+                          <div className="absolute top-full left-0 w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl z-[100] max-h-60 overflow-y-auto no-scrollbar py-2">
+                            {COLOR_CATALOG.filter(c => 
+                              normalizeColorName(c).includes(normalizeColorName(v.cor || ''))
+                            ).map(color => (
+                              <button
+                                key={color}
+                                type="button"
+                                className="w-full px-3 py-2 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-left"
+                                onClick={() => {
+                                  const updated = [...variants];
+                                  updated[index].cor = color;
+                                  setVariants(updated);
+                                  setFocusedVariantIndex(null);
+                                }}
+                              >
+                                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{color}</span>
+                                <div 
+                                  className="w-4 h-4 rounded-full border border-zinc-200 dark:border-zinc-600 shrink-0"
+                                  style={{ background: getColorValue(color) }}
+                                />
+                              </button>
+                            ))}
+                            {COLOR_CATALOG.filter(c => 
+                              normalizeColorName(c).includes(normalizeColorName(v.cor || ''))
+                            ).length === 0 && (
+                              <div className="px-3 py-2 text-[10px] text-zinc-400 font-bold uppercase text-center">
+                                Cor personalizada
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Preço Custo */}

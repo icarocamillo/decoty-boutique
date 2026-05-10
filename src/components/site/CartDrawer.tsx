@@ -83,7 +83,7 @@ export const CartDrawer: React.FC = () => {
                     >
                       <div className="w-24 aspect-[3/4] bg-zinc-50 rounded-xl overflow-hidden shrink-0">
                         <img 
-                          src={`https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=300`} 
+                          src={item.imagem || `https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=300`} 
                           alt={item.nome}
                           className="w-full h-full object-cover transition-transform group-hover:scale-105"
                         />
