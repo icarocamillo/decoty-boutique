@@ -46,12 +46,19 @@ export const ProductDetailsPage: React.FC = () => {
     }
     
     if (foundProduct) {
-      const favorites = JSON.parse(localStorage.getItem('decoty_favorites') || '[]');
-      setIsFavorite(favorites.includes(foundProduct.id));
+      // Favoritos check moved to useEffect to avoid infinite loop
     }
     
     return foundProduct;
   }, [identifier, products]);
+
+  // Sync favorite state when product is found
+  React.useEffect(() => {
+    if (product) {
+      const favorites = JSON.parse(localStorage.getItem('decoty_favorites') || '[]');
+      setIsFavorite(favorites.includes(product.id));
+    }
+  }, [product]);
 
   const toggleFavorite = () => {
     if (!user) {
