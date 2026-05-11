@@ -241,23 +241,12 @@ export const ProductDetailsPage: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="space-y-4"
           >
-            <div className="relative aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-100 shadow-2xl group/gallery touch-pan-y">
-              {/* Main Image with Swipe Support */}
+            <div className="relative aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-100 shadow-2xl group/gallery">
+              {/* Main Image */}
               <motion.img 
                 key={activeImageIndex}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                drag="x"
-                dragDirectionLock
-                dragConstraints={{ left: 0, right: 0 }}
-                onDragEnd={(_, info) => {
-                  const threshold = 50;
-                  if (info.offset.x > threshold) {
-                    setActiveImageIndex(prev => (prev === 0 ? productImages.length - 1 : prev - 1));
-                  } else if (info.offset.x < -threshold) {
-                    setActiveImageIndex(prev => (prev === productImages.length - 1 ? 0 : prev + 1));
-                  }
-                }}
                 src={productImages[activeImageIndex]} 
                 alt={product.nome}
                 className="w-full h-full object-cover select-none"
@@ -276,13 +265,13 @@ export const ProductDetailsPage: React.FC = () => {
                   onClick={() => setActiveImageIndex(prev => (prev === productImages.length - 1 ? 0 : prev + 1))}
                 />
 
-                {/* Arrow Icons - Only visible on hover/group */}
-                <div className="absolute inset-0 flex items-center justify-between px-6 opacity-0 group-hover/gallery:opacity-100 transition-all duration-300">
-                  <div className="text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
-                    <ChevronLeft size={48} strokeWidth={1} />
+                {/* Arrow Icons - More visible on mobile, hover on desktop */}
+                <div className="absolute inset-0 flex items-center justify-between px-4 opacity-100 md:opacity-0 md:group-hover/gallery:opacity-100 transition-all duration-300">
+                  <div className="text-white/80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                    <ChevronLeft size={40} strokeWidth={1.5} />
                   </div>
-                  <div className="text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
-                    <ChevronRight size={48} strokeWidth={1} />
+                  <div className="text-white/80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                    <ChevronRight size={40} strokeWidth={1.5} />
                   </div>
                 </div>
               </div>
