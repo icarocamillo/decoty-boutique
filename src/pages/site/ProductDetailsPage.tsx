@@ -174,6 +174,30 @@ export const ProductDetailsPage: React.FC = () => {
     }
   };
 
+  const formatCurrency = (val: number) => 
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+  const colors = Array.from(new Set(product?.variants?.map(v => v.cor || '') || [])) as string[];
+  const rawSizes = Array.from(new Set(product?.variants?.map(v => v.tamanho) || []));
+  
+  const sizes = useMemo(() => {
+    const order: Record<string, number> = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'G1': 6, 'G2': 7, 'G3': 8 };
+    const sizesArray = rawSizes as string[];
+    
+    return [...sizesArray].sort((a, b) => {
+      const aOrder = order[a.toUpperCase()];
+      const bOrder = order[b.toUpperCase()];
+      if (aOrder && bOrder) return aOrder - bOrder;
+      if (aOrder) return -1;
+      if (bOrder) return 1;
+      
+      const aNum = parseInt(a);
+      const bNum = parseInt(b);
+      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+      return a.localeCompare(b);
+    });
+  }, [rawSizes]);
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-20 animate-pulse">
@@ -197,30 +221,6 @@ export const ProductDetailsPage: React.FC = () => {
       </div>
     );
   }
-
-  const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-
-  const colors = Array.from(new Set(product.variants?.map(v => v.cor || '') || [])) as string[];
-  const rawSizes = Array.from(new Set(product.variants?.map(v => v.tamanho) || []));
-  
-  const sizes = useMemo(() => {
-    const order: Record<string, number> = { 'PP': 1, 'P': 2, 'M': 3, 'G': 4, 'GG': 5, 'G1': 6, 'G2': 7, 'G3': 8 };
-    const sizesArray = rawSizes as string[];
-    
-    return [...sizesArray].sort((a, b) => {
-      const aOrder = order[a.toUpperCase()];
-      const bOrder = order[b.toUpperCase()];
-      if (aOrder && bOrder) return aOrder - bOrder;
-      if (aOrder) return -1;
-      if (bOrder) return 1;
-      
-      const aNum = parseInt(a);
-      const bNum = parseInt(b);
-      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-      return a.localeCompare(b);
-    });
-  }, [rawSizes]);
 
   return (
     <div className="pb-20">

@@ -56,7 +56,7 @@ const ManagerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
 const App = () => {
   return (
-    <BrowserRouter>
+    <>
       <ScrollToTop />
       <AuthProvider>
         <DataProvider>
@@ -103,7 +103,7 @@ const App = () => {
           </CartProvider>
         </DataProvider>
       </AuthProvider>
-    </BrowserRouter>
+    </>
   );
 };
 
