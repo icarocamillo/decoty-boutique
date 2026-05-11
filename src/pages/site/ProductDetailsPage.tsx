@@ -241,13 +241,14 @@ export const ProductDetailsPage: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="space-y-4"
           >
-            <div className="relative aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-100 shadow-2xl group/gallery touch-none">
+            <div className="relative aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-100 shadow-2xl group/gallery touch-pan-y">
               {/* Main Image with Swipe Support */}
               <motion.img 
                 key={activeImageIndex}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 drag="x"
+                dragDirectionLock
                 dragConstraints={{ left: 0, right: 0 }}
                 onDragEnd={(_, info) => {
                   const threshold = 50;
