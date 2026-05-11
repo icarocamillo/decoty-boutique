@@ -234,6 +234,28 @@ export const ProductDetailsPage: React.FC = () => {
           <span className="text-sm font-medium">Voltar</span>
         </button>
 
+        <div className="lg:hidden mb-10">
+          <div className="flex items-center gap-3 mb-3">
+            <Badge variant="outline" className="rounded-full border-zinc-200 text-zinc-500 font-bold uppercase tracking-widest text-[10px]">
+              {product.marca}
+            </Badge>
+            <div className="flex items-center gap-1 text-amber-500">
+              <Star size={12} fill="currentColor" />
+              <span className="text-zinc-400 text-[10px] font-bold ml-0.5">4.9</span>
+            </div>
+          </div>
+          <h1 className="text-3xl font-serif text-zinc-950 mb-1">{product.nome}</h1>
+          <div className="flex items-center gap-3">
+            <p className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">Referência: Decoty-{product.ui_id}</p>
+            {product.is_unique_piece && (
+              <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-2 py-0.5 rounded-full flex items-center gap-1 text-[8px] font-black uppercase tracking-widest">
+                <Crown size={10} className="fill-amber-700" />
+                Peça Única
+              </Badge>
+            )}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-20">
           {/* Gallery Placeholder */}
           <motion.div 
@@ -275,13 +297,27 @@ export const ProductDetailsPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              {/* Peça Única Badge */}
-              <div className="absolute top-6 right-6">
-                <div className="bg-black/40 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full flex items-center gap-2 shadow-xl">
-                  <Crown size={16} className="text-white fill-white/20" />
-                  <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-white">Peça Única</span>
+
+              {/* Photo Counter */}
+              <div className="absolute top-6 left-6 z-10">
+                <div className="bg-white/80 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full shadow-xl">
+                  <span className="text-[10px] font-bold text-zinc-900 leading-none whitespace-nowrap flex items-center justify-center min-w-[32px]">
+                    {activeImageIndex + 1} / {productImages.length}
+                  </span>
                 </div>
               </div>
+
+              {/* Toggle Favorite Heart Button */}
+              <button 
+                onClick={(e) => { e.stopPropagation(); toggleFavorite(); }}
+                className={`absolute top-4 right-4 sm:top-6 sm:right-6 z-30 w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all shadow-xl active:scale-95 ${
+                  isFavorite 
+                    ? 'bg-red-500 text-white' 
+                    : 'bg-white/80 backdrop-blur-md text-zinc-400 hover:text-red-500'
+                }`}
+              >
+                <Heart size={18} className="sm:w-5 sm:h-5" fill={isFavorite ? "currentColor" : "none"} />
+              </button>
             </div>
             {/* Gallery Thumbs Carousel */}
             <div className="relative group/thumbs pt-2">
@@ -322,7 +358,7 @@ export const ProductDetailsPage: React.FC = () => {
 
           {/* Info */}
           <div className="flex flex-col">
-            <div className="mb-8">
+            <div className="mb-8 hidden lg:block">
               <div className="flex items-center gap-3 mb-4">
                 <Badge variant="outline" className="rounded-full border-zinc-200 text-zinc-500 font-bold uppercase tracking-widest text-[10px]">
                   {product.marca}
@@ -337,8 +373,30 @@ export const ProductDetailsPage: React.FC = () => {
                 </div>
               </div>
               <h1 className="text-4xl md:text-5xl font-serif text-zinc-950 mb-2">{product.nome}</h1>
-              <p className="text-[10px] uppercase font-bold tracking-widest text-zinc-400 mb-4">Referência: Decoty-{product.ui_id}</p>
+              <div className="flex items-center gap-4 mb-4">
+                <p className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">Referência: Decoty-{product.ui_id}</p>
+                {product.is_unique_piece && (
+                  <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-3 py-1 rounded-full flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em]">
+                    <Crown size={12} className="fill-amber-700" />
+                    Peça Única
+                  </Badge>
+                )}
+              </div>
               
+              <div className="space-y-1">
+                <p className="text-3xl font-black text-zinc-900">
+                  {selectedVariant ? formatCurrency(selectedVariant.preco_venda) : 'Preço sob consulta'}
+                </p>
+                {selectedVariant && (
+                   <p className="text-sm text-zinc-500 font-medium">
+                     Ou até 5x de <span className="text-zinc-900 font-bold">{formatCurrency(selectedVariant.preco_venda / 5)}</span> sem juros
+                   </p>
+                )}
+              </div>
+            </div>
+
+            {/* Mobile Price (shows only on mobile since the desktop title block is hidden) */}
+            <div className="lg:hidden mb-8">
               <div className="space-y-1">
                 <p className="text-3xl font-black text-zinc-900">
                   {selectedVariant ? formatCurrency(selectedVariant.preco_venda) : 'Preço sob consulta'}
@@ -434,8 +492,8 @@ export const ProductDetailsPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Add to Cart & Favorite */}
-              <div className="pt-2 flex flex-row gap-3">
+              {/* Add to Cart */}
+              <div className="pt-2 flex flex-row">
                 <Button 
                   size="lg" 
                   onClick={handleAddToCart}
@@ -445,17 +503,6 @@ export const ProductDetailsPage: React.FC = () => {
                   <ShoppingBag size={22} />
                   <span className="text-sm">Adicionar ao Carrinho</span>
                 </Button>
-
-                <button 
-                  onClick={toggleFavorite}
-                  className={`w-16 h-16 rounded-2xl flex items-center justify-center border-2 transition-all shadow-xl active:scale-95 ${
-                    isFavorite 
-                      ? 'bg-red-500 border-red-500 text-white shadow-red-200' 
-                      : 'bg-white border-zinc-100 text-zinc-400 hover:border-zinc-900 hover:text-zinc-900 shadow-zinc-100'
-                  }`}
-                >
-                   <Heart size={26} fill={isFavorite ? "currentColor" : "none"} />
-                </button>
               </div>
 
               {/* Perks / Benefits Grid */}
