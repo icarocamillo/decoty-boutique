@@ -321,7 +321,7 @@ export const ProductDetailsPage: React.FC = () => {
                   <div 
                     key={idx} 
                     onClick={() => setActiveImageIndex(idx)}
-                    className={`shrink-0 w-20 sm:w-24 aspect-square rounded-xl bg-zinc-50 overflow-hidden cursor-pointer border-2 transition-all duration-300 snap-start ${activeImageIndex === idx ? 'border-zinc-900 scale-105 shadow-md' : 'border-transparent hover:border-zinc-200 opacity-60'}`}
+                    className={`shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-zinc-50 overflow-hidden cursor-pointer border-2 transition-all duration-300 snap-start ${activeImageIndex === idx ? 'border-zinc-900 scale-105 shadow-md' : 'border-transparent hover:border-zinc-200 opacity-60'}`}
                   >
                     <img src={img} className="w-full h-full object-cover" alt={`${product.nome} - ${idx + 1}`} />
                   </div>
