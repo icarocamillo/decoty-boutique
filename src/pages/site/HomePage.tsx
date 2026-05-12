@@ -48,7 +48,7 @@ export const HomePage: React.FC = () => {
       <section className="relative h-[50vh] min-h-[550px] flex items-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop"
+            src="https://izixlmmljvhdyoecgjur.supabase.co/storage/v1/object/public/marketing/banners/banner_main.webp"
             alt="Hero Fashion"
             className="w-full h-full object-cover"
           />
@@ -163,8 +163,8 @@ export const HomePage: React.FC = () => {
             </div>
             <div className="md:col-span-4 md:row-span-1 relative rounded-3xl overflow-hidden group">
               <img
-                src="https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=1000&auto=format&fit=crop"
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                src="https://izixlmmljvhdyoecgjur.supabase.co/storage/v1/object/public/marketing/banners/banner_acessorios.webp"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-100"
                 alt="Acessórios"
               />
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center">

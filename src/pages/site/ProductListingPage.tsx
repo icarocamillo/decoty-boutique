@@ -232,12 +232,12 @@ export const ProductListingPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white pb-20">
+    <div className="min-h-screen bg-white pb-10">
       {/* Hero Header */}
-      <div className="relative h-[40vh] min-h-[320px] flex items-center overflow-hidden">
+      <div className="relative h-[20vh] min-h-[320px] flex items-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?q=80&w=2070&auto=format&fit=crop"
+            src="https://izixlmmljvhdyoecgjur.supabase.co/storage/v1/object/public/marketing/banners/banner_catatalog.webp"
             alt="Boutique Curadoria"
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
