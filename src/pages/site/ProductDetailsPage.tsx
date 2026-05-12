@@ -13,14 +13,12 @@ import { getColorValue } from '@/utils/colorUtils';
 export const ProductDetailsPage: React.FC = () => {
   const { identifier } = useParams<{ identifier: string }>();
   const navigate = useNavigate();
-  const { products, isLoading } = useData();
+  const { products, isLoading, favoriteIds, toggleFavorite: backendToggleFavorite } = useData();
   const { addToCart } = useCart();
   const { user } = useAuth();
   
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-
-  const [isFavorite, setIsFavorite] = useState(false);
 
   const product = useMemo(() => {
     if (!identifier) return null;
@@ -45,22 +43,14 @@ export const ProductDetailsPage: React.FC = () => {
       }
     }
     
-    if (foundProduct) {
-      // Favoritos check moved to useEffect to avoid infinite loop
-    }
-    
     return foundProduct;
   }, [identifier, products]);
 
-  // Sync favorite state when product is found
-  React.useEffect(() => {
-    if (product) {
-      const favorites = JSON.parse(localStorage.getItem('decoty_favorites') || '[]');
-      setIsFavorite(favorites.includes(product.id));
-    }
-  }, [product]);
+  const isFavorite = useMemo(() => {
+    return product ? favoriteIds.includes(product.id) : false;
+  }, [product, favoriteIds]);
 
-  const toggleFavorite = () => {
+  const toggleFavorite = async () => {
     if (!user) {
       alert('Você precisa estar logada para favoritar uma peça. Faça login para salvar seus favoritos!');
       return;
@@ -68,16 +58,7 @@ export const ProductDetailsPage: React.FC = () => {
 
     if (!product) return;
 
-    const favorites = JSON.parse(localStorage.getItem('decoty_favorites') || '[]');
-    let newFavorites;
-    if (isFavorite) {
-      newFavorites = favorites.filter((id: string) => id !== product.id);
-    } else {
-      newFavorites = [...favorites, product.id];
-    }
-    localStorage.setItem('decoty_favorites', JSON.stringify(newFavorites));
-    setIsFavorite(!isFavorite);
-    window.dispatchEvent(new Event('favorites_updated'));
+    await backendToggleFavorite(product.id);
   };
 
   const handleAddToCart = () => {
@@ -94,15 +75,23 @@ export const ProductDetailsPage: React.FC = () => {
   // Selecionar variante inicial baseada no parâmetro de cor ou na foto principal do catálogo
   React.useEffect(() => {
     if (product && product.variants && !selectedVariantId) {
+      // 1. Extrair cores que REALMENTE possuem fotos vinculadas
+      const colorsWithPhotos = Array.from(new Set(
+        product.images?.filter(img => img.cor).map(img => img.cor) || []
+      ));
+
       if (initialColor) {
-        const variantByColor = product.variants.find(v => v.cor === initialColor);
-        if (variantByColor) {
-          setSelectedVariantId(variantByColor.id);
-          return;
+        // Se a cor inicial tem fotos, seleciona ela
+        if (colorsWithPhotos.includes(initialColor)) {
+          const variantByColor = product.variants.find(v => v.cor === initialColor);
+          if (variantByColor) {
+            setSelectedVariantId(variantByColor.id);
+            return;
+          }
         }
       }
       
-      // Fallback 1: Cor da foto principal do catálogo
+      // Fallback 1: Cor da foto principal do catálogo (se houver cor vinculada a essa foto)
       const mainImage = product.images?.find(img => img.is_default_product_photo);
       if (mainImage && mainImage.cor) {
         const variantByMainImg = product.variants.find(v => v.cor === mainImage.cor);
@@ -112,7 +101,14 @@ export const ProductDetailsPage: React.FC = () => {
         }
       }
 
-      // Fallback 2: Primeira variante disponível
+      // Fallback 2: Primeira variante que tenha uma cor com fotos
+      const firstVariantWithPhoto = product.variants.find(v => v.cor && colorsWithPhotos.includes(v.cor));
+      if (firstVariantWithPhoto) {
+        setSelectedVariantId(firstVariantWithPhoto.id);
+        return;
+      }
+
+      // Fallback 3: Qualquer variante (caso não existam fotos vinculadas a cores ainda)
       if (product.variants.length > 0) {
         setSelectedVariantId(product.variants[0].id);
       }
@@ -177,7 +173,18 @@ export const ProductDetailsPage: React.FC = () => {
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-  const colors = Array.from(new Set(product?.variants?.map(v => v.cor || '') || [])) as string[];
+  const colors = useMemo(() => {
+    if (!product || !product.variants) return [];
+    
+    // Pegamos todas as cores das variantes únicas
+    const allColors = Array.from(new Set(product.variants.map(v => v.cor || '').filter(Boolean))) as string[];
+    
+    // Filtramos para mostrar apenas cores que possuem pelo menos uma imagem vinculada
+    return allColors.filter(cor => 
+      product.images?.some(img => img.cor === cor)
+    );
+  }, [product]);
+
   const rawSizes = Array.from(new Set(product?.variants?.map(v => v.tamanho) || []));
   
   const sizes = useMemo(() => {
@@ -213,7 +220,7 @@ export const ProductDetailsPage: React.FC = () => {
     );
   }
 
-  if (!product) {
+  if (!product || !product.show_on_site) {
     return (
       <div className="container mx-auto px-4 py-40 text-center">
         <h2 className="text-2xl font-serif mb-4">Produto não encontrado</h2>
@@ -495,9 +502,10 @@ export const ProductDetailsPage: React.FC = () => {
               {/* Add to Cart */}
               <div className="pt-2 flex flex-row">
                 <Button 
+                  variant="success"
                   size="lg" 
                   onClick={handleAddToCart}
-                  className="flex-1 h-16 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold flex items-center justify-center gap-3 shadow-xl border-none transition-all active:scale-95"
+                  className="flex-1 h-16 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl border-none transition-all active:scale-95"
                   disabled={!selectedVariant || selectedVariant.quantidade_estoque <= 0}
                 >
                   <ShoppingBag size={22} />

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Product } from '@/types';
-import { PackagePlus, Search, Edit, ArrowUp, ArrowDown, ArrowUpDown, Filter, Settings, Check, Tag, Layers, ChevronRight } from 'lucide-react';
+import { PackagePlus, Search, Edit, ArrowUp, ArrowDown, ArrowUpDown, Filter, Settings, Check, Tag, Layers, ChevronRight, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -37,6 +37,10 @@ export const ProductList: React.FC = () => {
   // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+  
+  // Deletion State
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Marcas dos fornecedores vindas do contexto
   const brands = useMemo(() => {
@@ -91,6 +95,26 @@ export const ProductList: React.FC = () => {
 
   const toggleColumn = (key: keyof typeof visibleColumns) => {
     setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleDelete = async () => {
+    if (!productToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      const success = await backendService.deleteProduct(productToDelete.id);
+      if (success) {
+        await refreshData();
+        setProductToDelete(null);
+      } else {
+        alert("Erro ao excluir produto. Verifique se ele não possui dependências (vendas ou entradas de estoque).");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Ocorreu um erro ao tentar excluir o produto.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const filteredProducts = useMemo(() => {
@@ -298,10 +322,10 @@ export const ProductList: React.FC = () => {
             const visualId = formatProductId(product);
 
             return (
-              <button 
+              <div 
                 key={product.id} 
                 onClick={() => navigate(`/erp/products/update/${product.ui_id}`)}
-                className="text-left p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm active:scale-[0.98] transition-all flex flex-col gap-3"
+                className="cursor-pointer text-left p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm active:scale-[0.98] transition-all flex flex-col gap-3"
               >
                 <div className="flex justify-between items-start">
                   <div className="flex flex-col min-w-0 flex-1">
@@ -344,7 +368,20 @@ export const ProductList: React.FC = () => {
                   </div>
                   <ChevronRight size={18} className="text-zinc-300" />
                 </div>
-              </button>
+
+                <div 
+                  className="mt-3 flex justify-end"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setProductToDelete(product);
+                  }}
+                >
+                  <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 px-2 flex items-center gap-1">
+                    <Trash2 size={14} />
+                    Excluir
+                  </Button>
+                </div>
+              </div>
             );
           })}
           {currentProducts.length === 0 && (
@@ -409,6 +446,7 @@ export const ProductList: React.FC = () => {
                      <div className="flex items-center justify-center">Estoque <SortIcon columnKey={"quantidade_estoque" as any} /></div>
                   </th>
                 )}
+                <th className="px-4 py-3 font-medium text-right lowercase first-letter:uppercase">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -512,6 +550,23 @@ export const ProductList: React.FC = () => {
                         </Badge>
                       </td>
                     )}
+
+                    {/* Ações */}
+                    <td className="px-4 py-2 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setProductToDelete(product);
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -540,6 +595,45 @@ export const ProductList: React.FC = () => {
           />
         )}
       </Card>
+
+      {/* Confirmation Modal */}
+      {productToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <Card className="max-w-md w-full p-6 shadow-2xl animate-scale-up">
+            <div className="flex items-center gap-3 text-red-600 mb-4">
+              <div className="bg-red-100 p-2 rounded-full">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="text-xl font-bold">Confirmar Exclusão</h3>
+            </div>
+            
+            <p className="text-zinc-600 dark:text-zinc-400 mb-6 leading-relaxed">
+              Tem certeza que deseja excluir o produto <strong className="text-zinc-900 dark:text-white">"{productToDelete.nome}"</strong>? 
+              <br/><br/>
+              Esta ação removerá permanentemente o produto e todas as suas <span className="text-red-500 font-bold">{productToDelete.variants?.length || 0} variantes</span> do catálogo.
+            </p>
+            
+            <div className="flex gap-3 justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => setProductToDelete(null)}
+                disabled={isDeleting}
+                className="flex-1 sm:flex-none"
+              >
+                Cancelar
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex-1 sm:flex-none gap-2"
+              >
+                {isDeleting ? 'Excluindo...' : 'Sim, Excluir'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

@@ -45,6 +45,8 @@ export const ProductFormPage: React.FC = () => {
   const [variants, setVariants] = useState<any[]>([
     { cor: '', tamanho: '', preco_custo: '', preco_venda: '', quantidade_estoque: '0', sku: '', ean: '', original_estoque: 0 }
   ]);
+  const [filterColor, setFilterColor] = useState('Todos');
+  const [filterSize, setFilterSize] = useState('Todos');
 
   const [images, setImages] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -139,7 +141,10 @@ export const ProductFormPage: React.FC = () => {
       });
 
       if (productToEdit.variants && productToEdit.variants.length > 0) {
-        setVariants(productToEdit.variants.map(v => ({
+        // Ordenar variantes pelo ID da Variação (ui_id) de forma decrescente
+        const sortedDbVariants = [...productToEdit.variants].sort((a, b) => b.ui_id - a.ui_id);
+        
+        setVariants(sortedDbVariants.map(v => ({
           id: v.id,
           ui_id: v.ui_id,
           cor: v.cor,
@@ -163,6 +168,33 @@ export const ProductFormPage: React.FC = () => {
       setFetching(false);
     }
   }, [id, productToEdit]);
+
+  const validateShowOnSite = (silent = false) => {
+    const activeVariants = variants.filter(v => v.tamanho && v.preco_venda);
+    
+    if (activeVariants.length === 0) {
+      if (!silent) alert("Para mostrar no site, o produto precisa ter pelo menos 1 variação (Tamanho/Preço) preenchida.");
+      return false;
+    }
+
+    if (!formData.descricao.trim()) {
+      if (!silent) alert("A descrição para o site é obrigatória.");
+      return false;
+    }
+
+    // Validar fotos por cor
+    const uniqueColors = Array.from(new Set(activeVariants.map(v => v.cor).filter(Boolean)));
+    const missingPhotosColors = uniqueColors.filter(color => {
+      return !images.some(img => img.cor === color);
+    });
+
+    if (missingPhotosColors.length > 0) {
+      if (!silent) alert(`Faltam fotos para as seguintes cores: ${missingPhotosColors.join(', ')}. Cada cor de variação precisa de pelo menos uma foto associada.`);
+      return false;
+    }
+
+    return true;
+  };
 
   const handleParentChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -198,7 +230,7 @@ export const ProductFormPage: React.FC = () => {
   };
 
   const addVariant = () => {
-    setVariants([...variants, {
+    setVariants([{
       cor: '',
       tamanho: '',
       preco_custo: variants[0]?.preco_custo || '',
@@ -207,7 +239,7 @@ export const ProductFormPage: React.FC = () => {
       original_estoque: 0,
       sku: '',
       ean: ''
-    }]);
+    }, ...variants]);
   };
 
   const removeVariant = (index: number) => {
@@ -222,10 +254,15 @@ export const ProductFormPage: React.FC = () => {
     if (!formData.categoria) newErrors.categoria = true;
     if (!formData.tipo_material) newErrors.tipo_material = true;
 
-    // Validar descrição se for mostrar no site
-    if (formData.show_on_site && !formData.descricao.trim()) {
-      newErrors.descricao = true;
+    // Se estiver marcado para mostrar no site, valida novamente os requisitos
+    if (formData.show_on_site) {
+      if (!validateShowOnSite()) {
+        newErrors.show_on_site = true;
+        // Se a descrição for o problema, marca o erro visual nela
+        if (!formData.descricao.trim()) newErrors.descricao = true;
+      }
     }
+    
     const variantErrors = variants.some(v => !v.tamanho || !v.preco_custo || !v.preco_venda);
     if (variantErrors) newErrors.variants = true;
 
@@ -307,6 +344,33 @@ export const ProductFormPage: React.FC = () => {
       setImages(updated);
     } else {
       // Produto existente, atualiza no banco
+      const currentImage = images[imgIndex];
+
+      // Lógica Especial para Mudança de Cor (Mover entre pastas no bucket)
+      if (field === 'cor' && currentImage.id && currentImage.url) {
+        setUploading(true);
+        try {
+          const newUrl = await backendService.moveProductImage(
+            currentImage.id, 
+            currentImage.url, 
+            value, 
+            productToEdit!.id
+          );
+          
+          if (newUrl) {
+            setImages(prev => prev.map(img => img.id === imageId ? { ...img, [field]: value, url: newUrl } : img));
+          } else {
+            alert("Erro ao mover imagem para a nova pasta da cor.");
+          }
+        } catch (error) {
+          console.error(error);
+          alert("Ocorreu um erro ao tentar mover a imagem.");
+        } finally {
+          setUploading(false);
+        }
+        return; // Retornamos pois moveProductImage já faz o update no banco
+      }
+
       const updatedData: any = { id: imageId, [field]: value };
       
       // Lógica de exclusividade
@@ -340,16 +404,18 @@ export const ProductFormPage: React.FC = () => {
     }
   };
 
-  const removeImage = async (index: number) => {
-    const img = images[index];
+  const removeImage = async (imageId: string) => {
+    const img = images.find(img => (img.id === imageId || img.preview === imageId));
+    if (!img) return;
+
     if (!img.id) {
       // Local
-      setImages(images.filter((_, i) => i !== index));
+      setImages(images.filter(i => i.preview !== imageId));
     } else {
       // Banco
       const success = await backendService.deleteProductImage(img.id, img.url);
       if (success) {
-        setImages(images.filter((_, i) => i !== index));
+        setImages(images.filter(i => i.id !== imageId));
       }
     }
   };
@@ -358,6 +424,35 @@ export const ProductFormPage: React.FC = () => {
     const colors = variants.map(v => v.cor).filter(Boolean);
     return Array.from(new Set(colors)).sort();
   }, [variants]);
+
+  const uniqueVariantColors = useMemo(() => {
+    const colors = variants.map(v => v.cor).filter(Boolean);
+    return ['Todos', ...Array.from(new Set(colors)).sort()];
+  }, [variants]);
+
+  const uniqueVariantSizes = useMemo(() => {
+    const sizes = variants.map(v => v.tamanho).filter(Boolean);
+    return ['Todos', ...Array.from(new Set(sizes)).sort()];
+  }, [variants]);
+
+  const filteredVariants = useMemo(() => {
+    return variants
+      .map((v, originalIndex) => ({ ...v, originalIndex }))
+      .filter(v => {
+        const matchColor = filterColor === 'Todos' || v.cor === filterColor;
+        const matchSize = filterSize === 'Todos' || v.tamanho === filterSize;
+        return matchColor && matchSize;
+      });
+  }, [variants, filterColor, filterSize]);
+
+  const filteredImages = useMemo(() => {
+    if (!uploadTargetColor) {
+      // "Geral" -> Imagens sem cor vinculada
+      return images.filter(img => !img.cor);
+    }
+    // "Cor X" -> Imagens daquela cor
+    return images.filter(img => img.cor === uploadTargetColor);
+  }, [images, uploadTargetColor]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -545,7 +640,11 @@ export const ProductFormPage: React.FC = () => {
                   <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl gap-1">
                     <button
                       type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, show_on_site: true }))}
+                      onClick={() => {
+                        if (validateShowOnSite()) {
+                          setFormData(prev => ({ ...prev, show_on_site: true }));
+                        }
+                      }}
                       className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${formData.show_on_site ? 'bg-emerald-500 text-white shadow-sm' : 'text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}
                     >
                       SIM
@@ -580,12 +679,285 @@ export const ProductFormPage: React.FC = () => {
           </Card>
         </div>
 
-        {/* Galeria de Fotos */}
+        {/* Inferior: Variantes (Full Width) */}
+        <div className="w-full space-y-6">
+          <Card className="p-6 border-0 shadow-sm bg-white dark:bg-zinc-900 h-full flex flex-col">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-4 mb-4">
+              <h3 className="text-sm font-bold text-zinc-400 uppercase flex items-center gap-2 whitespace-nowrap">
+                <Layers size={16} className="text-zinc-400" /> Variações do Produto (Cores e Tamanho)
+                <div className="text-[10px] font-bold text-zinc-400 uppercase bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
+                  {filteredVariants.length}/{variants.length}
+                </div>
+              </h3>
+
+              {/* Filtros de Variações Compactos no Header */}
+              <div className="flex-1 flex flex-wrap items-center justify-end gap-3 px-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase">Filtrar Cor:</span>
+                  <select
+                    value={filterColor}
+                    onChange={(e) => setFilterColor(e.target.value)}
+                    className="text-[10px] bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2 py-1 outline-none font-bold"
+                  >
+                    {uniqueVariantColors.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase">Filtrar Tam:</span>
+                  <select
+                    value={filterSize}
+                    onChange={(e) => setFilterSize(e.target.value)}
+                    className="text-[10px] bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2 py-1 outline-none font-bold"
+                  >
+                    {uniqueVariantSizes.map(s => <option key={s} value={s}>{s === 'Todos' ? s : s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Button type="button" size="sm" variant="outline" onClick={addVariant} className="flex items-center gap-2 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 h-9 whitespace-nowrap">
+                  <Plus size={16} /> Adicionar Variação
+                </Button>
+                <Button 
+                  type="button" 
+                  onClick={handleSubmit} 
+                  disabled={loading || uploading} 
+                  className="bg-white hover:bg-zinc-100 text-zinc-950 border border-zinc-200 dark:border-zinc-700 h-9 px-4 rounded-xl text-[11px] font-bold shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
+                >
+                  {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  {id ? 'Atualizar Variação' : 'Cadastrar Variação'}
+                </Button>
+              </div>
+            </div>
+
+            {errors.variants && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-xl flex items-center gap-3 text-red-600 dark:text-red-400 text-xs font-bold">
+                <AlertCircle size={16} /> Preencha tamanho e preços de todas as variantes.
+              </div>
+            )}
+
+            {/* Header de Variantes - Estilo Slim Desktop */}
+            <div className="hidden lg:grid grid-cols-12 gap-3 px-4 mb-2">
+              <div className="col-span-1 text-center"><label className="text-[10px] font-bold text-zinc-400 uppercase">ID Var.</label></div>
+              <div className="col-span-1"><label className="text-[10px] font-bold text-zinc-400 uppercase">Tam *</label></div>
+              <div className="col-span-2"><label className="text-[10px] font-bold text-zinc-400 uppercase">Cor</label></div>
+              <div className="col-span-1"><label className="text-[10px] font-bold text-zinc-400 uppercase">Custo</label></div>
+              <div className="col-span-1"><label className="text-[10px] font-bold text-zinc-400 uppercase">Venda</label></div>
+              <div className="col-span-2 text-center"><label className="text-[10px] font-bold text-zinc-400 uppercase">Estoque</label></div>
+              <div className="col-span-2"><label className="text-[10px] font-bold text-zinc-400 uppercase">SKU</label></div>
+              <div className="col-span-1"><label className="text-[10px] font-bold text-zinc-400 uppercase">EAN</label></div>
+              <div className="col-span-1"></div>
+            </div>
+
+            <div className="space-y-2 flex-1">
+              {filteredVariants.map((v) => (
+                <div key={v.originalIndex} className="relative p-3 lg:p-2 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/30 border border-zinc-100 dark:border-zinc-800 group hover:border-zinc-300 dark:hover:border-zinc-700 transition-all">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-center">
+
+                    {/* ID da Variação */}
+                    <div className="lg:col-span-1">
+                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">ID Var.</label>
+                      <div className="h-8 px-1 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg font-mono text-[15px] text-zinc-900 dark:text-white font-bold overflow-hidden">
+                        {id && productToEdit ? (
+                          v.ui_id || ((productToEdit.ui_id * 1000) + maxSubId + variants.filter((_, i) => i >= v.originalIndex && !_.ui_id).length)
+                        ) : '-'}
+                      </div>
+                    </div>
+
+                    {/* Tamanho */}
+                    <div className="lg:col-span-1">
+                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">Tamanho *</label>
+                      <select
+                        name="tamanho"
+                        value={v.tamanho}
+                        onChange={(e) => handleVariantChange(v.originalIndex, e)}
+                        className="w-full h-8 px-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-1 focus:ring-zinc-400 outline-none appearance-none"
+                      >
+                        <option value="">-</option>
+                        {availableSizesForMaterial(formData.tipo_material).map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Cor */}
+                    <div className="lg:col-span-2 relative">
+                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">Cor</label>
+                      <div className="relative flex items-center group">
+                        <input
+                          type="text"
+                          name="cor"
+                          autoComplete="off"
+                          value={v.cor}
+                          placeholder="Ex: Vermelho"
+                          onFocus={() => setFocusedVariantIndex(v.originalIndex)}
+                          onBlur={() => setTimeout(() => setFocusedVariantIndex(null), 200)}
+                          onChange={(e) => handleVariantChange(v.originalIndex, e)}
+                          className="w-full h-8 pl-3 pr-8 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-1 focus:ring-zinc-400 outline-none"
+                        />
+                        {v.cor && (
+                          <div 
+                            className="absolute right-2 w-4 h-4 rounded-full border border-zinc-200 dark:border-zinc-600 shadow-sm transition-transform group-hover:scale-125 pointer-events-none"
+                            style={{ background: getColorValue(v.cor) }}
+                          />
+                        )}
+
+                        {/* Custom Dropdown Suggestions */}
+                        {focusedVariantIndex === v.originalIndex && (
+                          <div className="absolute top-full left-0 w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl z-[100] max-h-60 overflow-y-auto no-scrollbar py-2">
+                            {COLOR_CATALOG.filter(c => 
+                              normalizeColorName(c).includes(normalizeColorName(v.cor || ''))
+                            ).map(color => (
+                              <button
+                                key={color}
+                                type="button"
+                                className="w-full px-3 py-2 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-left"
+                                onClick={() => {
+                                  const updated = [...variants];
+                                  updated[v.originalIndex].cor = color;
+                                  setVariants(updated);
+                                  setFocusedVariantIndex(null);
+                                }}
+                              >
+                                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{color}</span>
+                                <div 
+                                  className="w-4 h-4 rounded-full border border-zinc-200 dark:border-zinc-600 shrink-0"
+                                  style={{ background: getColorValue(color) }}
+                                />
+                              </button>
+                            ))}
+                            {COLOR_CATALOG.filter(c => 
+                              normalizeColorName(c).includes(normalizeColorName(v.cor || ''))
+                            ).length === 0 && (
+                              <div className="px-3 py-2 text-[10px] text-zinc-400 font-bold uppercase text-center">
+                                Cor personalizada
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Preço Custo */}
+                    <div className="lg:col-span-1">
+                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">Custo (R$)</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        name="preco_custo"
+                        value={v.preco_custo}
+                        placeholder="0,00"
+                        onChange={(e) => handleVariantCurrencyChange(v.originalIndex, e)}
+                        className="w-full h-8 px-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-1 focus:ring-zinc-400 outline-none text-right"
+                      />
+                    </div>
+
+                    {/* Preço Venda */}
+                    <div className="lg:col-span-1">
+                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">Venda (R$)</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        name="preco_venda"
+                        value={v.preco_venda}
+                        placeholder="0,00"
+                        onChange={(e) => handleVariantCurrencyChange(v.originalIndex, e)}
+                        className="w-full h-8 px-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-emerald-600 dark:text-emerald-400 focus:ring-1 focus:ring-zinc-400 outline-none font-bold text-right"
+                      />
+                    </div>
+
+                    {/* Estoque */}
+                    <div className="lg:col-span-2">
+                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">Estoque</label>
+                      <div className="flex items-center">
+                        {(parseInt(v.quantidade_estoque) || 0) > (v.original_estoque || 0) && (
+                          <button
+                            type="button"
+                            onClick={() => handleStockAction(v.originalIndex, -1)}
+                            className="flex-shrink-0 h-8 w-8 flex items-center justify-center bg-red-100 hover:bg-red-200 dark:bg-red-950/30 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-l-lg border border-red-200 dark:border-red-900/50 transition-all border-r-0"
+                          >
+                            <Minus size={14} strokeWidth={3} />
+                          </button>
+                        )}
+                        <input
+                          type="text"
+                          name="quantidade_estoque"
+                          value={v.quantidade_estoque}
+                          placeholder="0"
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            handleVariantChange(v.originalIndex, { target: { name: 'quantidade_estoque', value: val } } as any);
+                          }}
+                          onBlur={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            const numVal = parseInt(val) || 0;
+                            const original = v.original_estoque || 0;
+                            const correctedVal = Math.max(original, numVal);
+                            handleVariantChange(v.originalIndex, { target: { name: 'quantidade_estoque', value: correctedVal.toString() } } as any);
+                          }}
+                          className={`w-full h-8 px-1 text-center text-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-0 outline-none font-bold ${(parseInt(v.quantidade_estoque) || 0) <= (v.original_estoque || 0) ? 'rounded-l-lg' : ''} rounded-none`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleStockAction(v.originalIndex, 1)}
+                          className="flex-shrink-0 h-8 w-8 flex items-center justify-center bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/30 dark:hover:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-r-lg border border-emerald-200 dark:border-emerald-900/50 transition-all border-l-0"
+                        >
+                          <Plus size={14} strokeWidth={3} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* SKU */}
+                    <div className="lg:col-span-2">
+                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">SKU</label>
+                      <input
+                        type="text"
+                        name="sku"
+                        value={v.sku}
+                        placeholder="Referência"
+                        onChange={(e) => handleVariantChange(v.originalIndex, e)}
+                        className="w-full h-8 px-3 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-1 focus:ring-zinc-400 outline-none font-mono"
+                      />
+                    </div>
+
+                    {/* EAN */}
+                    <div className="lg:col-span-1">
+                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">EAN</label>
+                      <input
+                        type="text"
+                        name="ean"
+                        value={v.ean}
+                        placeholder="EAN"
+                        onChange={(e) => handleVariantChange(v.originalIndex, e)}
+                        className="w-full h-8 px-5 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-1 focus:ring-zinc-400 outline-none font-mono"
+                      />
+                    </div>
+
+                    {/* Botão Remover */}
+                    <div className="lg:col-span-1 flex items-center justify-center">
+                      {variants.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeVariant(v.originalIndex)}
+                          className="p-1.5 text-zinc-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-md transition-all flex items-center justify-center"
+                          title="Remover variação"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        {/* Galeria de Imagens */}
         <div className="w-full">
           <Card className="p-6 border-0 shadow-sm bg-white dark:bg-zinc-900">
             <div className="flex justify-between items-center border-b border-zinc-100 dark:border-zinc-800 pb-2 mb-6">
               <h3 className="text-sm font-bold text-zinc-400 uppercase flex items-center gap-2">
-                <ImageIcon size={16} className="text-zinc-400" /> Galeria de Fotos
+                <ImageIcon size={16} className="text-zinc-400" /> Galeria de Imagens
               </h3>
               <div className="flex items-center gap-3">
                 {productColors.length > 0 && (
@@ -601,29 +973,40 @@ export const ProductFormPage: React.FC = () => {
                     </select>
                   </div>
                 )}
-                <div className="relative">
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    id="image-upload"
-                    disabled={uploading}
-                  />
-                  <label
-                    htmlFor="image-upload"
-                    className={`flex items-center gap-2 px-4 py-2 bg-zinc-950 text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-zinc-800 transition-all ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id="image-upload"
+                      disabled={uploading}
+                    />
+                    <label
+                      htmlFor="image-upload"
+                      className={`flex items-center gap-2 px-4 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 h-9 rounded-lg text-xs cursor-pointer transition-all whitespace-nowrap ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                      Adicionar Imagem
+                    </label>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={loading || uploading}
+                    className="bg-white hover:bg-zinc-100 text-zinc-950 border border-zinc-200 dark:border-zinc-700 h-9 px-4 rounded-xl text-[11px] font-bold shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
                   >
-                    {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                    Adicionar Fotos
-                  </label>
+                    {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                    Atualizar Imagem
+                  </Button>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-              {images.map((img, index) => (
+              {filteredImages.map((img) => (
                 <div key={img.id || img.preview} className="group relative flex flex-col bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 overflow-hidden hover:shadow-md transition-all">
                   <div className="aspect-square relative flex items-center justify-center overflow-hidden bg-black">
                     <img 
@@ -634,7 +1017,7 @@ export const ProductFormPage: React.FC = () => {
                     
                     {/* Botão Remover */}
                     <button 
-                      onClick={() => removeImage(index)}
+                      onClick={() => removeImage(img.id || img.preview)}
                       className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                     >
                       <Trash2 size={12} />
@@ -688,254 +1071,15 @@ export const ProductFormPage: React.FC = () => {
                 </div>
               ))}
 
-              {images.length === 0 && (
+              {filteredImages.length === 0 && (
                 <label 
                   htmlFor="image-upload"
                   className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl hover:border-zinc-400 dark:hover:border-zinc-600 cursor-pointer transition-all gap-2 text-zinc-400"
                 >
                   <Upload size={24} />
-                  <span className="text-[10px] font-bold tracking-wider">ADICIONAR FOTOS</span>
+                  <span className="text-[10px] font-bold tracking-wider">ADICIONAR FOTOS {uploadTargetColor ? `PARA ${uploadTargetColor.toUpperCase()}` : 'GERAL'}</span>
                 </label>
               )}
-            </div>
-          </Card>
-        </div>
-
-        {/* Inferior: Variantes (Full Width) */}
-        <div className="w-full space-y-6">
-          <Card className="p-6 border-0 shadow-sm bg-white dark:bg-zinc-900 h-full flex flex-col">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-4 mb-4">
-              <h3 className="text-sm font-bold text-zinc-400 uppercase flex items-center gap-2">
-                <Layers size={16} className="text-zinc-400" /> Variações do Produto (Cores e Tamanho)
-              </h3>
-              <Button type="button" size="sm" variant="outline" onClick={addVariant} className="flex items-center gap-2 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 h-9">
-                <Plus size={16} /> Adicionar Variação
-              </Button>
-            </div>
-
-            {errors.variants && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-xl flex items-center gap-3 text-red-600 dark:text-red-400 text-xs font-bold">
-                <AlertCircle size={16} /> Preencha tamanho e preços de todas as variantes.
-              </div>
-            )}
-
-            {/* Header de Variantes - Estilo Slim Desktop */}
-            <div className="hidden lg:grid grid-cols-12 gap-3 px-4 mb-2">
-              <div className="col-span-1 text-center"><label className="text-[10px] font-bold text-zinc-400 uppercase">ID Var.</label></div>
-              <div className="col-span-1"><label className="text-[10px] font-bold text-zinc-400 uppercase">Tam *</label></div>
-              <div className="col-span-2"><label className="text-[10px] font-bold text-zinc-400 uppercase">Cor</label></div>
-              <div className="col-span-1"><label className="text-[10px] font-bold text-zinc-400 uppercase">Custo</label></div>
-              <div className="col-span-1"><label className="text-[10px] font-bold text-zinc-400 uppercase">Venda</label></div>
-              <div className="col-span-2 text-center"><label className="text-[10px] font-bold text-zinc-400 uppercase">Estoque</label></div>
-              <div className="col-span-2"><label className="text-[10px] font-bold text-zinc-400 uppercase">SKU</label></div>
-              <div className="col-span-1"><label className="text-[10px] font-bold text-zinc-400 uppercase">EAN</label></div>
-              <div className="col-span-1"></div>
-            </div>
-
-            <div className="space-y-2 flex-1">
-              {variants.map((v, index) => (
-                <div key={index} className="relative p-3 lg:p-2 rounded-xl bg-zinc-50/50 dark:bg-zinc-800/30 border border-zinc-100 dark:border-zinc-800 group hover:border-zinc-300 dark:hover:border-zinc-700 transition-all">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-center">
-
-                    {/* ID da Variação */}
-                    <div className="lg:col-span-1">
-                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">ID Var.</label>
-                      <div className="h-8 px-1 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg font-mono text-[15px] text-zinc-900 dark:text-white font-bold overflow-hidden">
-                        {id && productToEdit ? (
-                          v.ui_id || ((productToEdit.ui_id * 1000) + maxSubId + variants.filter((_, i) => i <= index && !_.ui_id).length)
-                        ) : '-'}
-                      </div>
-                    </div>
-
-                    {/* Tamanho */}
-                    <div className="lg:col-span-1">
-                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">Tamanho *</label>
-                      <select
-                        name="tamanho"
-                        value={v.tamanho}
-                        onChange={(e) => handleVariantChange(index, e)}
-                        className="w-full h-8 px-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-1 focus:ring-zinc-400 outline-none appearance-none"
-                      >
-                        <option value="">-</option>
-                        {availableSizesForMaterial(formData.tipo_material).map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
-
-                    {/* Cor */}
-                    <div className="lg:col-span-2 relative">
-                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">Cor</label>
-                      <div className="relative flex items-center group">
-                        <input
-                          type="text"
-                          name="cor"
-                          autoComplete="off"
-                          value={v.cor}
-                          placeholder="Ex: Vermelho"
-                          onFocus={() => setFocusedVariantIndex(index)}
-                          onBlur={() => setTimeout(() => setFocusedVariantIndex(null), 200)}
-                          onChange={(e) => handleVariantChange(index, e)}
-                          className="w-full h-8 pl-3 pr-8 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-1 focus:ring-zinc-400 outline-none"
-                        />
-                        {v.cor && (
-                          <div 
-                            className="absolute right-2 w-4 h-4 rounded-full border border-zinc-200 dark:border-zinc-600 shadow-sm transition-transform group-hover:scale-125 pointer-events-none"
-                            style={{ background: getColorValue(v.cor) }}
-                          />
-                        )}
-
-                        {/* Custom Dropdown Suggestions */}
-                        {focusedVariantIndex === index && (
-                          <div className="absolute top-full left-0 w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl z-[100] max-h-60 overflow-y-auto no-scrollbar py-2">
-                            {COLOR_CATALOG.filter(c => 
-                              normalizeColorName(c).includes(normalizeColorName(v.cor || ''))
-                            ).map(color => (
-                              <button
-                                key={color}
-                                type="button"
-                                className="w-full px-3 py-2 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-left"
-                                onClick={() => {
-                                  const updated = [...variants];
-                                  updated[index].cor = color;
-                                  setVariants(updated);
-                                  setFocusedVariantIndex(null);
-                                }}
-                              >
-                                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{color}</span>
-                                <div 
-                                  className="w-4 h-4 rounded-full border border-zinc-200 dark:border-zinc-600 shrink-0"
-                                  style={{ background: getColorValue(color) }}
-                                />
-                              </button>
-                            ))}
-                            {COLOR_CATALOG.filter(c => 
-                              normalizeColorName(c).includes(normalizeColorName(v.cor || ''))
-                            ).length === 0 && (
-                              <div className="px-3 py-2 text-[10px] text-zinc-400 font-bold uppercase text-center">
-                                Cor personalizada
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Preço Custo */}
-                    <div className="lg:col-span-1">
-                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">Custo (R$)</label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        name="preco_custo"
-                        value={v.preco_custo}
-                        placeholder="0,00"
-                        onChange={(e) => handleVariantCurrencyChange(index, e)}
-                        className="w-full h-8 px-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-1 focus:ring-zinc-400 outline-none text-right"
-                      />
-                    </div>
-
-                    {/* Preço Venda */}
-                    <div className="lg:col-span-1">
-                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">Venda (R$)</label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        name="preco_venda"
-                        value={v.preco_venda}
-                        placeholder="0,00"
-                        onChange={(e) => handleVariantCurrencyChange(index, e)}
-                        className="w-full h-8 px-2 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-emerald-600 dark:text-emerald-400 focus:ring-1 focus:ring-zinc-400 outline-none font-bold text-right"
-                      />
-                    </div>
-
-                    {/* Estoque */}
-                    <div className="lg:col-span-2">
-                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">Estoque</label>
-                      <div className="flex items-center">
-                        {(parseInt(v.quantidade_estoque) || 0) > (v.original_estoque || 0) && (
-                          <button
-                            type="button"
-                            onClick={() => handleStockAction(index, -1)}
-                            className="flex-shrink-0 h-8 w-8 flex items-center justify-center bg-red-100 hover:bg-red-200 dark:bg-red-950/30 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-l-lg border border-red-200 dark:border-red-900/50 transition-all border-r-0"
-                          >
-                            <Minus size={14} strokeWidth={3} />
-                          </button>
-                        )}
-                        <input
-                          type="text"
-                          name="quantidade_estoque"
-                          value={v.quantidade_estoque}
-                          placeholder="0"
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/\D/g, '');
-                            handleVariantChange(index, { target: { name: 'quantidade_estoque', value: val } } as any);
-                          }}
-                          onBlur={(e) => {
-                            const val = e.target.value.replace(/\D/g, '');
-                            const numVal = parseInt(val) || 0;
-                            const original = v.original_estoque || 0;
-                            const correctedVal = Math.max(original, numVal);
-                            handleVariantChange(index, { target: { name: 'quantidade_estoque', value: correctedVal.toString() } } as any);
-                          }}
-                          className={`w-full h-8 px-1 text-center text-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-0 outline-none font-bold ${(parseInt(v.quantidade_estoque) || 0) <= (v.original_estoque || 0) ? 'rounded-l-lg' : ''} rounded-none`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleStockAction(index, 1)}
-                          className="flex-shrink-0 h-8 w-8 flex items-center justify-center bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/30 dark:hover:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-r-lg border border-emerald-200 dark:border-emerald-900/50 transition-all border-l-0"
-                        >
-                          <Plus size={14} strokeWidth={3} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* SKU */}
-                    <div className="lg:col-span-2">
-                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">SKU</label>
-                      <input
-                        type="text"
-                        name="sku"
-                        value={v.sku}
-                        placeholder="Referência"
-                        onChange={(e) => handleVariantChange(index, e)}
-                        className="w-full h-8 px-3 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-1 focus:ring-zinc-400 outline-none font-mono"
-                      />
-                    </div>
-
-                    {/* EAN */}
-                    <div className="lg:col-span-1">
-                      <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">EAN</label>
-                      <input
-                        type="text"
-                        name="ean"
-                        value={v.ean}
-                        placeholder="EAN"
-                        onChange={(e) => handleVariantChange(index, e)}
-                        className="w-full h-8 px-5 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-1 focus:ring-zinc-400 outline-none font-mono"
-                      />
-                    </div>
-
-                    {/* Botão Remover */}
-                    <div className="lg:col-span-1 flex items-center justify-center">
-                      {variants.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeVariant(index)}
-                          className="p-1.5 text-zinc-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-md transition-all flex items-center justify-center"
-                          title="Remover variação"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800 flex justify-end">
-              <Button onClick={handleSubmit} disabled={loading} className="px-10 h-11 text-sm font-bold shadow-lg shadow-emerald-500/20 active:scale-95 transition-transform flex items-center gap-3">
-                {loading ? <Loader2 className="animate-spin" size={20} /> : <><Check size={22} /> {id ? 'Cadastrar Variação' : 'Cadastrar Produto'}</>}
-              </Button>
             </div>
           </Card>
         </div>

@@ -12,7 +12,8 @@ const LS_KEYS = {
   SUPPLIERS: 'decoty_suppliers',
   STORE_CONFIG: 'decoty_store_config',
   USERS: 'decoty_users',
-  RECEIPTS: 'decoty_crediario_receipts'
+  RECEIPTS: 'decoty_crediario_receipts',
+  FAVORITES: 'decoty_favorites'
 };
 
 const getLocalData = <T>(key: string, defaultValue: T): T => {
@@ -536,7 +537,63 @@ export const backendService = {
     return false;
   },
 
-  createProduct: async (product: Omit<Product, 'id' | 'ui_id' | 'created_at'>, initialVariants: Omit<ProductVariant, 'id' | 'product_variant_id' | 'created_at'>[], userId: string): Promise<Product | null> => {
+  moveProductImage: async (imageId: string, currentUrl: string, newColor: string, productId: string): Promise<string | null> => {
+    if (isSupabaseConfigured()) {
+        const supabase = getSupabase();
+        
+        // 1. Extrair o path atual e o nome do arquivo
+        const urlParts = currentUrl.split('/product-images/');
+        if (urlParts.length <= 1) return null;
+        
+        const currentPath = urlParts[1];
+        const fileName = currentPath.split('/').pop();
+        if (!fileName) return null;
+
+        // 2. Definir o novo path (geral se newColor for vazio, senão pasta da cor)
+        const normalizePath = (str: string) => str.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-');
+        const newFolder = newColor ? normalizePath(newColor) : 'geral';
+        const newPath = `products/${productId}/${newFolder}/${fileName}`;
+
+        // Se o path for igual, não faz nada
+        if (currentPath === newPath) return currentUrl;
+
+        // 3. Mover no Storage
+        const { error: moveError } = await supabase.storage
+            .from('product-images')
+            .move(currentPath, newPath);
+
+        if (moveError) {
+            console.error("Erro ao mover imagem no storage:", moveError);
+            return null;
+        }
+
+        // 4. Gerar a nova URL pública
+        const { data: publicData } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(newPath);
+            
+        const newUrl = publicData.publicUrl;
+
+        // 5. Atualizar no banco de dados
+        const { error: dbError } = await supabase
+            .from('product_images')
+            .update({ 
+                url: newUrl,
+                cor: newColor || null
+            })
+            .eq('id', imageId);
+
+        if (dbError) {
+            console.error("Erro ao atualizar URL no banco:", dbError);
+            return null;
+        }
+
+        return newUrl;
+    }
+    return null;
+  },
+
+  createProduct: async (product: Omit<Product, 'id' | 'ui_id' | 'created_at'>, initialVariants: Omit<ProductVariant, 'id' | 'product_id' | 'created_at'>[], userId: string): Promise<Product | null> => {
     if (isSupabaseConfigured()) {
         const { data: parent, error: parentError } = await getSupabase()
             .from('products')
@@ -553,7 +610,7 @@ export const backendService = {
             const { original_estoque, ...cleanVariant } = v as any;
             return {
                 ...cleanVariant,
-                product_variant_id: parent.id,
+                product_id: parent.id,
                 ui_id: (parent.ui_id * 1000) + (index + 1)
             };
         });
@@ -613,7 +670,49 @@ export const backendService = {
             return false;
         }
 
-        // 3. Processar Variantes (Upsert)
+        // 4. Remover Variantes que não estão na nova lista
+        const newVariantIds = variants.map(v => v.id).filter(Boolean);
+        const variantsToDelete = (currentParent.variants || [])
+            .map((v: any) => v.id)
+            .filter((vid: string) => !newVariantIds.includes(vid));
+
+        if (variantsToDelete.length > 0) {
+            const { error: delError } = await getSupabase()
+                .from('product_variants')
+                .delete()
+                .in('id', variantsToDelete);
+            
+            if (delError) {
+                console.error("Erro ao deletar variantes removidas:", delError);
+                // Se houver erro (provavelmente por ter vendas vinculadas), lançamos um erro descritivo
+                if (delError.code === '23503') {
+                    throw new Error("Não é possível excluir uma variante que já possui histórico de vendas ou movimentação.");
+                }
+                return false;
+            }
+
+            // --- LÓGICA DE LIMPEZA DE IMAGENS POR COR ---
+            // Se variantes foram deletadas, precisamos verificar se alguma cor deixou de existir
+            const remainingColors = new Set(variants.map(v => v.cor).filter(Boolean));
+            
+            // Buscar todas as imagens do produto
+            const { data: currentImages } = await getSupabase()
+                .from('product_images')
+                .select('*')
+                .eq('product_id', product.id);
+
+            if (currentImages && currentImages.length > 0) {
+                for (const img of currentImages) {
+                    // Se a imagem tem cor e essa cor não está mais no set de cores remanescentes
+                    if (img.cor && !remainingColors.has(img.cor)) {
+                        console.log(`Limpando imagem da cor ${img.cor} pois a cor não existe mais nas variações.`);
+                        await backendService.deleteProductImage(img.id, img.url);
+                    }
+                }
+            }
+        }
+
+        // 5. Processar Variantes remanescentes (Upsert)
         let newlyCreatedCount = 0;
         const existingVariantUiIds = (currentParent.variants || []).map((v: any) => v.ui_id);
         const maxSubId = existingVariantUiIds.length > 0 
@@ -668,7 +767,7 @@ export const backendService = {
                 
                 const { data: newVar, error: varError } = await getSupabase()
                     .from('product_variants')
-                    .insert([{ ...cleanVariant, product_variant_id: id, ui_id: newUiId }])
+                    .insert([{ ...cleanVariant, product_id: id, ui_id: newUiId }])
                     .select()
                     .single();
                 
@@ -1311,6 +1410,52 @@ export const backendService = {
     return true;
   },
 
+  deleteProduct: async (productId: string): Promise<boolean> => {
+    if (isSupabaseConfigured()) {
+        const supabase = getSupabase();
+        
+        // 1. Remover variantes do produto
+        const { error: variantError } = await supabase
+            .from('product_variants')
+            .delete()
+            .eq('product_id', productId);
+            
+        if (variantError) {
+            console.error("Erro ao deletar variantes:", variantError);
+            return false;
+        }
+
+        // 2. Remover referências de imagens no banco
+        const { error: imageError } = await supabase
+            .from('product_images')
+            .delete()
+            .eq('product_id', productId);
+
+        if (imageError) {
+            console.error("Erro ao deletar referências de imagens:", imageError);
+            // Prosseguimos mesmo assim para tentar apagar o produto
+        }
+
+        // 3. Remover o produto pai
+        const { error: productError } = await supabase
+            .from('products')
+            .delete()
+            .eq('id', productId);
+
+        if (productError) {
+            console.error("Erro ao deletar produto:", productError);
+            return false;
+        }
+
+        return true;
+    }
+    
+    // Mock logic
+    const products = getLocalData<Product[]>(LS_KEYS.PRODUCTS, MOCK_PRODUCTS);
+    setLocalData(LS_KEYS.PRODUCTS, products.filter(p => p.id !== productId));
+    return true;
+  },
+
   // --- MÉTODOS DE PERFIL ---
   updateProfile: async (userId: string, updates: { name?: string, email?: string }): Promise<{ success: boolean, error?: string }> => {
     if (isSupabaseConfigured()) {
@@ -1351,5 +1496,128 @@ export const backendService = {
        return { success: true };
     }
     return { success: true };
+  },
+
+  // --- MÉTODOS DE FAVORITOS ---
+  getOrCreateClientForUser: async (userId: string, name: string, email: string): Promise<string | null> => {
+    if (!isSupabaseConfigured()) return null;
+    
+    // 1. Tentar encontrar cliente vinculado ao user_id
+    const { data: client } = await getSupabase()
+      .from('clients')
+      .select('id, origin')
+      .eq('user_id', userId)
+      .maybeSingle();
+      
+    if (client) return client.id;
+    
+    // 2. Se não existir, tenta encontrar por email (caso o vendedor tenha cadastrado o cliente antes)
+    const { data: clientByEmail } = await getSupabase()
+      .from('clients')
+      .select('id, user_id, origin')
+      .eq('email', email)
+      .maybeSingle();
+      
+    if (clientByEmail) {
+      // Se encontrou por email mas não tinha user_id, vincula agora.
+      // Como o cliente já existia (provavelmente cadastrado na loja) e agora está no site, origin vira 'store_and_site'.
+      const updateData: any = { user_id: userId };
+      
+      if (!clientByEmail.origin || clientByEmail.origin === 'store_only') {
+        updateData.origin = 'store_and_site';
+      }
+
+      await getSupabase().from('clients').update(updateData).eq('id', clientByEmail.id);
+      return clientByEmail.id;
+    }
+    
+    // 3. Se ainda não existir nada, cria um novo registro de cliente vindo diretamente do SITE
+    const { data: newClient, error } = await getSupabase()
+      .from('clients')
+      .insert([{
+        nome: name,
+        email: email,
+        user_id: userId,
+        receber_ofertas: true,
+        pode_provador: false,
+        origin: 'site_only' // Novo cadastro vindo do site
+      }])
+      .select()
+      .maybeSingle();
+      
+    if (error) {
+      console.error("Erro ao criar registro de cliente para o usuário:", error);
+      return null;
+    }
+    
+    return newClient?.id || null;
+  },
+
+  getFavorites: async (userId: string): Promise<string[]> => {
+    if (isSupabaseConfigured()) {
+      // Primeiro pegamos o client_id
+      const { data: client } = await getSupabase()
+        .from('clients')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+        
+      if (!client) return [];
+      
+      const { data, error } = await getSupabase()
+        .from('client_favorites')
+        .select('product_id')
+        .eq('client_id', client.id);
+        
+      if (error) {
+        console.error("Erro ao buscar favoritos:", error);
+        return [];
+      }
+      
+      return (data || []).map(f => f.product_id);
+    }
+    return getLocalData<string[]>(LS_KEYS.FAVORITES, []);
+  },
+
+  toggleFavorite: async (userId: string, productId: string, name: string = '', email: string = ''): Promise<boolean> => {
+    if (isSupabaseConfigured()) {
+      const clientId = await backendService.getOrCreateClientForUser(userId, name, email);
+      if (!clientId) return false;
+      
+      // Verifica se já é favorito
+      const { data: existing } = await getSupabase()
+        .from('client_favorites')
+        .select('id')
+        .eq('client_id', clientId)
+        .eq('product_id', productId)
+        .maybeSingle();
+        
+      if (existing) {
+        // Remover
+        const { error } = await getSupabase()
+          .from('client_favorites')
+          .delete()
+          .eq('id', existing.id);
+        return !error;
+      } else {
+        // Adicionar
+        const { error } = await getSupabase()
+          .from('client_favorites')
+          .insert([{ client_id: clientId, product_id: productId }]);
+        return !error;
+      }
+    }
+    
+    // Mock Environment
+    const favorites = getLocalData<string[]>(LS_KEYS.FAVORITES, []);
+    const index = favorites.indexOf(productId);
+    if (index !== -1) {
+      favorites.splice(index, 1);
+    } else {
+      favorites.push(productId);
+    }
+    setLocalData(LS_KEYS.FAVORITES, favorites);
+    window.dispatchEvent(new CustomEvent('favorites_updated'));
+    return true;
   }
 };

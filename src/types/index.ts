@@ -9,6 +9,7 @@ export interface Product {
   categoria: string;
   tipo_material: string;
   descricao: string;
+  show_on_site: boolean;
   slug: string;
   created_at: string;
   variants?: ProductVariant[];
@@ -29,7 +30,7 @@ export interface ProductImage {
 
 export interface ProductVariant {
   id: string; // UUID (Supabase)
-  product_variant_id: string; // Foreign Key pointing to Product.id
+  product_id: string; // Foreign Key pointing to Product.id
   ui_id: number; // ID Variante (ex: 105.1)
   sku: string;
   ean: string;
@@ -154,6 +155,8 @@ export interface Client {
   itens_pendentes_provador?: number; 
   endereco?: ClientAddress;
   data_cadastro: string;
+  user_id?: string;
+  origin?: 'store_only' | 'site_only' | 'store_and_site';
 }
 
 export interface Supplier {

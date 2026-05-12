@@ -19,6 +19,8 @@ interface DataContextType {
   paymentDiscounts: PaymentDiscounts | null;
   chartData: ChartDataPoint[];
   topBrand: string;
+  favoriteIds: string[];
+  toggleFavorite: (productId: string) => Promise<void>;
   isLoading: boolean;
   isRefreshing: boolean;
   refreshData: () => Promise<void>;
@@ -46,6 +48,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [paymentDiscounts, setPaymentDiscounts] = useState<PaymentDiscounts | null>(null);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [topBrand, setTopBrand] = useState<string>('-');
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -69,6 +72,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       session ? backendService.getSuppliers() : Promise.resolve([]),
       session ? backendService.getTopSellingBrand() : Promise.resolve('-'),
       session ? backendService.getUsers() : Promise.resolve([]),
+      session?.user ? backendService.getFavorites(session.user.id) : Promise.resolve([]),
       backendService.getPaymentFees(),
       backendService.getPaymentDiscounts()
     ]);
@@ -79,7 +83,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (results === null) return false;
 
     const [recentSales, dashboardChart, clientData, productData, stockData,
-           supplierData, brand, usersData, feesData, discountsData] =
+           supplierData, brand, usersData, favoritesData, feesData, discountsData] =
       results.map(r => r.status === 'fulfilled' ? r.value : null) as any;
 
     setSales(recentSales || []);
@@ -90,6 +94,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSuppliers(supplierData || []);
     setTopBrand(brand || '-');
     setUsers(usersData || []);
+    setFavoriteIds(favoritesData || []);
     setPaymentFees(feesData || null);
     setPaymentDiscounts(discountsData || null);
     setLastUpdated(new Date());
@@ -196,6 +201,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const toggleFavorite = useCallback(async (productId: string) => {
+    if (!session?.user) return;
+    
+    // Otimista
+    const isCurrentlyFavorite = favoriteIds.includes(productId);
+    setFavoriteIds(prev => 
+      isCurrentlyFavorite 
+        ? prev.filter(id => id !== productId) 
+        : [...prev, productId]
+    );
+
+    try {
+      const success = await backendService.toggleFavorite(
+        session.user.id, 
+        productId, 
+        session.user.user_metadata?.name || '', 
+        session.user.email || ''
+      );
+      
+      if (!success) {
+        // Reverte se falhou
+        setFavoriteIds(prev => 
+          isCurrentlyFavorite 
+            ? [...prev, productId]
+            : prev.filter(id => id !== productId)
+        );
+      }
+    } catch (error) {
+      console.error('[DataContext] Erro ao alternar favorito:', error);
+      // Reverte se falhou
+      setFavoriteIds(prev => 
+        isCurrentlyFavorite 
+          ? [...prev, productId]
+          : prev.filter(id => id !== productId)
+      );
+    }
+  }, [session, favoriteIds]);
+
   // Busca inicial e quando a sessão muda
   useEffect(() => {
     refreshData();
@@ -240,6 +283,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clients, products, sales, salesReport, receiptsReport,
       clientSales, clientStockHistory, stockEntries, suppliers,
       users, paymentFees, paymentDiscounts, chartData, topBrand,
+      favoriteIds, toggleFavorite,
       isLoading, isRefreshing,
       refreshData, fetchSalesReport, fetchManagementReport, fetchClientHistory,
       lastUpdated

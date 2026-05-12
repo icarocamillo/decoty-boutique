@@ -109,6 +109,9 @@ export const ProductListingPage: React.FC = () => {
   // Lógica de Filtragem e Ordenação
   const filteredProducts = useMemo(() => {
     let result = products.filter(p => {
+      // 0. Filtro fundamental: Mostrar no Site
+      if (!p.show_on_site) return false;
+
       // 0. Busca por Texto (Search)
       if (activeFilters.search) {
         const query = activeFilters.search.toLowerCase();

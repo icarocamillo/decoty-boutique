@@ -19,8 +19,7 @@ const HOME_PHRASES = [
   "Moda se faz com detalhes.",
   "A perfeição está no que ninguém vê.",
   "Modernidade com detalhes que encantam.",
-  "Onde o clássico encontra o moderno.",
-  "Menos tendência, mais exclusividade."
+  "Onde o clássico encontra o moderno."
 ];
 
 export const HomePage: React.FC = () => {
@@ -40,9 +39,8 @@ export const HomePage: React.FC = () => {
     return HOME_PHRASES[Math.floor(Math.random() * HOME_PHRASES.length)];
   }, []);
 
-  // Filtrar produtos que devem aparecer no site (se houver essa flag)
-  // Como não temos a flag explicitamente em todos, vamos mostrar os que tem variantes
-  const siteProducts = products.filter(p => p.variants && p.variants.length > 0);
+  // Filtrar produtos que devem aparecer no site (flag show_on_site)
+  const siteProducts = products.filter(p => p.show_on_site && p.variants && p.variants.length > 0);
 
   return (
     <div className="flex flex-col">

@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { ShoppingBag, Heart } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useData } from '@/contexts/DataContext';
 
 interface ProductCardProps {
   product: Product;
@@ -17,14 +18,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, preferredColo
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const { addToCart } = useCart();
   const { user } = useAuth();
+  const { favoriteIds, toggleFavorite: backendToggleFavorite } = useData();
   
   // Favoritos
-  const [isFavorite, setIsFavorite] = useState(() => {
-    const favorites = JSON.parse(localStorage.getItem('decoty_favorites') || '[]');
-    return favorites.includes(product.id);
-  });
+  const isFavorite = favoriteIds.includes(product.id);
 
-  const toggleFavorite = (e: React.MouseEvent) => {
+  const toggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -33,17 +32,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, preferredColo
       return;
     }
 
-    const favorites = JSON.parse(localStorage.getItem('decoty_favorites') || '[]');
-    let newFavorites;
-    if (isFavorite) {
-      newFavorites = favorites.filter((id: string) => id !== product.id);
-    } else {
-      newFavorites = [...favorites, product.id];
-    }
-    localStorage.setItem('decoty_favorites', JSON.stringify(newFavorites));
-    setIsFavorite(!isFavorite);
-    // Disparar evento para outros componentes (se necessário)
-    window.dispatchEvent(new Event('favorites_updated'));
+    await backendToggleFavorite(product.id);
   };
 
   // Encontrar o menor preço entre as variantes

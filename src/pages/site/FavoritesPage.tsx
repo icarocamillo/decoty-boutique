@@ -8,22 +8,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const FavoritesPage: React.FC = () => {
-  const { products } = useData();
+  const { products, favoriteIds } = useData();
   const { user } = useAuth();
   const navigate = useNavigate();
-
-  // Favoritos state
-  const [favoriteIds, setFavoriteIds] = React.useState<string[]>(() => 
-    JSON.parse(localStorage.getItem('decoty_favorites') || '[]')
-  );
-
-  React.useEffect(() => {
-    const handleUpdate = () => {
-      setFavoriteIds(JSON.parse(localStorage.getItem('decoty_favorites') || '[]'));
-    };
-    window.addEventListener('favorites_updated', handleUpdate);
-    return () => window.removeEventListener('favorites_updated', handleUpdate);
-  }, []);
 
   const favoriteProducts = products.filter(p => favoriteIds.includes(p.id));
 
