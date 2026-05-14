@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { ShoppingBag, ChevronLeft, ChevronRight, Star, ShieldCheck, Truck, RotateCcw, Ruler, Crown, Heart, MessageCircle, Phone, Plus } from 'lucide-react';
+import { ProductCard } from '@/components/site/ProductCard';
+import { ShoppingBag, ChevronLeft, ChevronRight, Star, ShieldCheck, Truck, RotateCcw, Ruler, Crown, Heart, MessageCircle, Phone, Plus, Sparkles } from 'lucide-react';
 import { SizeGuideModal } from '@/components/site/SizeGuideModal';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +24,17 @@ export const ProductDetailsPage: React.FC = () => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [productCombinations, setProductCombinations] = useState<any[]>([]);
   const [loadingCombinations, setLoadingCombinations] = useState(false);
+  const similarCarouselRef = useRef<HTMLDivElement>(null);
+
+  const scrollSimilar = (direction: 'left' | 'right') => {
+    if (similarCarouselRef.current) {
+      const scrollAmount = similarCarouselRef.current.clientWidth * 0.8;
+      similarCarouselRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   const product = useMemo(() => {
     if (!identifier) return null;
@@ -589,14 +601,17 @@ export const ProductDetailsPage: React.FC = () => {
 
       {/* Seção Complete o Look */}
       {productCombinations.length > 0 && (
-        <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-24 animate-fade-in border-t border-zinc-100 dark:border-zinc-800/50 mt-16">
-          <div className="flex flex-col items-center mb-16 text-center">
-            <Badge variant="outline" className="mb-4 border-zinc-200 dark:border-zinc-700 text-zinc-500 font-bold tracking-[0.2em] px-5 py-1.5 text-[10px] uppercase">LOOK COMPLETO</Badge>
+        <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in border-t border-zinc-100 dark:border-zinc-800/50 mt-2">
+          <div className="flex flex-col items-center mb-6 text-center">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles size={16} className="text-zinc-900 dark:text-zinc-100" />
+              <Badge variant="outline" className="border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-bold tracking-[0.2em] px-5 py-1.5 text-[10px] uppercase">LOOK COMPLETO</Badge>
+            </div>
             <h2 className="text-4xl md:text-5xl font-black text-zinc-900 dark:text-white mb-4 tracking-tighter">Gostou do Conjunto?</h2>
             <p className="text-zinc-500 dark:text-zinc-400 font-medium text-lg">Estas peças combinam perfeitamente com sua escolha atual.</p>
           </div>
 
-          <div className="space-y-32">
+          <div className="space-y-12">
             {productCombinations.map((combo) => {
               const combinedProduct = combo.product;
               const combinedColor = combo.cor;
@@ -632,7 +647,7 @@ export const ProductDetailsPage: React.FC = () => {
                     {/* Produto Atual */}
                     <div className="flex-1 max-w-sm space-y-6">
                       <div className="relative aspect-[3/4] rounded-[2.5rem] overflow-hidden bg-zinc-100 dark:bg-zinc-800 shadow-xl border border-zinc-100 dark:border-zinc-800 group cursor-default">
-                        <Badge className="absolute top-6 left-6 z-10 bg-emerald-500 text-white border-none px-3 py-1 text-[9px] font-black uppercase tracking-widest shadow-lg">
+                        <Badge className="absolute top-6 left-6 z-10 !bg-emerald-500 text-white border-none px-3 py-1 text-[9px] font-black uppercase tracking-widest shadow-lg">
                           VOCÊ ESTÁ VENDO
                         </Badge>
                         <img 
@@ -669,7 +684,7 @@ export const ProductDetailsPage: React.FC = () => {
                                 navigate(targetUrl);
                             }}
                          >
-                            VER ESSE LOOK
+                            VER ESTE LOOK
                          </Button>
                       </div>
                     </div>
@@ -684,7 +699,7 @@ export const ProductDetailsPage: React.FC = () => {
                           navigate(targetUrl);
                         }}
                       >
-                        <Badge className="absolute top-6 left-6 z-10 bg-emerald-500 text-white border-none px-3 py-1 text-[9px] font-black uppercase tracking-widest shadow-lg">
+                        <Badge className="absolute top-6 left-6 z-10 bg-zinc-900/90 backdrop-blur-md text-white border-none px-3 py-1 text-[9px] font-black uppercase tracking-widest shadow-lg">
                           SUGESTÃO DE LOOK
                         </Badge>
                         <img 
@@ -714,7 +729,7 @@ export const ProductDetailsPage: React.FC = () => {
                         <div className="flex items-center gap-2 w-full h-full">
                            <div className="flex-1 h-full relative overflow-hidden rounded-2xl shadow-sm border border-white/50 dark:border-zinc-700/50 grayscale-[0.3]">
                               <div className="absolute inset-0 bg-black/5 z-10" />
-                              <div className="absolute top-2 left-2 z-20 bg-emerald-500 px-1.5 py-0.5 rounded-lg shadow-sm">
+                              <div className="absolute top-2 left-2 z-20 !bg-emerald-500 px-1.5 py-0.5 rounded-lg shadow-sm">
                                  <p className="text-[7px] font-black text-white uppercase">VOCÊ ESTÁ VENDO</p>
                               </div>
                               <img src={currentImg} alt="Peça atual" className="w-full h-full object-cover" />
@@ -729,7 +744,7 @@ export const ProductDetailsPage: React.FC = () => {
                                 navigate(targetUrl);
                              }}
                            >
-                              <div className="absolute top-2 left-2 z-20 bg-emerald-500 px-1.5 py-0.5 rounded-lg shadow-sm">
+                              <div className="absolute top-2 left-2 z-20 bg-zinc-900/90 backdrop-blur-sm px-1.5 py-0.5 rounded-lg shadow-sm">
                                  <p className="text-[7px] font-black text-white uppercase">SUGESTÃO DE LOOK</p>
                               </div>
                               <img src={mainImg} alt={combinedProduct.nome} className="w-full h-full object-cover" />
@@ -764,6 +779,64 @@ export const ProductDetailsPage: React.FC = () => {
           </div>
         </section>
       )}
+
+      {/* Seção Produtos Similares */}
+      {(() => {
+        const similarProducts = products
+          .filter(p => p.categoria === product.categoria && p.id !== product.id && p.show_on_site)
+          .slice(0, 12);
+
+        if (similarProducts.length === 0) return null;
+
+        return (
+          <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 border-t border-zinc-100 dark:border-zinc-800/50 mt-2">
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-6">
+              <div className="flex flex-col items-start text-left">
+                <div className="flex items-center gap-2 mb-4">
+                  <Sparkles size={16} className="text-zinc-900 dark:text-zinc-100" />
+                  <Badge variant="outline" className="border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-bold tracking-[0.2em] px-5 py-1.5 text-[10px] uppercase">VOCÊ TAMBÉM PODE GOSTAR</Badge>
+                </div>
+                <h2 className="text-4xl md:text-5xl font-black text-zinc-900 dark:text-white mb-2 tracking-tighter">Produtos Similares</h2>
+                <p className="text-zinc-500 dark:text-zinc-400 font-medium text-lg">Outras peças da categoria {product.categoria} selecionadas para você.</p>
+              </div>
+            </div>
+
+            <div className="relative group px-1">
+              {/* Botões de Navegação - Sempre visíveis e centrados nas fotos */}
+              <button 
+                onClick={() => scrollSimilar('left')}
+                className="absolute left-2 md:left-4 top-[35%] -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 flex items-center justify-center hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-all active:scale-90 shadow-xl"
+                aria-label="Anterior"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              
+              <button 
+                onClick={() => scrollSimilar('right')}
+                className="absolute right-2 md:right-4 top-[35%] -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 flex items-center justify-center hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-all active:scale-90 shadow-xl"
+                aria-label="Próximo"
+              >
+                <ChevronRight size={24} />
+              </button>
+
+              <div 
+                ref={similarCarouselRef}
+                className="flex gap-4 md:gap-6 overflow-x-auto pb-4 snap-x no-scrollbar scroll-smooth"
+              >
+                {similarProducts.map((p) => (
+                  <div key={p.id} className="min-w-[200px] md:min-w-[240px] lg:min-w-[260px] snap-start">
+                    <ProductCard product={p} />
+                  </div>
+                ))}
+              </div>
+              
+              {/* Sombras de indicação de scroll - Suaves */}
+              <div className="absolute top-0 right-0 bottom-4 w-12 bg-gradient-to-l from-white dark:from-zinc-950 to-transparent pointer-events-none" />
+              <div className="absolute top-0 left-0 bottom-4 w-12 bg-gradient-to-r from-white dark:from-zinc-950 to-transparent pointer-events-none" />
+            </div>
+          </section>
+        );
+      })()}
 
       <SizeGuideModal isOpen={isSizeGuideOpen} onClose={() => setIsSizeGuideOpen(false)} />
     </div>
