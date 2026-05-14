@@ -92,7 +92,7 @@ export const HomePage: React.FC = () => {
         <AnimatePresence>
           {scrollY === 0 && (
             <div className="absolute top-4 inset-x-0 flex justify-center pointer-events-none z-20">
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 40, scale: 0.8 }}
@@ -175,7 +175,7 @@ export const HomePage: React.FC = () => {
               />
               <div className="absolute inset-0 bg-black/10 flex items-center justify-center transition-all duration-500 group-hover:bg-black/30">
                 <div className="px-6 py-3 rounded-full border border-white/30 backdrop-blur-md bg-white/5 transition-all duration-500 group-hover:border-white/60 group-hover:bg-white/10 group-hover:scale-105">
-                  <h3 className="text-white text-lg font-serif uppercase tracking-[0.2em] text-center">Acessórios Exclusivos</h3>
+                  <h3 className="text-white text-lg font-serif uppercase tracking-[0.2em] text-center">Acessórios Modernos</h3>
                 </div>
               </div>
             </Link>
