@@ -2,19 +2,25 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, Phone, AlertCircle, X, CreditCard, Banknote, Smartphone, Tag } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, Phone, AlertCircle, X, CreditCard, Banknote, Smartphone, Tag, CheckCircle2, Loader2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
 import { useData } from '@/contexts/DataContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { backendService } from '@/services/backendService';
 
 type PaymentMethod = 'pix' | 'credito' | 'debito';
 
 export const CheckoutPage: React.FC = () => {
-  const { cart, removeFromCart, updateQuantity, cartTotal } = useCart();
+  const { cart, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
   const { paymentDiscounts } = useData();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [stockError, setStockError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
   const [installments, setInstallments] = useState(1);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -33,7 +39,44 @@ export const CheckoutPage: React.FC = () => {
 
   const finalTotal = cartTotal - discountInfo.value;
 
-  const handleCheckoutWhatsApp = () => {
+  const handleCheckoutWhatsApp = async () => {
+    if (cart.length === 0) return;
+
+    setIsProcessing(true);
+
+    try {
+      // 1. Criar registro na tabela order_reservations se o usuário estiver logado
+      if (user) {
+        const reservationData = {
+          user_id: user.id,
+          items: cart.map(item => ({
+            id: item.produto_id,
+            nome: item.nome,
+            quantidade: item.quantidade,
+            preco_unitario: item.preco_unitario,
+            subtotal: item.subtotal
+          })),
+          payment_method: paymentMethod,
+          total: finalTotal,
+          status: 'whatsapp_contact' as const
+        };
+
+        await backendService.createOrderReservation(reservationData);
+      }
+
+      // 2. Mostrar modal de sucesso informativo
+      setShowSuccessModal(true);
+
+    } catch (err) {
+      console.error("Erro ao registrar reserva:", err);
+      // Mesmo com erro no banco, permitimos seguir para o WhatsApp para não perder a venda
+      proceedToWhatsApp();
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const proceedToWhatsApp = () => {
     const phone = "5519997526144";
     const businessName = "Decoty Boutique";
 
@@ -57,10 +100,16 @@ export const CheckoutPage: React.FC = () => {
     if (paymentMethod === 'credito' && installments > 1) {
       message += `*Parcelamento:* ${installments}x de ${formatCurrency(finalTotal / installments)}\n`;
     }
-    message += `*Total Final: ${formatCurrency(finalTotal)}*`;
+    message += `*Total Final: ${formatCurrency(finalTotal)}*\n\n`;
+    message += `Aguardo seu retorno para finalizar o atendimento!`;
 
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+    
+    // Limpar carrinho e fechar modal
+    clearCart();
+    setShowSuccessModal(false);
+    navigate('/minha-conta');
   };
 
   const handleUpdateQuantity = (variantId: string, newQty: number, item: any) => {
@@ -300,11 +349,16 @@ export const CheckoutPage: React.FC = () => {
                         </div>
 
                         <Button
-                          className="w-full h-16 rounded-[1.25rem] bg-zinc-800 hover:bg-emerald-600 text-white font-black uppercase tracking-[0.2em] text-[11px] transition-all relative z-10 flex items-center justify-center gap-3 shadow-xl active:scale-[0.98] border-none"
+                          disabled={isProcessing}
+                          className="w-full h-16 rounded-[1.25rem] bg-emerald-600 hover:bg-emerald-700 hover:shadow-emerald-500/20 hover:-translate-y-0.5 text-white font-black uppercase tracking-[0.2em] text-[11px] transition-all relative z-10 flex items-center justify-center gap-3 shadow-xl active:scale-[0.98] border-none disabled:opacity-50"
                           onClick={handleCheckoutWhatsApp}
                         >
-                          <Phone size={18} fill="currentColor" />
-                          Comprar pelo WhatsApp
+                          {isProcessing ? (
+                            <Loader2 size={18} className="animate-spin" />
+                          ) : (
+                            <Phone size={18} fill="currentColor" />
+                          )}
+                          {isProcessing ? 'Processando...' : 'Comprar pelo WhatsApp'}
                         </Button>
 
                         <p className="mt-6 text-[10px] text-zinc-400 text-center leading-relaxed font-medium uppercase tracking-widest px-4">
@@ -324,6 +378,43 @@ export const CheckoutPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Success Modal */}
+      <AnimatePresence>
+        {showSuccessModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-zinc-950/60 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden p-8 sm:p-10"
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-6">
+                  <CheckCircle2 size={40} strokeWidth={1.5} />
+                </div>
+                <h3 className="text-3xl font-serif font-black text-zinc-900 mb-4">Reserva Solicitada!</h3>
+                <p className="text-zinc-500 leading-relaxed mb-8">
+                  Sua solicitação de reserva foi criada com sucesso em nosso sistema. Agora, finalize seu atendimento no WhatsApp da Decoty.
+                </p>
+                <Button
+                  onClick={proceedToWhatsApp}
+                  className="w-full h-16 rounded-2xl bg-zinc-900 hover:bg-black text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2"
+                >
+                  <Phone size={18} />
+                  Continuar para WhatsApp
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Stock Error Modal */}
       <AnimatePresence>

@@ -1,4 +1,4 @@
-import { Client, Product, ProductVariant, Sale, SaleItem, StockEntry, Supplier, PaymentDiscounts, PaymentFees, CartItem, UserProfile, CrediarioPayment, ProductImage } from '@/types';
+import { Client, Product, ProductVariant, Sale, SaleItem, StockEntry, Supplier, PaymentDiscounts, PaymentFees, CartItem, UserProfile, CrediarioPayment, ProductImage, OrderReservation } from '@/types';
 import { getSupabase, isSupabaseConfigured } from '@/services/supabaseClient';
 import { MOCK_CLIENTS, MOCK_PRODUCTS, MOCK_INITIAL_SALES, MOCK_STOCK_ENTRIES, MOCK_SUPPLIERS } from '@/constants';
 
@@ -28,7 +28,7 @@ const setLocalData = (key: string, data: any) => {
 // Helper interno para arredondamento monetário preciso
 const roundMoney = (val: number) => Math.round((val + Number.EPSILON) * 100) / 100;
 
-const normalizeClientData = (data: any): Client => {
+export const normalizeClientData = (data: any): Client => {
   if (!data) return data;
   const hasAddressData = data.logradouro || data.cidade || data.uf || data.estado || data.cep;
   const saldoVale = Number(data.saldo_vale_presente || 0);
@@ -1634,6 +1634,107 @@ export const backendService = {
     return []; // Implementação simplificada ou removida pois migramos para cor
   },
 
+  checkClientByEmail: async (email: string): Promise<{ exists: boolean, needsLink: boolean, name?: string, client?: any }> => {
+    if (!isSupabaseConfigured()) return { exists: false, needsLink: false };
+    
+    const { data: client } = await getSupabase()
+      .from('clients')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
+      
+    if (!client) return { exists: false, needsLink: false };
+    
+    return { 
+      exists: true, 
+      needsLink: client.user_id === null,
+      name: client.nome,
+      client: client
+    };
+  },
+
+  linkClientWithCpf: async (email: string, cpf: string, userId: string): Promise<{ success: boolean; error?: string }> => {
+    if (!isSupabaseConfigured()) return { success: false };
+    
+    const cleanCpf = cpf.replace(/\D/g, '');
+    
+    const { data: client } = await getSupabase()
+      .from('clients')
+      .select('id, cpf')
+      .eq('email', email)
+      .maybeSingle();
+      
+    if (!client) return { success: false, error: 'Cliente não encontrado.' };
+    
+    const storedCpf = (client.cpf || '').replace(/\D/g, '');
+    
+    if (storedCpf !== cleanCpf) {
+      return { success: false, error: 'CPF incorreto para vincular sua conta.' };
+    }
+    
+    const { error } = await getSupabase()
+      .from('clients')
+      .update({ 
+        user_id: userId,
+        origin: 'store_and_site'
+      })
+      .eq('id', client.id);
+      
+    return { success: !error, error: error?.message };
+  },
+
+  getClientByUserId: async (userId: string): Promise<Client | null> => {
+    if (!isSupabaseConfigured()) return null;
+    const { data, error } = await getSupabase()
+      .from('clients')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    if (error || !data) return null;
+    return normalizeClientData(data);
+  },
+
+  updateClientProfile: async (userId: string, profileData: Partial<Client>): Promise<boolean> => {
+    if (!isSupabaseConfigured()) return false;
+    
+    // Removendo campos que não devem ser alterados pelo cliente no site
+    const { id, user_id, cpf, email, ...allowedData } = profileData as any;
+    
+    const { error } = await getSupabase()
+      .from('clients')
+      .update(allowedData)
+      .eq('user_id', userId);
+      
+    if (error) console.error("Erro ao atualizar perfil do cliente:", error);
+    return !error;
+  },
+
+  getOrderReservationsByUserId: async (userId: string): Promise<OrderReservation[]> => {
+    if (!isSupabaseConfigured()) return [];
+    const { data, error } = await getSupabase()
+      .from('order_reservations')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error("Erro ao buscar solicitações de reserva:", error);
+      return [];
+    }
+    return data || [];
+  },
+
+  createOrderReservation: async (reservation: Omit<OrderReservation, "id" | "created_at" | "ui_id">): Promise<boolean> => {
+    if (!isSupabaseConfigured()) return false;
+    const { error } = await getSupabase()
+      .from('order_reservations')
+      .insert([reservation]);
+      
+    if (error) console.error("Erro ao registrar solicitação de reserva:", error);
+    return !error;
+  },
+
   getOrCreateClientForUser: async (userId: string, name: string, email: string): Promise<string | null> => {
     if (!isSupabaseConfigured()) return null;
     
@@ -1670,6 +1771,7 @@ export const backendService = {
     const { data: newClient, error } = await getSupabase()
       .from('clients')
       .insert([{
+        id: userId, // CRÍTICO: Usar o mesmo ID do Auth
         nome: name,
         email: email,
         user_id: userId,

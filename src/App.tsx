@@ -39,6 +39,8 @@ import { FavoritesPage } from '@/pages/site/FavoritesPage';
 import { CheckoutPage } from '@/pages/site/CheckoutPage';
 import { CustomerLoginPage } from '@/pages/site/CustomerLoginPage';
 
+import { CustomerSettingsPage } from '@/pages/site/CustomerSettingsPage';
+
 // Contexts & Shared
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { DataProvider } from '@/contexts/DataContext';
@@ -70,6 +72,7 @@ const App = () => {
               <Route path="/finalizar-pedido" element={<SiteLayout><CheckoutPage /></SiteLayout>} />
               <Route path="/minha-conta" element={<SiteLayout><CustomerProfilePage /></SiteLayout>} />
               <Route path="/minha-conta/favoritos" element={<SiteLayout><FavoritesPage /></SiteLayout>} />
+              <Route path="/minha-conta/meus_dados" element={<SiteLayout><CustomerSettingsPage /></SiteLayout>} />
               <Route path="/entrar" element={<CustomerLoginPage />} />
 
               {/* ─── AUTH ROUTES (ERP) ─────────────────────────────────── */}

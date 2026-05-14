@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, UserPlus, User, Mail, Phone, Loader2, MapPin, Smartphone, Megaphone, Check, CreditCard, Shirt, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { backendService } from '@/services/backendService';
+import { backendService, normalizeClientData } from '@/services/backendService';
 import { Client } from '@/types';
 import { useData } from '@/contexts/DataContext';
 
@@ -15,6 +15,8 @@ interface ClientFormModalProps {
 
 export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClose, onSuccess, clientToEdit }) => {
   const [loading, setLoading] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [foundClientId, setFoundClientId] = useState<string | null>(null);
   const { clients: allClients } = useData();
   
   // State for Form Data
@@ -36,9 +38,71 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
     estado: ''
   });
 
+  const handleEmailBlur = async () => {
+    if (!formData.email || clientToEdit) return;
+
+    setIsCheckingEmail(true);
+    try {
+      // 1. Verificar se já está na lista local (Contexto)
+      const localMatch = allClients.find(c => c.email?.toLowerCase() === formData.email.toLowerCase());
+      if (localMatch) {
+         setFoundClientId(localMatch.id);
+         setFormData(prev => ({
+           ...prev,
+           nome: localMatch.nome,
+           cpf: localMatch.cpf || prev.cpf,
+           celular: localMatch.celular || prev.celular,
+           telefone_fixo: localMatch.telefone_fixo || prev.telefone_fixo,
+           is_whatsapp: localMatch.is_whatsapp || prev.is_whatsapp,
+           receber_ofertas: localMatch.receber_ofertas || prev.receber_ofertas,
+           pode_provador: localMatch.pode_provador || prev.pode_provador,
+           cep: localMatch.endereco?.cep || prev.cep,
+           logradouro: localMatch.endereco?.logradouro || prev.logradouro,
+           numero: localMatch.endereco?.numero || prev.numero,
+           complemento: localMatch.endereco?.complemento || prev.complemento,
+           bairro: localMatch.endereco?.bairro || prev.bairro,
+           cidade: localMatch.endereco?.cidade || prev.cidade,
+           estado: localMatch.endereco?.estado || prev.estado
+         }));
+         setIsCheckingEmail(false);
+         return;
+       }
+
+      // 2. Se não estiver no contexto, buscar no banco (pode ser un cliente que acabou de se cadastrar no site)
+      const { exists, name, client } = await backendService.checkClientByEmail(formData.email);
+      
+      if (exists && client) {
+        setFoundClientId(client.id);
+        const normalized = normalizeClientData(client);
+        setFormData(prev => ({
+          ...prev,
+          nome: client.nome || prev.nome,
+          cpf: client.cpf || prev.cpf,
+          celular: client.celular || prev.celular,
+          telefone_fixo: client.telefone_fixo || prev.telefone_fixo,
+          is_whatsapp: client.is_whatsapp || prev.is_whatsapp,
+          receber_ofertas: client.receber_ofertas || prev.receber_ofertas,
+          pode_provador: client.pode_provador || prev.pode_provador,
+          cep: client.cep || prev.cep,
+          logradouro: client.logradouro || prev.logradouro,
+          numero: client.numero || prev.numero,
+          complemento: client.complemento || prev.complemento,
+          bairro: client.bairro || prev.bairro,
+          cidade: client.cidade || prev.cidade,
+          estado: client.estado || client.uf || prev.estado
+        }));
+      }
+    } catch (err) {
+      console.error("Erro ao verificar email:", err);
+    } finally {
+      setIsCheckingEmail(false);
+    }
+  };
+
   // Reset Form Data when modal opens
   useEffect(() => {
     if (isOpen) {
+      setFoundClientId(null);
       if (clientToEdit) {
         setFormData({
           nome: clientToEdit.nome,
@@ -75,9 +139,10 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
       const existingCpf = (c.cpf || '').replace(/\D/g, '');
       // Se estiver editando, não considerar o próprio cliente como duplicata
       if (clientToEdit && c.id === clientToEdit.id) return false;
+      if (foundClientId && c.id === foundClientId) return false;
       return existingCpf === cleanCpf;
     });
-  }, [formData.cpf, allClients, clientToEdit]);
+  }, [formData.cpf, allClients, clientToEdit, foundClientId]);
 
   const canReceiveOffers = !!formData.email || (!!formData.celular && formData.is_whatsapp);
 
@@ -140,8 +205,8 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isCpfDuplicate) return;
-    if (!formData.nome || (!formData.celular && !formData.telefone_fixo)) {
-       alert("Por favor, preencha o nome e ao menos um telefone de contato.");
+    if (!formData.nome || !formData.cpf || (!formData.celular && !formData.telefone_fixo)) {
+       alert("Por favor, preencha o nome, CPF e ao menos um telefone de contato.");
        return;
     }
 
@@ -170,11 +235,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
 
     try {
       let success = false;
-      if (clientToEdit) {
+      const targetId = clientToEdit?.id || foundClientId;
+
+      if (targetId) {
         success = await backendService.updateClient({
           ...payload,
-          id: clientToEdit.id,
-          data_cadastro: clientToEdit.data_cadastro
+          id: targetId,
+          data_cadastro: clientToEdit?.data_cadastro || new Date().toISOString()
         });
       } else {
         success = await backendService.createClient(payload);
@@ -234,12 +301,13 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
-                     <CreditCard size={16} className="text-zinc-400" /> CPF
+                     <CreditCard size={16} className="text-zinc-400" /> CPF <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <input
                       type="text"
                       name="cpf"
+                      required
                       value={formData.cpf}
                       onChange={handleCpfChange}
                       placeholder="000.000.000-00"
@@ -262,13 +330,14 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
-                      <Mail size={16} className="text-zinc-400" /> Email
+                      <Mail size={16} className="text-zinc-400" /> Email {isCheckingEmail && <Loader2 size={14} className="animate-spin text-zinc-400" />}
                     </label>
                     <input
                       type="email"
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
+                      onBlur={handleEmailBlur}
                       placeholder="Ex: maria@email.com"
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none"
                     />

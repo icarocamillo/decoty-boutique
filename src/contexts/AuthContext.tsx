@@ -5,14 +5,15 @@ import { Session, User } from '@supabase/supabase-js';
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, name: string, role: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any; role?: 'manager' | 'salesperson' | 'customer' | null }>;
+  signUp: (email: string, password: string, name: string, role: string) => Promise<{ error: any; promoted?: boolean }>;
   signOut: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<{ error: any }>;
   updatePassword: (newPassword: string) => Promise<{ error: any }>;
   loading: boolean;
-  userRole: 'manager' | 'salesperson' | null;
+  userRole: 'manager' | 'salesperson' | 'customer' | null;
   userName: string | null;
+  userEmail: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,8 +25,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<'manager' | 'salesperson' | null>(null);
+  const [userRole, setUserRole] = useState<'manager' | 'salesperson' | 'customer' | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   // Inicializa usuários mock apenas para ambiente de teste
   useEffect(() => {
@@ -62,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setSession(currentSession);
               setUser(currentSession.user);
               setUserName(profile.name);
-              setUserRole(profile.role as 'manager' | 'salesperson');
+              setUserRole(profile.role as 'manager' | 'salesperson' | 'customer');
            }
         }
         
@@ -95,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setSession(session);
                 setUser(session.user);
                 setUserName(profile.name);
-                setUserRole(profile.role as 'manager' | 'salesperson');
+                setUserRole(profile.role as 'manager' | 'salesperson' | 'customer');
              }
           } else {
              setSession(null);
@@ -161,7 +163,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
          setSession(data.session);
          setUser(data.user);
          setUserName(profile.name);
-         setUserRole(profile.role as 'manager' | 'salesperson');
+         setUserRole(profile.role as 'manager' | 'salesperson' | 'customer');
+         return { error: null, role: profile.role as any };
       }
 
       return { error: null };
@@ -182,25 +185,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(mockSession);
       setUser(mockUser);
       setUserName(foundUser.name);
+      setUserEmail(foundUser.email);
       setUserRole(foundUser.role);
       localStorage.setItem(LOCAL_STORAGE_SESSION_KEY, JSON.stringify(mockSession));
-      return { error: null };
+      return { error: null, role: foundUser.role };
     }
   };
 
   const signUp = async (email: string, password: string, name: string, role: string) => {
     if (isSupabaseConfigured()) {
-      const { error } = await getSupabase().auth.signUp({
+      // 1. Primeiro, tenta o cadastro normal
+      const { data, error } = await getSupabase().auth.signUp({
         email,
         password,
         options: {
           data: { name, role, active: true }
         }
       });
+
+      // 2. Se o erro for de usuário já cadastrado, verificamos se ele é um cliente do site
+      if (error && (error.message.includes('already registered') || error.status === 422)) {
+         // Tenta logar para comprovar propriedade da conta e obter permissão de alteração (via RLS)
+         const { data: signInData, error: signInError } = await getSupabase().auth.signInWithPassword({ email, password });
+         
+         if (signInError) {
+            return { error: { message: 'Este e-mail já está cadastrado. Se você é um cliente do site e deseja acessar o ERP, digite sua senha atual para autorizar o vínculo.' } };
+         }
+         
+         if (signInData.user) {
+            // Busca o perfil agora que estamos logados
+            const { data: profile } = await getSupabase()
+              .from('profiles')
+              .select('id, role')
+              .eq('id', signInData.user.id)
+              .maybeSingle();
+
+            if (profile && profile.role === 'customer') {
+               // Promove o cliente para a role de staff selecionada
+               const { error: updateError } = await getSupabase()
+                 .from('profiles')
+                 .update({ 
+                   role: role, 
+                   name: name,
+                   active: true 
+                 })
+                 .eq('id', profile.id);
+
+               // Desloga para manter o fluxo original de redirecionamento para tela de login
+               await getSupabase().auth.signOut();
+
+               if (updateError) return { error: updateError };
+               return { error: null, promoted: true };
+            } else {
+               // Se já for staff, desloga e avisa
+               await getSupabase().auth.signOut();
+               return { error: { message: 'Este e-mail já está vinculado a uma conta de colaborador ou gerente.' } };
+            }
+         }
+      }
+
       return { error };
     } else {
       const users = JSON.parse(localStorage.getItem(LOCAL_STORAGE_USERS_KEY) || '[]');
-      if (users.find((u: any) => u.email.toLowerCase() === email.toLowerCase())) return { error: { message: 'E-mail já cadastrado.' } };
+      const existingUser = users.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
+      
+      if (existingUser) {
+        if (existingUser.role === 'customer') {
+          existingUser.role = role;
+          existingUser.name = name;
+          localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(users));
+          return { error: null, promoted: true };
+        }
+        return { error: { message: 'E-mail atendido por outro colaborador.' } };
+      }
+      
       users.push({ id: 'u' + Date.now(), email, password, name, role, active: true });
       localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(users));
       return { error: null };
@@ -240,11 +298,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSession(null);
     setUser(null);
     setUserName(null);
+    setUserEmail(null);
     setUserRole(null);
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, signIn, signUp, signOut, sendPasswordResetEmail, updatePassword, loading, userRole, userName }}>
+    <AuthContext.Provider value={{ session, user, signIn, signUp, signOut, sendPasswordResetEmail, updatePassword, loading, userRole, userName, userEmail }}>
       {children}
     </AuthContext.Provider>
   );

@@ -37,7 +37,7 @@ export const ClientList: React.FC = () => {
   }, [searchTerm, filterDebt, filterBalance, filterProvador, filterWhatsApp, filterOffers, itemsPerPage]);
 
   const handleHistorySelect = (clientId: string | number) => {
-    navigate(`/clients/${clientId}/history`);
+    navigate(`/erp/clients/${clientId}/history`);
   };
 
   const filteredClients = useMemo(() => {

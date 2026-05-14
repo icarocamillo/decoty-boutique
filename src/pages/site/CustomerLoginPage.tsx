@@ -3,9 +3,11 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
-import { Mail, Lock, User, Loader2, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, User, Loader2, AlertCircle, ArrowRight, CheckCircle2, CreditCard } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BrandLogo } from '@/components/shared/BrandLogo';
+import { backendService } from '@/services/backendService';
+import { getSupabase } from '@/services/supabaseClient';
 
 type AuthMode = 'login' | 'register';
 
@@ -17,9 +19,25 @@ export const CustomerLoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [needsCpfVerification, setNeedsCpfVerification] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 11) value = value.slice(0, 11);
+    
+    if (value.length > 9) {
+      value = `${value.slice(0, 3)}.${value.slice(3, 6)}.${value.slice(6, 9)}-${value.slice(9)}`;
+    } else if (value.length > 6) {
+      value = `${value.slice(0, 3)}.${value.slice(3, 6)}.${value.slice(6)}`;
+    } else if (value.length > 3) {
+      value = `${value.slice(0, 3)}.${value.slice(3)}`;
+    }
+    setCpf(value);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,15 +54,58 @@ export const CustomerLoginPage: React.FC = () => {
         navigate('/');
       }
     } else {
-      // For customers, we use 'customer' as a role
+      // REGISTRATION MODE
+      
+      // 1. Se ainda não verificamos o email, verificamos agora
+      if (!needsCpfVerification) {
+        try {
+          const { needsLink, name: storeName } = await backendService.checkClientByEmail(email);
+          if (needsLink) {
+            setNeedsCpfVerification(true);
+            if (storeName && !name) setName(storeName);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.error("Erro ao verificar email na base de dados:", err);
+        }
+      }
+
+      // 2. Cria a conta no Auth do Supabase
       const { error: signUpError } = await signUp(email, password, name, 'customer');
+      
       if (signUpError) {
         setError(signUpError.message || 'Erro ao criar conta. Tente novamente.');
         setLoading(false);
       } else {
+        // 3. Se precisava de vínculo, faz o vínculo agora que temos o user_id (via login efetuado internamente ou pronto para login)
+        // Como o signUp desloga o "promoted" (nosso caso de ERP), mas para cliente normal ele pode manter logado.
+        // Vamos tentar o vínculo usando o email e cpf.
+        
+        // Precisamos do user_id. Como o signUp retorna uma sessão as vezes, vamos pegar do auth.
+        // Se for promovido, ele desloga. Se for novo ele pode precisar logar.
+        
+        // No contexto atual, signUp para 'customer' cria o registro. 
+        // Vamos tentar obter a sessão atual.
+        const { data: { session } } = await getSupabase().auth.getSession();
+        
+        if (session?.user) {
+          if (needsCpfVerification) {
+            const { success: linkSuccess, error: linkError } = await backendService.linkClientWithCpf(email, cpf, session.user.id);
+            if (!linkSuccess) {
+              setError(linkError || 'Sua conta foi criada, mas não conseguimos vincular ao seu cadastro da loja. Por favor, verifique seu CPF no perfil depois.');
+            }
+          } else {
+            // Se for um novo cliente direto do site, cria o registro na tabela clients
+            await backendService.getOrCreateClientForUser(session.user.id, name, email);
+          }
+        }
+
         setSuccess('Conta criada com sucesso! Você já pode entrar.');
         setMode('login');
         setLoading(false);
+        setNeedsCpfVerification(false);
+        setCpf('');
       }
     }
   };
@@ -143,23 +204,45 @@ export const CustomerLoginPage: React.FC = () => {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {mode === 'register' && (
-                  <div className="space-y-1.5 focus-within:text-zinc-950 text-zinc-400 group">
-                    <label className="text-xs font-black uppercase tracking-widest ml-1 transition-colors group-focus-within:text-zinc-900">Nome Completo</label>
-                    <div className="relative">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2" size={18} />
-                      <input 
-                        type="text" 
-                        required
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full pl-12 pr-4 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl text-zinc-900 focus:bg-white focus:border-zinc-950 outline-none transition-all placeholder:text-zinc-300"
-                        placeholder="Como gostaria de ser chamada?"
-                      />
-                    </div>
-                  </div>
-                )}
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    {mode === 'register' && (
+                      <div className="space-y-1.5 focus-within:text-zinc-950 text-zinc-400 group">
+                        <label className="text-xs font-black uppercase tracking-widest ml-1 transition-colors group-focus-within:text-zinc-900">Nome Completo</label>
+                        <div className="relative">
+                          <User className="absolute left-4 top-1/2 -translate-y-1/2" size={18} />
+                          <input 
+                            type="text" 
+                            required
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="w-full pl-12 pr-4 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl text-zinc-900 focus:bg-white focus:border-zinc-950 outline-none transition-all placeholder:text-zinc-300"
+                            placeholder="Como gostaria de ser chamada?"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {mode === 'register' && needsCpfVerification && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -10 }} 
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-1.5 focus-within:text-zinc-950 text-zinc-400 group"
+                      >
+                        <label className="text-xs font-black uppercase tracking-widest ml-1 transition-colors group-focus-within:text-zinc-900">Confirmação de CPF</label>
+                        <div className="relative">
+                          <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2" size={18} />
+                          <input 
+                            type="text" 
+                            required
+                            value={cpf}
+                            onChange={handleCpfChange}
+                            className="w-full pl-12 pr-4 py-4 bg-zinc-50 border border-emerald-200 rounded-2xl text-zinc-900 focus:bg-white focus:border-emerald-500 outline-none transition-all placeholder:text-zinc-300 ring-2 ring-emerald-50/50"
+                            placeholder="000.000.000-00"
+                          />
+                        </div>
+                        <p className="text-[10px] text-emerald-600 font-medium ml-1 italic">Vimos que você já possui cadastro na loja física! Para sua segurança, confirme o CPF cadastrado.</p>
+                      </motion.div>
+                    )}
 
                 <div className="space-y-1.5 focus-within:text-zinc-950 text-zinc-400 group">
                   <label className="text-xs font-black uppercase tracking-widest ml-1 transition-colors group-focus-within:text-zinc-900">E-mail</label>

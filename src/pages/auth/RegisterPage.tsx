@@ -78,13 +78,17 @@ export const RegisterPage: React.FC = () => {
     }
 
     // Se a palavra-chave estiver correta, prossegue com a criação da conta via Supabase Auth
-    const { error: signUpError } = await signUp(formData.email, formData.password, formData.name, formData.role);
+    const { error: signUpError, promoted } = await signUp(formData.email, formData.password, formData.name, formData.role);
 
     if (signUpError) {
       setError(signUpError.message);
       setLoading(false);
     } else {
-      alert("Cadastro realizado com sucesso! Faça login para acessar o sistema.");
+      if (promoted) {
+        alert("Sua conta de cliente foi atualizada com permissões de acesso ao sistema! Use sua senha atual para entrar.");
+      } else {
+        alert("Cadastro realizado com sucesso! Faça login para acessar o sistema.");
+      }
       navigate('/erp/login');
     }
   };

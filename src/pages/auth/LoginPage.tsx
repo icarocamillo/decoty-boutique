@@ -9,7 +9,7 @@ import { BrandLogo } from '@/components/shared/BrandLogo';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn } = useAuth();
+  const { signIn, signOut } = useAuth();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,10 +33,14 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    const { error: loginError } = await signIn(email, password);
+    const { error: loginError, role } = await signIn(email, password);
 
     if (loginError) {
       setError(loginError.message || 'Erro ao realizar login.');
+      setLoading(false);
+    } else if (role === 'customer') {
+      setError('Acesso negado. Clientes do site não possuem permissão para acessar o ERP.');
+      await signOut();
       setLoading(false);
     } else {
       navigate('/erp/home');

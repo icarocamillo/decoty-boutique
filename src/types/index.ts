@@ -209,6 +209,26 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
-  role: 'manager' | 'salesperson';
+  role: 'manager' | 'salesperson' | 'customer';
   active: boolean;
+}
+
+export interface OrderReservationItem {
+  id: string;
+  nome: string;
+  quantidade: number;
+  preco_unitario: number;
+  subtotal: number;
+}
+
+export interface OrderReservation {
+  id: string;
+  ui_id?: number;
+  user_id: string;
+  client_id?: string;
+  items: OrderReservationItem[];
+  payment_method: string;
+  total: number;
+  created_at: string;
+  status: 'whatsapp_contact' | 'completed';
 }
