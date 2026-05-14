@@ -1580,32 +1580,50 @@ export const backendService = {
 
       if (relatedVariants.length === 0) return true;
 
-      // 3. Para cada combinação desejada, encontrar UMA variante representante (ex: primeiro tamanho) para vincular
+      // 3. Para cada combinação desejada, inserir vínculos em ambas as direções
       const inserts: any[] = [];
       
       for (const rel of relatedVariants) {
+        // Buscar todas as variantes da cor alvo
         const { data: targetVariants } = await supabase
           .from('product_variants')
           .select('id')
           .eq('product_id', rel.productId)
-          .eq('cor', rel.color)
-          .limit(1);
+          .eq('cor', rel.color);
         
         if (targetVariants && targetVariants.length > 0) {
-          const targetId = targetVariants[0].id;
-          // Vincular TODAS as variantes da cor de origem a essa variante de destino
+          const targetIds = targetVariants.map(v => v.id);
+          const firstTargetId = targetIds[0];
+          const firstSourceId = sourceIds[0];
+
+          // A -> B: Vincular todas as variantes da cor de origem à primeira da cor de destino
           sourceIds.forEach(sid => {
             inserts.push({
               variant_id: sid,
-              related_variant_id: targetId
+              related_variant_id: firstTargetId
             });
+          });
+
+          // B -> A: Vincular todas as variantes da cor de destino à primeira da cor de origem
+          // Isso garante que se entrarmos no produto B, o produto A aparecerá como combinação
+          targetIds.forEach(tid => {
+            // Evitar duplicata se por acaso for o mesmo produto (embora improvável no fluxo de cores)
+            if (tid !== firstSourceId) {
+              inserts.push({
+                variant_id: tid,
+                related_variant_id: firstSourceId
+              });
+            }
           });
         }
       }
 
       if (inserts.length === 0) return true;
 
-      const { error } = await supabase.from('variant_combinations').insert(inserts);
+      // Remover duplicatas de ID-ID que podem ter ocorrido na montagem do array
+      const uniqueInserts = Array.from(new Map(inserts.map(i => [`${i.variant_id}-${i.related_variant_id}`, i])).values());
+
+      const { error } = await supabase.from('variant_combinations').insert(uniqueInserts);
       return !error;
     }
     return false;
@@ -1796,11 +1814,11 @@ export const backendService = {
     if (isSupabaseConfigured()) {
       const supabase = getSupabase();
       
-      // 1. Remover combinações antigas
+      // 1. Remover combinações antigas em ambas as direções
       const { error: deleteError } = await supabase
         .from('variant_combinations')
         .delete()
-        .eq('variant_id', variantId);
+        .or(`variant_id.eq.${variantId},related_variant_id.eq.${variantId}`);
 
       if (deleteError) {
         console.error("Erro ao limpar combinações antigas de variante:", deleteError);
@@ -1809,15 +1827,28 @@ export const backendService = {
 
       if (relatedVariantIds.length === 0) return true;
 
-      // 2. Inserir novas
-      const inserts = relatedVariantIds.map(rid => ({
-        variant_id: variantId,
-        related_variant_id: rid
-      }));
+      // 2. Inserir novas em ambas as direções
+      const inserts: any[] = [];
+      
+      relatedVariantIds.forEach(rid => {
+        // A -> B
+        inserts.push({
+          variant_id: variantId,
+          related_variant_id: rid
+        });
+        // B -> A
+        inserts.push({
+          variant_id: rid,
+          related_variant_id: variantId
+        });
+      });
+
+      // Remover duplicatas
+      const uniqueInserts = Array.from(new Map(inserts.map(i => [`${i.variant_id}-${i.related_variant_id}`, i])).values());
 
       const { error: insertError } = await supabase
         .from('variant_combinations')
-        .insert(inserts);
+        .insert(uniqueInserts);
 
       if (insertError) {
         console.error("Erro ao salvar novas combinações de variante:", insertError);
