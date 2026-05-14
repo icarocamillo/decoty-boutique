@@ -92,7 +92,7 @@ export const HomePage: React.FC = () => {
         <AnimatePresence>
           {scrollY === 0 && (
             <div className="absolute top-4 inset-x-0 flex justify-center pointer-events-none z-20">
-              <motion.div
+              <motion.div 
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 40, scale: 0.8 }}

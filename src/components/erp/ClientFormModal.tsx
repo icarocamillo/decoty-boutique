@@ -205,8 +205,8 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isCpfDuplicate) return;
-    if (!formData.nome || !formData.cpf || (!formData.celular && !formData.telefone_fixo)) {
-       alert("Por favor, preencha o nome, CPF e ao menos um telefone de contato.");
+    if (!formData.nome || (!formData.celular && !formData.telefone_fixo)) {
+       alert("Por favor, preencha o nome e ao menos um telefone de contato.");
        return;
     }
 
@@ -301,13 +301,12 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
-                     <CreditCard size={16} className="text-zinc-400" /> CPF <span className="text-red-500">*</span>
+                     <CreditCard size={16} className="text-zinc-400" /> CPF
                   </label>
                   <div className="relative">
                     <input
                       type="text"
                       name="cpf"
-                      required
                       value={formData.cpf}
                       onChange={handleCpfChange}
                       placeholder="000.000.000-00"
