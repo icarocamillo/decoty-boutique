@@ -70,7 +70,7 @@ export const HomePage: React.FC = () => {
               {randomHeadline}
             </h1>
             <p className="text-sm sm:text-base text-white/80 mb-6 sm:mb-8 max-w-lg leading-relaxed">
-              Descubra uma boutique exclusiva que celebra a feminilidade e o estilo moderno. Peças elegantes que contam sua história.
+              Descubra uma boutique experiente que celebra a feminilidade e o estilo moderno. Peças elegantes que contam sua história.
             </p>
             <div className="flex flex-wrap gap-3 sm:gap-4">
               <Link to="/catalogo" className="w-full sm:w-auto">
