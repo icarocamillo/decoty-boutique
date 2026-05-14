@@ -797,7 +797,7 @@ export const ProductDetailsPage: React.FC = () => {
                   <Badge variant="outline" className="border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-bold tracking-[0.2em] px-5 py-1.5 text-[10px] uppercase">VOCÊ TAMBÉM PODE GOSTAR</Badge>
                 </div>
                 <h2 className="text-4xl md:text-5xl font-black text-zinc-900 dark:text-white mb-2 tracking-tighter">Produtos Similares</h2>
-                <p className="text-zinc-500 dark:text-zinc-400 font-medium text-lg">Outras peças da categoria {product.categoria} selecionadas para você.</p>
+                <p className="text-zinc-500 dark:text-zinc-400 font-medium text-lg">Outras {product.categoria} que combinam com você.</p>
               </div>
             </div>
 
@@ -805,7 +805,7 @@ export const ProductDetailsPage: React.FC = () => {
               {/* Botões de Navegação - Sempre visíveis e centrados nas fotos */}
               <button 
                 onClick={() => scrollSimilar('left')}
-                className="absolute left-2 md:left-4 top-[35%] -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 flex items-center justify-center hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-all active:scale-90 shadow-xl"
+                className="absolute left-2 md:left-4 top-[32%] -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 flex items-center justify-center hover:bg-zinc-900 hover:text-white dark:hover:bg-emerald-600 transition-all active:scale-90 shadow-xl"
                 aria-label="Anterior"
               >
                 <ChevronLeft size={24} />
@@ -813,7 +813,7 @@ export const ProductDetailsPage: React.FC = () => {
               
               <button 
                 onClick={() => scrollSimilar('right')}
-                className="absolute right-2 md:right-4 top-[35%] -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 flex items-center justify-center hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-all active:scale-90 shadow-xl"
+                className="absolute right-2 md:right-4 top-[32%] -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 flex items-center justify-center hover:bg-zinc-900 hover:text-white dark:hover:bg-emerald-600 transition-all active:scale-90 shadow-xl"
                 aria-label="Próximo"
               >
                 <ChevronRight size={24} />
@@ -821,10 +821,10 @@ export const ProductDetailsPage: React.FC = () => {
 
               <div 
                 ref={similarCarouselRef}
-                className="flex gap-4 md:gap-6 overflow-x-auto pb-4 snap-x no-scrollbar scroll-smooth"
+                className="flex gap-4 md:gap-5 overflow-x-auto pb-4 snap-x no-scrollbar scroll-smooth"
               >
                 {similarProducts.map((p) => (
-                  <div key={p.id} className="min-w-[200px] md:min-w-[240px] lg:min-w-[260px] snap-start">
+                  <div key={p.id} className="w-[170px] md:w-[200px] lg:w-[220px] shrink-0 snap-start flex flex-col">
                     <ProductCard product={p} />
                   </div>
                 ))}

@@ -106,9 +106,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, preferredColo
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className="group flex flex-col relative"
+      className="group flex flex-col relative h-full"
     >
-      <div className="relative aspect-[3/4] overflow-hidden bg-zinc-50 rounded-2xl mb-4">
+      <div className="relative w-full aspect-[3/4] overflow-hidden bg-zinc-50 rounded-2xl mb-4">
         <Link to={`/produto/${product.slug}-${product.ui_id}${preferredColor ? `?cor=${preferredColor}` : ''}`} className="block w-full h-full">
           <img 
             src={mainImage} 
