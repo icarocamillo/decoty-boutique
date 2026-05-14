@@ -53,6 +53,24 @@ export const ProductFormPage: React.FC = () => {
   const [uploadTargetColor, setUploadTargetColor] = useState('');
   const [focusedVariantIndex, setFocusedVariantIndex] = useState<number | null>(null);
 
+  // Combinações (Complete o Look)
+  const [selectedSourceColor, setSelectedSourceColor] = useState<string>('');
+  const [colorCombinations, setColorCombinations] = useState<any[]>([]);
+  const [combinationSearch, setCombinationSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'variants' | 'images' | 'combinations'>('variants');
+
+  // Cores disponíveis do produto atual
+  const availableColors = useMemo(() => {
+    return Array.from(new Set(variants.map(v => v.cor).filter(Boolean)));
+  }, [variants]);
+
+  // Se houver apenas uma cor, seleciona automaticamente
+  useEffect(() => {
+    if (availableColors.length === 1 && !selectedSourceColor) {
+      setSelectedSourceColor(availableColors[0]);
+    }
+  }, [availableColors, selectedSourceColor]);
+
   const productToEdit = useMemo(() => {
     if (!id) return null;
     const numericId = parseInt(id);
@@ -163,11 +181,21 @@ export const ProductFormPage: React.FC = () => {
       } else {
         setImages([]);
       }
+
       setFetching(false);
     } else if (!id) {
       setFetching(false);
     }
   }, [id, productToEdit]);
+
+  // Buscar combinações da cor selecionada
+  useEffect(() => {
+    if (id && productToEdit && selectedSourceColor) {
+      backendService.getColorCombinations(productToEdit.id, selectedSourceColor).then(setColorCombinations);
+    } else {
+      setColorCombinations([]);
+    }
+  }, [id, productToEdit, selectedSourceColor]);
 
   const validateShowOnSite = (silent = false) => {
     const activeVariants = variants.filter(v => v.tamanho && v.preco_venda);
@@ -291,8 +319,9 @@ export const ProductFormPage: React.FC = () => {
     // Para produto existente, faz upload imediato
     setUploading(true);
     try {
+      const productFolder = `${productToEdit?.ui_id}-${productToEdit?.slug}`;
       for (const file of Array.from(files)) {
-        const url = await backendService.uploadProductImage(file as File, productToEdit!.id, uploadTargetColor);
+        const url = await backendService.uploadProductImage(file as File, productFolder, uploadTargetColor);
         if (url) {
           const newImage: Omit<ProductImage, 'id' | 'created_at'> = {
             product_id: productToEdit!.id,
@@ -350,11 +379,12 @@ export const ProductFormPage: React.FC = () => {
       if (field === 'cor' && currentImage.id && currentImage.url) {
         setUploading(true);
         try {
+          const productFolder = `${productToEdit?.ui_id}-${productToEdit?.slug}`;
           const newUrl = await backendService.moveProductImage(
             currentImage.id, 
             currentImage.url, 
             value, 
-            productToEdit!.id
+            productFolder
           );
           
           if (newUrl) {
@@ -495,10 +525,11 @@ export const ProductFormPage: React.FC = () => {
 
           // Se for novo produto, faz o upload das imagens agora
           if (images.length > 0) {
+            const productFolder = `${newProduct.ui_id}-${newProduct.slug}`;
             for (const img of images) {
               const fileImg = img.file as File | undefined;
               if (fileImg) {
-                 const url = await backendService.uploadProductImage(fileImg, productId, img.cor);
+                 const url = await backendService.uploadProductImage(fileImg, productFolder, img.cor);
                  if (url) {
                    await backendService.saveProductImage({
                      product_id: productId,
@@ -516,10 +547,19 @@ export const ProductFormPage: React.FC = () => {
         }
       }
 
-      if (success) {
+      if (success && productId) {
+        // Salvar combinações da cor selecionada (se houver)
+        if (selectedSourceColor) {
+            const mappedCombos = colorCombinations.map(c => ({
+                productId: c.product_id,
+                color: c.cor
+            }));
+            await backendService.saveColorCombinations(productId, selectedSourceColor, mappedCombos);
+        }
+        
         await refreshData();
         navigate('/erp/products');
-      } else {
+      } else if (success) {
         alert(`Erro ao processar produto.`);
       }
     } catch (error: any) {
@@ -679,9 +719,36 @@ export const ProductFormPage: React.FC = () => {
           </Card>
         </div>
 
-        {/* Inferior: Variantes (Full Width) */}
-        <div className="w-full space-y-6">
-          <Card className="p-6 border-0 shadow-sm bg-white dark:bg-zinc-900 h-full flex flex-col">
+        {/* Área de Detalhes em Abas */}
+        <div className="w-full space-y-4">
+          <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl w-fit">
+            <button
+              type="button"
+              onClick={() => setActiveTab('variants')}
+              className={`px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'variants' ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+            >
+              <Layers size={14} /> Variações e Estoque
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('images')}
+              className={`px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'images' ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+            >
+              <ImageIcon size={14} /> Fotos do Catálogo
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('combinations')}
+              className={`px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'combinations' ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+            >
+              <Plus size={14} /> Combinações (Complete o Look)
+            </button>
+          </div>
+
+          {/* Conteúdo da Aba: Variantes */}
+          {activeTab === 'variants' && (
+            <div className="w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <Card className="p-6 border-0 shadow-sm bg-white dark:bg-zinc-900 h-full flex flex-col">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-4 mb-4">
               <h3 className="text-sm font-bold text-zinc-400 uppercase flex items-center gap-2 whitespace-nowrap">
                 <Layers size={16} className="text-zinc-400" /> Variações do Produto (Cores e Tamanho)
@@ -951,9 +1018,11 @@ export const ProductFormPage: React.FC = () => {
             </div>
           </Card>
         </div>
+      )}
 
-        {/* Galeria de Imagens */}
-        <div className="w-full">
+      {/* Conteúdo da Aba: Imagens */}
+      {activeTab === 'images' && (
+        <div className="w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
           <Card className="p-6 border-0 shadow-sm bg-white dark:bg-zinc-900">
             <div className="flex justify-between items-center border-b border-zinc-100 dark:border-zinc-800 pb-2 mb-6">
               <h3 className="text-sm font-bold text-zinc-400 uppercase flex items-center gap-2">
@@ -1083,7 +1152,199 @@ export const ProductFormPage: React.FC = () => {
             </div>
           </Card>
         </div>
-      </div>
+      )}
+
+      {/* Conteúdo da Aba: Combinações (Complete o Look) */}
+      {activeTab === 'combinations' && (
+        <div className="w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <Card className="p-6 border-0 shadow-sm bg-white dark:bg-zinc-900">
+            <div className="flex justify-between items-center border-b border-zinc-100 dark:border-zinc-800 pb-4 mb-6">
+              <div>
+                <h3 className="text-sm font-bold text-zinc-400 uppercase flex items-center gap-2">
+                  <Plus size={16} className="text-zinc-400" /> Complete o Look
+                </h3>
+                <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">Vincule peças que combinam com este modelo para sugestão de venda</p>
+              </div>
+
+              {/* Seletor da Cor Origem */}
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-bold text-zinc-500 uppercase">Configurar para:</label>
+                <select
+                  value={selectedSourceColor}
+                  onChange={(e) => setSelectedSourceColor(e.target.value)}
+                  className="px-4 py-2 border rounded-xl bg-zinc-50 dark:bg-zinc-800 text-sm font-bold border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-zinc-400 outline-none min-w-[200px]"
+                >
+                  <option value="" disabled>Escolha uma cor</option>
+                  {availableColors.map(color => (
+                    <option key={color} value={color}>{color}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {!id ? (
+              <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-100 dark:border-zinc-800 rounded-3xl text-zinc-400 gap-4">
+                <AlertCircle size={48} className="opacity-10" />
+                <div className="text-center">
+                  <p className="text-sm font-bold uppercase tracking-widest text-zinc-500">Salve o produto primeiro</p>
+                  <p className="text-xs mt-1">Para configurar o look, o produto precisa ter um ID no sistema.</p>
+                </div>
+              </div>
+            ) : !selectedSourceColor ? (
+              <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-100 dark:border-zinc-800 rounded-3xl text-zinc-400 gap-4">
+                <Layers size={48} className="opacity-10" />
+                <div className="text-center">
+                  <p className="text-sm font-bold uppercase tracking-widest text-zinc-500">Selecione uma Cor</p>
+                  <p className="text-xs mt-1">Escolha acima qual cor deste produto você deseja criar combinações.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Busca de Produtos */}
+                <div className="space-y-4">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Buscar peça por nome, cor ou marca..."
+                      value={combinationSearch}
+                      onChange={(e) => setCombinationSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-zinc-200 dark:border-zinc-700 rounded-xl bg-zinc-50 dark:bg-zinc-800 text-sm focus:ring-2 focus:ring-zinc-400 outline-none"
+                    />
+                    <ImageIcon size={18} className="absolute left-3 top-3.5 text-zinc-400" />
+                  </div>
+
+                  <div className="max-h-[500px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {products
+                      .flatMap(p => {
+                        const pColors = Array.from(new Set(p.variants?.map(v => v.cor).filter(Boolean)));
+                        return pColors.map(color => ({
+                          product: p,
+                          cor: color,
+                          id: `${p.id}-${color}`
+                        }));
+                      })
+                      .filter(item => 
+                        (item.product.id !== productToEdit?.id || item.cor !== selectedSourceColor) &&
+                        (
+                          item.product.nome.toLowerCase().includes(combinationSearch.toLowerCase()) || 
+                          item.cor.toLowerCase().includes(combinationSearch.toLowerCase()) ||
+                          item.product.marca.toLowerCase().includes(combinationSearch.toLowerCase())
+                        ) &&
+                        !colorCombinations.some(c => c.product_id === item.product.id && c.cor === item.cor)
+                      )
+                      .slice(0, 15)
+                      .map(item => (
+                        <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-800 group hover:border-zinc-300 transition-all">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-lg bg-zinc-200 dark:bg-zinc-700 overflow-hidden shrink-0 border border-zinc-100 dark:border-zinc-800">
+                              {item.product.images && item.product.images.length > 0 && (
+                                <img 
+                                  src={item.product.images.find((img: any) => img.cor === item.cor && (img.is_main || img.is_default_product_photo))?.url || 
+                                       item.product.images.find((img: any) => img.is_default_product_photo)?.url || 
+                                       item.product.images[0].url} 
+                                  alt="" 
+                                  className="w-full h-full object-cover" 
+                                />
+                              )}
+                            </div>
+                            <div>
+                               <div className="flex items-center gap-2">
+                                  <p className="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-tight">{item.product.nome}</p>
+                                  <Badge className="text-[10px] h-4 px-1.5 bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-200 border-none font-bold uppercase">{item.cor}</Badge>
+                               </div>
+                               <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase mt-0.5">
+                                 {item.product.marca} • {item.product.categoria}
+                               </p>
+                            </div>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={async () => {
+                                const newCombos = [...colorCombinations, { product_id: item.product.id, cor: item.cor, product: item.product }];
+                                setColorCombinations(newCombos);
+                                // Salvamento imediato para melhor UX no ERP
+                                await backendService.saveColorCombinations(productToEdit!.id, selectedSourceColor, newCombos.map(nc => ({ productId: nc.product_id, color: nc.cor })));
+                            }}
+                            className="bg-zinc-100 dark:bg-zinc-700 hover:bg-emerald-500 hover:text-white rounded-lg w-8 h-8 p-0"
+                          >
+                            <Plus size={16} />
+                          </Button>
+                        </div>
+                      ))}
+                    {combinationSearch && products.filter(p => p.nome.toLowerCase().includes(combinationSearch.toLowerCase())).length === 0 && (
+                      <div className="text-center py-10 opacity-50">
+                         <AlertCircle size={32} className="mx-auto mb-2" />
+                         <p className="text-xs italic">Nenhuma peça ou cor encontrada.</p>
+                      </div>
+                    )}
+                    {!combinationSearch && <p className="text-center py-10 text-[10px] text-zinc-400 font-bold uppercase tracking-widest bg-zinc-50/50 dark:bg-zinc-800/50 rounded-2xl border-2 border-dashed border-zinc-100 dark:border-zinc-800">Use a busca para encontrar peças e cores complementares</p>}
+                  </div>
+                </div>
+
+                {/* Lista da Combinação Atual */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                      ITENS DO LOOK ({colorCombinations.length})
+                    </h4>
+                    <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[9px] border-zinc-200 text-zinc-400 font-bold uppercase py-0 h-5">Bidirecional</Badge>
+                        {colorCombinations.length > 0 && <p className="text-[10px] text-emerald-500 font-bold">Salvo</p>}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {colorCombinations.map(c => (
+                      <div key={`${c.product_id}-${c.cor}`} className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-xl bg-zinc-100 dark:bg-zinc-800 overflow-hidden shrink-0 border border-zinc-100 dark:border-zinc-800">
+                            {c.product?.images && c.product.images.length > 0 && (
+                              <img 
+                                src={c.product.images.find((img: any) => img.cor === c.cor && (img.is_main || img.is_default_product_photo))?.url || 
+                                     c.product.images.find((img: any) => img.is_default_product_photo)?.url || 
+                                     c.product.images[0].url} 
+                                alt="" 
+                                className="w-full h-full object-cover" 
+                              />
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-tight">{c.product?.nome}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                               <Badge className="bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 text-[9px] px-2 h-5 border-none font-bold uppercase">{c.cor}</Badge>
+                               <Badge className="bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 text-[9px] px-2 h-5 border-none font-bold uppercase">{c.product?.marca}</Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={async () => {
+                              const newCombos = colorCombinations.filter(item => !(item.product_id === c.product_id && item.cor === c.cor));
+                              setColorCombinations(newCombos);
+                              await backendService.saveColorCombinations(productToEdit!.id, selectedSourceColor, newCombos.map(nc => ({ productId: nc.product_id, color: nc.cor })));
+                          }}
+                          className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                          title="Remover do look"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))}
+                    {colorCombinations.length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-24 border-2 border-dashed border-zinc-100 dark:border-zinc-800 rounded-[2.5rem] text-zinc-400 gap-3 grayscale opacity-40">
+                        <Plus size={40} strokeWidth={1} />
+                        <p className="text-xs italic font-medium px-8 text-center">Nenhum item adicionado a este look. Use a busca ao lado para montar a composição perfeita.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
     </div>
-  );
+  </div>
+</div>
+);
 };

@@ -14,6 +14,7 @@ export interface Product {
   created_at: string;
   variants?: ProductVariant[];
   images?: ProductImage[];
+  combinations?: Product[]; // Lista de produtos relacionados
 }
 
 export interface ProductImage {
@@ -41,6 +42,7 @@ export interface ProductVariant {
   quantidade_estoque: number;
   created_at: string;
   product?: Product;
+  combinations?: ProductVariant[];
 }
 
 export interface SaleItem {

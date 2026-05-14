@@ -4,11 +4,13 @@ import { motion } from 'motion/react';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { ShoppingBag, ChevronLeft, ChevronRight, Star, ShieldCheck, Truck, RotateCcw, Ruler, Crown, Heart, MessageCircle, Phone } from 'lucide-react';
+import { ShoppingBag, ChevronLeft, ChevronRight, Star, ShieldCheck, Truck, RotateCcw, Ruler, Crown, Heart, MessageCircle, Phone, Plus } from 'lucide-react';
 import { SizeGuideModal } from '@/components/site/SizeGuideModal';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getColorValue } from '@/utils/colorUtils';
+import { backendService } from '@/services/backendService';
+import { Product } from '@/types';
 
 export const ProductDetailsPage: React.FC = () => {
   const { identifier } = useParams<{ identifier: string }>();
@@ -19,6 +21,8 @@ export const ProductDetailsPage: React.FC = () => {
   
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [productCombinations, setProductCombinations] = useState<any[]>([]);
+  const [loadingCombinations, setLoadingCombinations] = useState(false);
 
   const product = useMemo(() => {
     if (!identifier) return null;
@@ -72,6 +76,12 @@ export const ProductDetailsPage: React.FC = () => {
 
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
+  // Resetar estados quando o produto mudar para evitar persistência de dados do produto anterior (caso de navegação entre produtos na mesma rota)
+  React.useEffect(() => {
+    setSelectedVariantId(null);
+    setActiveImageIndex(0);
+  }, [identifier]);
+
   // Selecionar variante inicial baseada no parâmetro de cor ou na foto principal do catálogo
   React.useEffect(() => {
     if (product && product.variants && !selectedVariantId) {
@@ -120,6 +130,18 @@ export const ProductDetailsPage: React.FC = () => {
     if (selectedVariantId) return product.variants.find(v => v.id === selectedVariantId);
     return product.variants[0];
   }, [product, selectedVariantId]);
+
+  // Buscar combinações quando o produto ou a cor selecionada mudar
+  React.useEffect(() => {
+    if (product?.id && selectedVariant?.cor) {
+      setLoadingCombinations(true);
+      backendService.getColorCombinations(product.id, selectedVariant.cor)
+        .then(setProductCombinations)
+        .finally(() => setLoadingCombinations(false));
+    } else {
+      setProductCombinations([]);
+    }
+  }, [product?.id, selectedVariant?.cor]);
 
   const productImages = useMemo(() => {
     if (!product || !product.images || product.images.length === 0) {
@@ -564,6 +586,184 @@ export const ProductDetailsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Seção Complete o Look */}
+      {productCombinations.length > 0 && (
+        <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-24 animate-fade-in border-t border-zinc-100 dark:border-zinc-800/50 mt-16">
+          <div className="flex flex-col items-center mb-16 text-center">
+            <Badge variant="outline" className="mb-4 border-zinc-200 dark:border-zinc-700 text-zinc-500 font-bold tracking-[0.2em] px-5 py-1.5 text-[10px] uppercase">LOOK COMPLETO</Badge>
+            <h2 className="text-4xl md:text-5xl font-black text-zinc-900 dark:text-white mb-4 tracking-tighter">Gostou do Conjunto?</h2>
+            <p className="text-zinc-500 dark:text-zinc-400 font-medium text-lg">Estas peças combinam perfeitamente com sua escolha atual.</p>
+          </div>
+
+          <div className="space-y-32">
+            {productCombinations.map((combo) => {
+              const combinedProduct = combo.product;
+              const combinedColor = combo.cor;
+              
+              if (!combinedProduct) return null;
+
+              // Fotos
+              const currentImg = product?.images?.find(img => img.cor === selectedVariant?.cor && img.is_main)?.url ||
+                                product?.images?.find(img => img.cor === selectedVariant?.cor)?.url ||
+                                productImages[0];
+
+              const mainImg = combinedProduct.images?.find((img: any) => img.cor === combinedColor && (img.is_main || img.is_default_product_photo))?.url ||
+                             combinedProduct.images?.find((img: any) => img.cor === combinedColor)?.url ||
+                             combinedProduct.images?.find((img: any) => img.is_default_product_photo)?.url || 
+                             combinedProduct.images?.[0]?.url;
+              
+              // RESOLUÇÃO DE PREÇO: Pegar a variação mais recente (maior UI_ID) desta cor específica
+              const variantsOfThisColor = combinedProduct.variants?.filter((v: any) => v.cor === combinedColor) || [];
+              const combinedVariant = variantsOfThisColor.length > 0 
+                ? [...variantsOfThisColor].sort((a: any, b: any) => (b.ui_id || 0) - (a.ui_id || 0))[0]
+                : combinedProduct.variants?.[0];
+
+              const priceVenda = combinedVariant?.preco_venda || 0;
+              const currentPrice = selectedVariant?.preco_venda || 0;
+              const totalPrice = currentPrice + priceVenda;
+
+              const targetUrl = `/produto/${combinedProduct.slug}-${combinedProduct.ui_id}?cor=${encodeURIComponent(combinedColor)}`;
+
+              return (
+                <div key={`${combinedProduct.id}-${combinedColor}`} className="relative">
+                  {/* Layout Desktop/Tablet */}
+                  <div className="hidden md:flex items-start justify-center gap-12 lg:gap-24">
+                    {/* Produto Atual */}
+                    <div className="flex-1 max-w-sm space-y-6">
+                      <div className="relative aspect-[3/4] rounded-[2.5rem] overflow-hidden bg-zinc-100 dark:bg-zinc-800 shadow-xl border border-zinc-100 dark:border-zinc-800 group cursor-default">
+                        <Badge className="absolute top-6 left-6 z-10 bg-emerald-500 text-white border-none px-3 py-1 text-[9px] font-black uppercase tracking-widest shadow-lg">
+                          VOCÊ ESTÁ VENDO
+                        </Badge>
+                        <img 
+                          src={currentImg} 
+                          alt={product.nome}
+                          className="w-full h-full object-cover grayscale-[0.2]"
+                        />
+                      </div>
+                      <div className="px-2">
+                        <p className="text-[11px] font-black text-zinc-400 uppercase tracking-widest mb-1">{product.marca}</p>
+                        <h4 className="text-xl font-bold text-zinc-950 dark:text-white uppercase tracking-tight">{product.nome}</h4>
+                        <div className="mt-3">
+                          <p className="text-2xl font-black text-zinc-900 dark:text-zinc-100">{formatCurrency(currentPrice)}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CENTRAL COLUMN */}
+                    <div className="flex flex-col items-center justify-start pt-32 gap-8 w-64 lg:w-80 shrink-0">
+                      <div className="opacity-100">
+                        <Plus size={48} strokeWidth={1} className="text-black dark:text-white" />
+                      </div>
+                      
+                      <div className="bg-white/80 dark:bg-zinc-900/50 backdrop-blur-xl p-8 rounded-[2.5rem] border border-zinc-100 dark:border-zinc-800 shadow-xl w-full text-center space-y-6">
+                         <div>
+                            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-2">VALOR ESTIMADO DO LOOK</p>
+                            <p className="text-4xl font-black text-zinc-900 dark:text-white leading-none tracking-tighter">{formatCurrency(totalPrice)}</p>
+                            <p className="text-xs text-zinc-500 font-medium mt-2 leading-relaxed">Combine as peças e economize tempo na escolha do seu visual.</p>
+                         </div>
+                         <Button 
+                            className="w-full bg-zinc-900 dark:bg-emerald-600 text-white hover:bg-zinc-800 dark:hover:bg-emerald-700 h-14 rounded-2xl font-bold text-sm tracking-wide shadow-lg transition-transform active:scale-95"
+                            onClick={() => {
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                navigate(targetUrl);
+                            }}
+                         >
+                            VER ESSE LOOK
+                         </Button>
+                      </div>
+                    </div>
+
+                    {/* Produto Combinado */}
+                    <div className="flex-1 max-w-sm space-y-6">
+                      <motion.div 
+                        whileHover={{ y: -10 }}
+                        className="relative aspect-[3/4] rounded-[2.5rem] overflow-hidden bg-zinc-100 dark:bg-zinc-800 shadow-xl border border-zinc-100 dark:border-zinc-800 group cursor-pointer"
+                        onClick={() => {
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                          navigate(targetUrl);
+                        }}
+                      >
+                        <Badge className="absolute top-6 left-6 z-10 bg-emerald-500 text-white border-none px-3 py-1 text-[9px] font-black uppercase tracking-widest shadow-lg">
+                          SUGESTÃO DE LOOK
+                        </Badge>
+                        <img 
+                          src={mainImg} 
+                          alt={combinedProduct.nome}
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                      </motion.div>
+                      <div className="px-2">
+                        <p className="text-[11px] font-black text-zinc-400 uppercase tracking-widest mb-1">{combinedProduct.marca}</p>
+                        <h4 className="text-xl font-bold text-zinc-950 dark:text-white uppercase tracking-tight">{combinedProduct.nome} ({combinedColor})</h4>
+                        <div className="mt-3">
+                          <p className="text-2xl font-black text-zinc-900 dark:text-zinc-100">{formatCurrency(priceVenda)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Layout Mobile */}
+                  <div className="md:hidden">
+                    <motion.div 
+                      key={`${combinedProduct.id}-${combinedColor}`}
+                      whileHover={{ y: -8 }}
+                      className="group relative flex flex-col bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-100 dark:border-zinc-800 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500"
+                    >
+                      <div className="aspect-[4/5] relative overflow-hidden bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center p-2">
+                        <div className="flex items-center gap-2 w-full h-full">
+                           <div className="flex-1 h-full relative overflow-hidden rounded-2xl shadow-sm border border-white/50 dark:border-zinc-700/50 grayscale-[0.3]">
+                              <div className="absolute inset-0 bg-black/5 z-10" />
+                              <div className="absolute top-2 left-2 z-20 bg-emerald-500 px-1.5 py-0.5 rounded-lg shadow-sm">
+                                 <p className="text-[7px] font-black text-white uppercase">VOCÊ ESTÁ VENDO</p>
+                              </div>
+                              <img src={currentImg} alt="Peça atual" className="w-full h-full object-cover" />
+                           </div>
+                           <div className="flex items-center justify-center">
+                              <Plus size={20} className="text-black dark:text-white" />
+                           </div>
+                           <div 
+                             className="flex-1 h-full relative overflow-hidden rounded-2xl shadow-sm border border-white/50 dark:border-zinc-700/50 cursor-pointer"
+                             onClick={() => {
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                navigate(targetUrl);
+                             }}
+                           >
+                              <div className="absolute top-2 left-2 z-20 bg-emerald-500 px-1.5 py-0.5 rounded-lg shadow-sm">
+                                 <p className="text-[7px] font-black text-white uppercase">SUGESTÃO DE LOOK</p>
+                              </div>
+                              <img src={mainImg} alt={combinedProduct.nome} className="w-full h-full object-cover" />
+                           </div>
+                        </div>
+                        
+                        <div className="absolute bottom-4 left-4 right-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 z-20">
+                          <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl flex items-center justify-between shadow-2xl">
+                            <div>
+                               <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none mb-1">Look Sugerido</p>
+                               <p className="text-lg font-black text-zinc-900">{formatCurrency(totalPrice)}</p>
+                            </div>
+                            <Button size="sm" className="bg-zinc-900 text-white rounded-xl font-bold px-4 h-10" onClick={() => navigate(targetUrl)}>
+                              Ver look
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-6">
+                        <div className="flex justify-between items-center mb-3">
+                           <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">{combinedProduct.marca}</p>
+                           <Badge className="bg-zinc-100 text-zinc-600 border-none text-[9px] font-bold">{combinedColor}</Badge>
+                        </div>
+                        <h3 className="text-xl font-bold text-zinc-900 dark:text-white group-hover:text-emerald-600 transition-colors uppercase tracking-tight leading-tight">{combinedProduct.nome}</h3>
+                      </div>
+                    </motion.div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <SizeGuideModal isOpen={isSizeGuideOpen} onClose={() => setIsSizeGuideOpen(false)} />
     </div>

@@ -451,15 +451,15 @@ export const backendService = {
     return [];
   },
 
-  uploadProductImage: async (file: File, productId: string, cor?: string): Promise<string | null> => {
+  uploadProductImage: async (file: File, productFolder: string, cor?: string): Promise<string | null> => {
     if (isSupabaseConfigured()) {
       const fileExt = file.name.split('.').pop();
       // Normalizar nome da cor para pasta (Remover espaços, acentos e colocar em minúsculo)
       const corPath = cor ? cor.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-') : 'geral';
       const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `products/${productId}/${corPath}/${fileName}`;
+      const filePath = `products/${productFolder}/${corPath}/${fileName}`;
 
-      const { data, error } = await getSupabase()
+      const { error } = await getSupabase()
         .storage
         .from('product-images')
         .upload(filePath, file);
@@ -537,7 +537,7 @@ export const backendService = {
     return false;
   },
 
-  moveProductImage: async (imageId: string, currentUrl: string, newColor: string, productId: string): Promise<string | null> => {
+  moveProductImage: async (imageId: string, currentUrl: string, newColor: string, productFolder: string): Promise<string | null> => {
     if (isSupabaseConfigured()) {
         const supabase = getSupabase();
         
@@ -552,7 +552,7 @@ export const backendService = {
         // 2. Definir o novo path (geral se newColor for vazio, senão pasta da cor)
         const normalizePath = (str: string) => str.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-');
         const newFolder = newColor ? normalizePath(newColor) : 'geral';
-        const newPath = `products/${productId}/${newFolder}/${fileName}`;
+        const newPath = `products/${productFolder}/${newFolder}/${fileName}`;
 
         // Se o path for igual, não faz nada
         if (currentPath === newPath) return currentUrl;
@@ -1498,7 +1498,124 @@ export const backendService = {
     return { success: true };
   },
 
-  // --- MÉTODOS DE FAVORITOS ---
+  // --- MÉTODOS DE COMBINAÇÕES DE PRODUTOS (LOOK COMPLETO) ---
+  getColorCombinations: async (productId: string, color: string): Promise<any[]> => {
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabase();
+      
+      // 1. Encontrar todas as variantes do produto ATUAL com esta cor
+      const { data: sourceVariants } = await supabase
+        .from('product_variants')
+        .select('id')
+        .eq('product_id', productId)
+        .eq('cor', color);
+      
+      if (!sourceVariants || sourceVariants.length === 0) return [];
+      const sourceIds = sourceVariants.map(v => v.id);
+
+      // 2. Buscar vínculos onde o produto atual é ORIGEM
+      const { data: asSource } = await supabase
+        .from('variant_combinations')
+        .select(`
+          related_variant_id,
+          variant:product_variants!variant_combinations_related_variant_id_fkey(
+            *,
+            product:products(*, images:product_images(*), variants:product_variants(*))
+          )
+        `)
+        .in('variant_id', sourceIds);
+
+      // 3. Buscar vínculos onde o produto atual é DESTINO (Bidirecional)
+      const { data: asTarget } = await supabase
+        .from('variant_combinations')
+        .select(`
+          variant_id,
+          variant:product_variants!variant_combinations_variant_id_fkey(
+            *,
+            product:products(*, images:product_images(*), variants:product_variants(*))
+          )
+        `)
+        .in('related_variant_id', sourceIds);
+
+      const allRelations = [...(asSource || []), ...(asTarget || [])];
+      
+      // 4. Mapear para um formato unificado de (Produto + Cor)
+      const results = allRelations
+        .map(item => item.variant)
+        .filter(Boolean)
+        .map((v: any) => ({
+          product_id: v.product_id,
+          cor: v.cor,
+          product: v.product
+        }));
+
+      // Remover duplicatas de Produto-Cor
+      const uniqueResults = Array.from(new Map(results.map((r: any) => [`${r.product_id}-${r.cor}`, r])).values());
+      
+      return uniqueResults;
+    }
+    return [];
+  },
+
+  saveColorCombinations: async (productId: string, color: string, relatedVariants: { productId: string, color: string }[]): Promise<boolean> => {
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabase();
+      
+      // 1. Buscar todas as variantes do produto atual com esta cor
+      const { data: sourceVariants } = await supabase
+        .from('product_variants')
+        .select('id')
+        .eq('product_id', productId)
+        .eq('cor', color);
+      
+      if (!sourceVariants || sourceVariants.length === 0) return false;
+      const sourceIds = sourceVariants.map(v => v.id);
+
+      // 2. Remover vínculos existentes em AMBAS as direções (Bidirecional)
+      // Remove onde este produto é origem OU onde é destino para esta cor específica
+      await supabase
+        .from('variant_combinations')
+        .delete()
+        .or(`variant_id.in.(${sourceIds.join(',')}),related_variant_id.in.(${sourceIds.join(',')})`);
+
+      if (relatedVariants.length === 0) return true;
+
+      // 3. Para cada combinação desejada, encontrar UMA variante representante (ex: primeiro tamanho) para vincular
+      const inserts: any[] = [];
+      
+      for (const rel of relatedVariants) {
+        const { data: targetVariants } = await supabase
+          .from('product_variants')
+          .select('id')
+          .eq('product_id', rel.productId)
+          .eq('cor', rel.color)
+          .limit(1);
+        
+        if (targetVariants && targetVariants.length > 0) {
+          const targetId = targetVariants[0].id;
+          // Vincular TODAS as variantes da cor de origem a essa variante de destino
+          sourceIds.forEach(sid => {
+            inserts.push({
+              variant_id: sid,
+              related_variant_id: targetId
+            });
+          });
+        }
+      }
+
+      if (inserts.length === 0) return true;
+
+      const { error } = await supabase.from('variant_combinations').insert(inserts);
+      return !error;
+    }
+    return false;
+  },
+
+  // Mantido para compatibilidade se necessário, mas incentivamos o uso por cor
+  getProductCombinations: async (productId: string): Promise<Product[]> => {
+    return []; // Implementação simplificada ou removida pois migramos para cor
+  },
+
   getOrCreateClientForUser: async (userId: string, name: string, email: string): Promise<string | null> => {
     if (!isSupabaseConfigured()) return null;
     
@@ -1618,6 +1735,97 @@ export const backendService = {
     }
     setLocalData(LS_KEYS.FAVORITES, favorites);
     window.dispatchEvent(new CustomEvent('favorites_updated'));
+    return true;
+  },
+
+  // --- MÉTODOS DE COMBINAÇÕES DE VARIANTES (COMPLETE O LOOK) ---
+  getVariantCombinations: async (variantId: string): Promise<ProductVariant[]> => {
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabase();
+      
+      // Busca onde a variante atual é a ORIGEM (A -> B)
+      const { data: dataAsSource, error: errorAsSource } = await supabase
+        .from('variant_combinations')
+        .select(`
+          variant:product_variants!variant_combinations_related_variant_id_fkey(
+            *,
+            product:products(
+              *,
+              images:product_images(*)
+            )
+          )
+        `)
+        .eq('variant_id', variantId);
+
+      // Busca onde a variante atual é o DESTINO (B -> A)
+      const { data: dataAsTarget, error: errorAsTarget } = await supabase
+        .from('variant_combinations')
+        .select(`
+          variant:product_variants!variant_combinations_variant_id_fkey(
+            *,
+            product:products(
+              *,
+              images:product_images(*)
+            )
+          )
+        `)
+        .eq('related_variant_id', variantId);
+
+      if (errorAsSource || errorAsTarget) {
+        console.error("Erro ao buscar combinações de variantes:", errorAsSource || errorAsTarget);
+        return [];
+      }
+
+      // Combina os resultados
+      const results: ProductVariant[] = [
+        ...(dataAsSource || []).map((item: any) => item.variant),
+        ...(dataAsTarget || []).map((item: any) => item.variant)
+      ];
+
+      // Remove nulos e duplicatas
+      const uniqueResults = results.filter((v, index, self) => 
+        v && self.findIndex(t => t?.id === v.id) === index
+      ) as ProductVariant[];
+
+      return uniqueResults;
+    }
+    return [];
+  },
+
+  saveVariantCombinations: async (variantId: string, relatedVariantIds: string[]): Promise<boolean> => {
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabase();
+      
+      // 1. Remover combinações antigas
+      const { error: deleteError } = await supabase
+        .from('variant_combinations')
+        .delete()
+        .eq('variant_id', variantId);
+
+      if (deleteError) {
+        console.error("Erro ao limpar combinações antigas de variante:", deleteError);
+        return false;
+      }
+
+      if (relatedVariantIds.length === 0) return true;
+
+      // 2. Inserir novas
+      const inserts = relatedVariantIds.map(rid => ({
+        variant_id: variantId,
+        related_variant_id: rid
+      }));
+
+      const { error: insertError } = await supabase
+        .from('variant_combinations')
+        .insert(inserts);
+
+      if (insertError) {
+        console.error("Erro ao salvar novas combinações de variante:", insertError);
+        return false;
+      }
+
+      return true;
+    }
     return true;
   }
 };
