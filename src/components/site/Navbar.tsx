@@ -33,11 +33,11 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Fechar menu mobile e busca ao trocar de rota
+  // Fechar menu mobile e busca ao trocar de rota (observando mudança completa de URL)
   useEffect(() => {
     setIsMobileMenuOpen(false);
     setIsSearchOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   const handleSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -308,6 +308,7 @@ export const Navbar: React.FC = () => {
                       <Link
                         key={item.name}
                         to={item.path}
+                        onClick={() => setIsMobileMenuOpen(false)}
                         className="text-base text-zinc-500 hover:text-zinc-950 transition-colors"
                       >
                         {item.name}
@@ -320,12 +321,20 @@ export const Navbar: React.FC = () => {
 
             <div className="mt-auto pt-6 border-t border-zinc-100">
               {user ? (
-                <Link to="/minha-conta" className="flex items-center justify-center gap-3 w-full text-center py-3 bg-zinc-950 text-white rounded-xl font-bold">
+                <Link 
+                  to="/minha-conta" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center justify-center gap-3 w-full text-center py-3 bg-zinc-950 text-white rounded-xl font-bold"
+                >
                   <User size={18} />
                   Olá, {getFirstName(userName)}
                 </Link>
               ) : (
-                <Link to="/entrar" className="block w-full text-center py-3 bg-zinc-900 text-white rounded-xl font-bold">
+                <Link 
+                  to="/entrar" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block w-full text-center py-3 bg-zinc-900 text-white rounded-xl font-bold"
+                >
                   Entrar na Conta
                 </Link>
               )}

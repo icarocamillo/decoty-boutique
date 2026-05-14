@@ -767,7 +767,7 @@ export const ProductDetailsPage: React.FC = () => {
                       <div className="p-6">
                         <div className="flex justify-between items-center mb-3">
                            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">{combinedProduct.marca}</p>
-                           <Badge className="bg-zinc-100 text-zinc-600 border-none text-[9px] font-bold">{combinedColor}</Badge>
+                           <Badge className="bg-zinc-900 !text-white border-none text-[9px] font-bold">{combinedColor}</Badge>
                         </div>
                         <h3 className="text-xl font-bold text-zinc-900 dark:text-white group-hover:text-emerald-600 transition-colors uppercase tracking-tight leading-tight">{combinedProduct.nome}</h3>
                       </div>

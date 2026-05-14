@@ -74,7 +74,7 @@ export const HomePage: React.FC = () => {
             </p>
             <div className="flex flex-wrap gap-3 sm:gap-4">
               <Link to="/catalogo" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-48 bg-white text-black hover:bg-zinc-100 rounded-full h-12 text-sm font-bold shadow-xl">
+                <Button size="lg" className="w-full sm:w-48 bg-zinc-900 !text-white hover:bg-zinc-800 rounded-full h-12 text-sm font-bold shadow-xl">
                   Vitrine de Hoje
                 </Button>
               </Link>
@@ -118,9 +118,11 @@ export const HomePage: React.FC = () => {
               <h2 className="text-3xl md:text-4xl font-serif text-zinc-950">Favoritos da Temporada</h2>
               <p className="text-zinc-500 mt-2">Escolha as peças mais procuradas entre nossas clientes.</p>
             </div>
-            <Button variant="link" className="text-zinc-900 font-bold flex items-center gap-2 p-0 h-auto group">
-              Ver todos os produtos <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-            </Button>
+            <Link to="/catalogo">
+              <Button variant="link" className="text-zinc-900 font-bold flex items-center gap-2 p-0 h-auto group">
+                Ver todos os produtos <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
           </div>
 
           {isLoading ? (
@@ -151,26 +153,32 @@ export const HomePage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-12 grid-rows-2 h-[800px] gap-4">
             <div className="md:col-span-8 md:row-span-2 relative rounded-3xl overflow-hidden group">
               <img
-                src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1000&auto=format&fit=crop"
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                src="https://izixlmmljvhdyoecgjur.supabase.co/storage/v1/object/public/marketing/banners/banner_looks_noite.webp"
+                className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
                 alt="Destaque"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex flex-col justify-end p-10">
-                <h3 className="text-white text-4xl font-serif mb-2">Looks para Noite</h3>
-                <p className="text-white/80 mb-6 max-w-sm">Destaque-se com brilho e sofisticação em seus eventos.</p>
-                <Button className="w-fit bg-white text-black hover:bg-zinc-100">Explorar Categoria</Button>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex flex-col justify-end p-8 md:p-12">
+                <h3 className="text-white text-3xl md:text-5xl font-serif mb-2 leading-tight">Looks para Eventos</h3>
+                <p className="text-white/90 mb-6 text-sm md:text-lg max-w-xs md:max-w-sm font-medium">Destaque-se com brilho e sofisticação em seus compromissos.</p>
+                <Link to="/catalogo">
+                  <Button className="w-fit bg-zinc-900 !text-white hover:bg-zinc-800 rounded-full font-bold px-8 h-12 shadow-xl border border-white/10 transition-transform active:scale-95">
+                    Explorar Categoria
+                  </Button>
+                </Link>
               </div>
             </div>
-            <div className="md:col-span-4 md:row-span-1 relative rounded-3xl overflow-hidden group">
+            <Link to="/catalogo?category=Pulseiras&category=Brincos&category=Colares" className="md:col-span-4 md:row-span-1 relative rounded-3xl overflow-hidden group block cursor-pointer">
               <img
                 src="https://izixlmmljvhdyoecgjur.supabase.co/storage/v1/object/public/marketing/banners/banner_acessorios.webp"
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-100"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 alt="Acessórios"
               />
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                <h3 className="text-white text-2xl font-serif uppercase tracking-widest text-center px-4">Acessórios Exclusivos</h3>
+              <div className="absolute inset-0 bg-black/10 flex items-center justify-center transition-all duration-500 group-hover:bg-black/30">
+                <div className="px-6 py-3 rounded-full border border-white/30 backdrop-blur-md bg-white/5 transition-all duration-500 group-hover:border-white/60 group-hover:bg-white/10 group-hover:scale-105">
+                  <h3 className="text-white text-lg font-serif uppercase tracking-[0.2em] text-center">Acessórios Exclusivos</h3>
+                </div>
               </div>
-            </div>
+            </Link>
             <div className="md:col-span-4 md:row-span-1 relative rounded-3xl overflow-hidden group bg-zinc-900 border border-zinc-800 p-10 flex flex-col justify-center">
               <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mb-6">
                 <ShoppingBag className="text-white" />
