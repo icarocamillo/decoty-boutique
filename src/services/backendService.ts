@@ -173,12 +173,12 @@ export const backendService = {
 
   createClient: async (client: Omit<Client, 'id' | 'data_cadastro'>): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-      const payload = prepareClientPayload(client);
+      const payload = { ...prepareClientPayload(client), origin: 'erp_only' };
       const { error } = await getSupabase().from('clients').insert([payload]);
       return !error;
     }
     const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
-    const newClient = { ...client, id: 'c' + Date.now(), data_cadastro: new Date().toISOString() };
+    const newClient = { ...client, id: 'c' + Date.now(), data_cadastro: new Date().toISOString(), origin: 'erp_only' };
     setLocalData(LS_KEYS.CLIENTS, [...clients, newClient]);
     return true;
   },
@@ -186,6 +186,15 @@ export const backendService = {
   updateClient: async (client: Client): Promise<boolean> => {
     if (isSupabaseConfigured()) {
       const payload = prepareClientPayload(client);
+      
+      // Se for atualização via ERP, verificamos se o cliente veio do site para tornar 'both'
+      const { data: current } = await getSupabase().from('clients').select('origin').eq('id', client.id).maybeSingle();
+      if (current?.origin === 'site_only') {
+        (payload as any).origin = 'both';
+      } else if (!current?.origin) {
+        (payload as any).origin = 'erp_only';
+      }
+
       const { error } = await getSupabase().from('clients').update(payload).eq('id', client.id);
       return !error;
     }
@@ -1634,7 +1643,7 @@ export const backendService = {
     return []; // Implementação simplificada ou removida pois migramos para cor
   },
 
-  checkClientByEmail: async (email: string): Promise<{ exists: boolean, needsLink: boolean, name?: string, client?: any }> => {
+  checkClientByEmail: async (email: string): Promise<{ exists: boolean, needsLink: boolean, name?: string, client?: any, isStaff?: boolean }> => {
     if (!isSupabaseConfigured()) return { exists: false, needsLink: false };
     
     const { data: client } = await getSupabase()
@@ -1643,13 +1652,20 @@ export const backendService = {
       .eq('email', email)
       .maybeSingle();
       
-    if (!client) return { exists: false, needsLink: false };
+    const { data: profile } = await getSupabase()
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+       
+    if (!client) return { exists: false, needsLink: false, isStaff: !!profile };
     
     return { 
       exists: true, 
       needsLink: client.user_id === null,
       name: client.nome,
-      client: client
+      client: client,
+      isStaff: !!profile
     };
   },
 
@@ -1676,7 +1692,7 @@ export const backendService = {
       .from('clients')
       .update({ 
         user_id: userId,
-        origin: 'store_and_site'
+        origin: 'both'
       })
       .eq('id', client.id);
       
@@ -1756,11 +1772,11 @@ export const backendService = {
       
     if (clientByEmail) {
       // Se encontrou por email mas não tinha user_id, vincula agora.
-      // Como o cliente já existia (provavelmente cadastrado na loja) e agora está no site, origin vira 'store_and_site'.
+      // Como o cliente já existia (provavelmente cadastrado na loja) e agora está no site, origin vira 'both'.
       const updateData: any = { user_id: userId };
       
-      if (!clientByEmail.origin || clientByEmail.origin === 'store_only') {
-        updateData.origin = 'store_and_site';
+      if (!clientByEmail.origin || clientByEmail.origin === 'erp_only') {
+        updateData.origin = 'both';
       }
 
       await getSupabase().from('clients').update(updateData).eq('id', clientByEmail.id);
@@ -1768,6 +1784,13 @@ export const backendService = {
     }
     
     // 3. Se ainda não existir nada, cria um novo registro de cliente vindo diretamente do SITE
+    // Verifica se é funcionário para definir origin como 'both'
+    const { data: profile } = await getSupabase()
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+
     const { data: newClient, error } = await getSupabase()
       .from('clients')
       .insert([{
@@ -1777,7 +1800,7 @@ export const backendService = {
         user_id: userId,
         receber_ofertas: true,
         pode_provador: false,
-        origin: 'site_only' // Novo cadastro vindo do site
+        origin: profile ? 'both' : 'site_only'
       }])
       .select()
       .maybeSingle();

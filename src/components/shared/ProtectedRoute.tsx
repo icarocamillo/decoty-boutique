@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { session, loading } = useAuth();
+  const { session, loading, userRole } = useAuth();
 
   if (loading) {
     return (
@@ -17,6 +17,10 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
 
   if (!session) {
     return <Navigate to="/erp/login" replace />;
+  }
+
+  if (userRole === 'customer') {
+    return <Navigate to="/erp/login" replace state={{ error: 'Acesso permitido somente a funcionários' }} />;
   }
 
   return <>{children}</>;

@@ -56,15 +56,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
              .eq('id', currentSession.user.id)
              .maybeSingle();
  
-           if (!profile || profile.active === false) {
-              await getSupabase().auth.signOut();
-              setSession(null);
-              setUser(null);
+           if (profile) {
+              if (profile.active === false) {
+                 await getSupabase().auth.signOut();
+                 setSession(null);
+                 setUser(null);
+              } else {
+                 setSession(currentSession);
+                 setUser(currentSession.user);
+                 setUserName(profile.name);
+                 setUserRole(profile.role as 'manager' | 'salesperson');
+              }
            } else {
               setSession(currentSession);
               setUser(currentSession.user);
-              setUserName(profile.name);
-              setUserRole(profile.role as 'manager' | 'salesperson' | 'customer');
+              setUserName(currentSession.user.user_metadata?.name || null);
+              setUserRole('customer');
            }
         }
         
@@ -86,18 +93,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                .eq('id', session.user.id)
                .maybeSingle();
  
-             if (!profile || profile.active === false) {
-                // Se o usuário logou mas está desativado no banco
-                await getSupabase().auth.signOut();
-                setSession(null);
-                setUser(null);
-                setUserName(null);
-                setUserRole(null);
+             if (profile) {
+                if (profile.active === false) {
+                   await getSupabase().auth.signOut();
+                   setSession(null);
+                   setUser(null);
+                   setUserName(null);
+                   setUserRole(null);
+                } else {
+                   setSession(session);
+                   setUser(session.user);
+                   setUserName(profile.name);
+                   setUserRole(profile.role as 'manager' | 'salesperson');
+                }
              } else {
                 setSession(session);
                 setUser(session.user);
-                setUserName(profile.name);
-                setUserRole(profile.role as 'manager' | 'salesperson' | 'customer');
+                setUserName(session.user.user_metadata?.name || null);
+                setUserRole('customer');
              }
           } else {
              setSession(null);
@@ -141,30 +154,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) return { error };
 
       if (data.user) {
-         // 2. Imediatamente após o sucesso da senha, verifica o status na tabela profiles
+         // 2. Tenta obter perfil de funcionário
          const { data: profile } = await getSupabase()
            .from('profiles')
            .select('name, role, active')
            .eq('id', data.user.id)
            .maybeSingle();
          
-         // 3. Bloqueio Mandatário
-         if (!profile || profile.active === false) {
-            await getSupabase().auth.signOut();
-            // Limpa estados por segurança
-            setSession(null);
-            setUser(null);
-            return { 
-              error: { message: 'Seu usuário foi desativado. Por favor, procure a gerencia.' } 
-            };
+         if (profile) {
+            if (profile.active === false) {
+               await getSupabase().auth.signOut();
+               setSession(null);
+               setUser(null);
+               return { 
+                 error: { message: 'Seu usuário foi desativado. Por favor, procure a gerencia.' } 
+               };
+            }
+            setSession(data.session);
+            setUser(data.user);
+            setUserName(profile.name);
+            setUserRole(profile.role as 'manager' | 'salesperson');
+            return { error: null, role: profile.role as any };
          }
 
-         // Se chegou aqui, o login é válido e o usuário está ativo
+         // Se não tem perfil, é considerado cliente
          setSession(data.session);
          setUser(data.user);
-         setUserName(profile.name);
-         setUserRole(profile.role as 'manager' | 'salesperson' | 'customer');
-         return { error: null, role: profile.role as any };
+         setUserName(data.user.user_metadata?.name || null);
+         setUserRole('customer');
+         return { error: null, role: 'customer' };
       }
 
       return { error: null };
@@ -220,8 +238,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .eq('id', signInData.user.id)
               .maybeSingle();
 
-            if (profile && profile.role === 'customer') {
-               // Promove o cliente para a role de staff selecionada
+            if (profile && profile.role === 'customer' && role !== 'customer') {
+               // Cliente virando funcionário (Promoção)
                const { error: updateError } = await getSupabase()
                  .from('profiles')
                  .update({ 
@@ -231,15 +249,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                  })
                  .eq('id', profile.id);
 
-               // Desloga para manter o fluxo original de redirecionamento para tela de login
                await getSupabase().auth.signOut();
-
                if (updateError) return { error: updateError };
                return { error: null, promoted: true };
+            } else if (profile && (profile.role === 'manager' || profile.role === 'salesperson') && role === 'customer') {
+               // Funcionário virando cliente (Vínculo com site)
+               // Não alteramos a profiles, apenas retornamos sucesso para permitir o fluxo no CustomerLoginPage
+               return { error: null, promoted: false };
             } else {
-               // Se já for staff, desloga e avisa
+               // Se for staff tentando virar staff, ou cliente tentando virar cliente (redundante)
                await getSupabase().auth.signOut();
-               return { error: { message: 'Este e-mail já está vinculado a uma conta de colaborador ou gerente.' } };
+               return { error: { message: 'Este e-mail já está vinculado a uma conta ativa no sistema.' } };
             }
          }
       }

@@ -13,7 +13,7 @@ type AuthMode = 'login' | 'register';
 
 export const CustomerLoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signOut } = useAuth();
   
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
@@ -51,6 +51,20 @@ export const CustomerLoginPage: React.FC = () => {
         setError(loginError.message || 'Erro ao realizar login. Verifique suas credenciais.');
         setLoading(false);
       } else {
+        // Obter usuário recém logado (precisamos pegar do supabase pois o estado do context pode não ter atualizado ainda no closure)
+        const { data: { user } } = await getSupabase().auth.getUser();
+        
+        if (user) {
+          const client = await backendService.getClientByUserId(user.id);
+          if (!client) {
+             // É funcionário mas não tem registro de cliente
+             setError('Você já possui acesso ao ERP como funcionário, mas precisa se cadastrar como cliente para acessar o site. Clique em "Criar Nova Conta" abaixo para vincular seu perfil.');
+             // Desloga por segurança para não "entrar" sem o registro
+             await signOut();
+             setLoading(false);
+             return;
+          }
+        }
         navigate('/');
       }
     } else {
@@ -59,12 +73,15 @@ export const CustomerLoginPage: React.FC = () => {
       // 1. Se ainda não verificamos o email, verificamos agora
       if (!needsCpfVerification) {
         try {
-          const { needsLink, name: storeName } = await backendService.checkClientByEmail(email);
+          const { needsLink, name: storeName, isStaff } = await backendService.checkClientByEmail(email);
           if (needsLink) {
             setNeedsCpfVerification(true);
             if (storeName && !name) setName(storeName);
             setLoading(false);
             return;
+          }
+          if (isStaff && !success) {
+            setSuccess('Você já é um colaborador da Decoty! Digite sua senha habitual para ativar seu acesso como cliente no site.');
           }
         } catch (err) {
           console.error("Erro ao verificar email na base de dados:", err);
