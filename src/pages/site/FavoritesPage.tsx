@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Card } from '@/components/ui/Card';
 import { useData } from '@/contexts/DataContext';
@@ -12,7 +12,19 @@ export const FavoritesPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const favoriteProducts = products.filter(p => favoriteIds.includes(p.id));
+  const favoriteItems = useMemo(() => {
+    const items: { product: any, color?: string }[] = [];
+    
+    favoriteIds.forEach(favKey => {
+      const [productId, color] = favKey.split(':');
+      const product = products.find(p => p.id === productId);
+      if (product) {
+        items.push({ product, color });
+      }
+    });
+
+    return items;
+  }, [products, favoriteIds]);
 
   if (!user) {
     return (
@@ -48,7 +60,7 @@ export const FavoritesPage: React.FC = () => {
             </div>
           </div>
 
-          {favoriteProducts.length === 0 ? (
+          {favoriteItems.length === 0 ? (
             <Card className="p-16 text-center border-none shadow-sm flex flex-col items-center justify-center bg-white rounded-3xl">
               <div className="w-24 h-24 bg-zinc-50 rounded-full flex items-center justify-center text-zinc-200 mb-6">
                 <Heart size={48} />
@@ -63,8 +75,12 @@ export const FavoritesPage: React.FC = () => {
             </Card>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8">
-              {favoriteProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+              {favoriteItems.map((item, index) => (
+                <ProductCard 
+                  key={`${item.product.id}-${item.color || 'none'}-${index}`} 
+                  product={item.product} 
+                  preferredColor={item.color} 
+                />
               ))}
             </div>
           )}

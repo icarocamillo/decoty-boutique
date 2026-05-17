@@ -20,7 +20,7 @@ interface DataContextType {
   chartData: ChartDataPoint[];
   topBrand: string;
   favoriteIds: string[];
-  toggleFavorite: (productId: string) => Promise<void>;
+  toggleFavorite: (productId: string, color?: string) => Promise<void>;
   isLoading: boolean;
   isRefreshing: boolean;
   refreshData: () => Promise<void>;
@@ -201,15 +201,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const toggleFavorite = useCallback(async (productId: string) => {
+  const toggleFavorite = useCallback(async (productId: string, color?: string) => {
     if (!session?.user) return;
     
     // Otimista
-    const isCurrentlyFavorite = favoriteIds.includes(productId);
+    const favKey = color ? `${productId}:${color}` : productId;
+    const isCurrentlyFavorite = favoriteIds.includes(favKey);
     setFavoriteIds(prev => 
       isCurrentlyFavorite 
-        ? prev.filter(id => id !== productId) 
-        : [...prev, productId]
+        ? prev.filter(id => id !== favKey) 
+        : [...prev, favKey]
     );
 
     try {
@@ -217,15 +218,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         session.user.id, 
         productId, 
         session.user.user_metadata?.name || '', 
-        session.user.email || ''
+        session.user.email || '',
+        color
       );
       
       if (!success) {
         // Reverte se falhou
         setFavoriteIds(prev => 
           isCurrentlyFavorite 
-            ? [...prev, productId]
-            : prev.filter(id => id !== productId)
+            ? [...prev, favKey]
+            : prev.filter(id => id !== favKey)
         );
       }
     } catch (error) {
@@ -233,8 +235,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Reverte se falhou
       setFavoriteIds(prev => 
         isCurrentlyFavorite 
-          ? [...prev, productId]
-          : prev.filter(id => id !== productId)
+          ? [...prev, favKey]
+          : prev.filter(id => id !== favKey)
       );
     }
   }, [session, favoriteIds]);

@@ -1826,7 +1826,7 @@ export const backendService = {
       
       const { data, error } = await getSupabase()
         .from('client_favorites')
-        .select('product_id')
+        .select('product_id, cor')
         .eq('client_id', client.id);
         
       if (error) {
@@ -1834,23 +1834,30 @@ export const backendService = {
         return [];
       }
       
-      return (data || []).map(f => f.product_id);
+      return (data || []).map(f => f.cor ? `${f.product_id}:${f.cor}` : f.product_id);
     }
     return getLocalData<string[]>(LS_KEYS.FAVORITES, []);
   },
 
-  toggleFavorite: async (userId: string, productId: string, name: string = '', email: string = ''): Promise<boolean> => {
+  toggleFavorite: async (userId: string, productId: string, name: string = '', email: string = '', color?: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
       const clientId = await backendService.getOrCreateClientForUser(userId, name, email);
       if (!clientId) return false;
       
       // Verifica se já é favorito
-      const { data: existing } = await getSupabase()
+      let query = getSupabase()
         .from('client_favorites')
         .select('id')
         .eq('client_id', clientId)
-        .eq('product_id', productId)
-        .maybeSingle();
+        .eq('product_id', productId);
+      
+      if (color) {
+        query = query.eq('cor', color);
+      } else {
+        query = query.is('cor', null);
+      }
+
+      const { data: existing } = await query.maybeSingle();
         
       if (existing) {
         // Remover
@@ -1861,20 +1868,24 @@ export const backendService = {
         return !error;
       } else {
         // Adicionar
+        const payload: any = { client_id: clientId, product_id: productId };
+        if (color) payload.cor = color;
+        
         const { error } = await getSupabase()
           .from('client_favorites')
-          .insert([{ client_id: clientId, product_id: productId }]);
+          .insert([payload]);
         return !error;
       }
     }
     
     // Mock Environment
+    const favKey = color ? `${productId}:${color}` : productId;
     const favorites = getLocalData<string[]>(LS_KEYS.FAVORITES, []);
-    const index = favorites.indexOf(productId);
+    const index = favorites.indexOf(favKey);
     if (index !== -1) {
       favorites.splice(index, 1);
     } else {
-      favorites.push(productId);
+      favorites.push(favKey);
     }
     setLocalData(LS_KEYS.FAVORITES, favorites);
     window.dispatchEvent(new CustomEvent('favorites_updated'));

@@ -21,7 +21,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, preferredColo
   const { favoriteIds, toggleFavorite: backendToggleFavorite } = useData();
   
   // Favoritos
-  const isFavorite = favoriteIds.includes(product.id);
+  const isFavorite = favoriteIds.includes(product.id + (preferredColor ? `:${preferredColor}` : ""));
 
   const toggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -32,7 +32,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, preferredColo
       return;
     }
 
-    await backendToggleFavorite(product.id);
+    await backendToggleFavorite(product.id, preferredColor);
   };
 
   // Encontrar o menor preço entre as variantes

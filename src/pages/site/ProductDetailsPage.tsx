@@ -62,21 +62,6 @@ export const ProductDetailsPage: React.FC = () => {
     return foundProduct;
   }, [identifier, products]);
 
-  const isFavorite = useMemo(() => {
-    return product ? favoriteIds.includes(product.id) : false;
-  }, [product, favoriteIds]);
-
-  const toggleFavorite = async () => {
-    if (!user) {
-      alert('Você precisa estar logada para favoritar uma peça. Faça login para salvar seus favoritos!');
-      return;
-    }
-
-    if (!product) return;
-
-    await backendToggleFavorite(product.id);
-  };
-
   const handleAddToCart = () => {
     if (product && selectedVariant) {
       addToCart(product, selectedVariant, 1);
@@ -142,6 +127,23 @@ export const ProductDetailsPage: React.FC = () => {
     if (selectedVariantId) return product.variants.find(v => v.id === selectedVariantId);
     return product.variants[0];
   }, [product, selectedVariantId]);
+
+  const isFavorite = useMemo(() => {
+    if (!product) return false;
+    const favKey = selectedVariant?.cor ? `${product.id}:${selectedVariant.cor}` : product.id;
+    return favoriteIds.includes(favKey);
+  }, [product, selectedVariant?.cor, favoriteIds]);
+
+  const toggleFavorite = async () => {
+    if (!user) {
+      alert('Você precisa estar logada para favoritar uma peça. Faça login para salvar seus favoritos!');
+      return;
+    }
+
+    if (!product) return;
+
+    await backendToggleFavorite(product.id, selectedVariant?.cor);
+  };
 
   // Buscar combinações quando o produto ou a cor selecionada mudar
   React.useEffect(() => {

@@ -151,8 +151,8 @@ export const CheckoutPage: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-              {/* Item List */}
-              <div className="lg:col-span-8 space-y-12">
+              {/* Item List - Hidden on mobile as per request */}
+              <div className="hidden lg:col-span-8 lg:block space-y-12">
                 <div className="space-y-8">
                   <div className="flex items-center gap-4 mb-2">
                     <span className="w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center text-xs font-black">01</span>
@@ -238,10 +238,20 @@ export const CheckoutPage: React.FC = () => {
 
                     <div className="p-6 space-y-6">
                       <div className="flex items-center gap-3 relative z-10">
-                        <div className="w-10 h-10 rounded-full bg-white text-zinc-900 flex items-center justify-center text-xs font-black shrink-0">02</div>
+                        <div className="w-10 h-10 rounded-full bg-white text-zinc-900 flex items-center justify-center text-xs font-black shrink-0">
+                          <span className="lg:hidden">01</span>
+                          <span className="hidden lg:inline">02</span>
+                        </div>
                         <div>
-                          <h3 className="text-lg font-serif font-black text-white uppercase tracking-tight leading-none">Escolha o pagamento</h3>
-                          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1">de sua preferência</p>
+                          <h3 className="text-lg font-serif font-black text-white uppercase tracking-tight leading-none lg:hidden">
+                            Escolha o pagamento de sua preferência
+                          </h3>
+                          <h3 className="text-lg font-serif font-black text-white uppercase tracking-tight leading-none hidden lg:block">
+                            Escolha o pagamento
+                          </h3>
+                          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1 hidden lg:block">
+                            de sua preferência
+                          </p>
                         </div>
                       </div>
 
@@ -313,7 +323,10 @@ export const CheckoutPage: React.FC = () => {
                       <div className="p-8">
                         {/* Step Title Header inside card */}
                         <div className="flex items-center gap-3 mb-8 relative z-10">
-                          <span className="w-10 h-10 rounded-full bg-white text-zinc-900 flex items-center justify-center text-xs font-black shrink-0">03</span>
+                          <span className="w-10 h-10 rounded-full bg-white text-zinc-900 flex items-center justify-center text-xs font-black shrink-0">
+                            <span className="lg:hidden">02</span>
+                            <span className="hidden lg:inline">03</span>
+                          </span>
                           <h3 className="text-lg font-serif font-black text-white uppercase leading-none">Finalização do pedido</h3>
                         </div>
 
@@ -405,7 +418,7 @@ export const CheckoutPage: React.FC = () => {
                 </p>
                 <Button
                   onClick={proceedToWhatsApp}
-                  className="w-full h-16 rounded-2xl bg-zinc-900 hover:bg-black text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2"
+                  className="w-full h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 border-none transition-all shadow-lg active:scale-95"
                 >
                   <Phone size={18} />
                   Continuar para WhatsApp
