@@ -30,11 +30,18 @@ export const Footer: React.FC = () => {
 
           {/* Links Col */}
           <div>
-            <h4 className="text-xs uppercase font-black tracking-widest text-zinc-500 mb-6">Shopping</h4>
+            <h4 className="text-xs uppercase font-black tracking-widest text-zinc-500 mb-6">Compras</h4>
             <ul className="space-y-4">
-              {['Novidades', 'Coleção Primavera', 'Vestidos', 'Blusas', 'Calças'].map((item) => (
-                <li key={item}>
-                  <Link to="/" className="text-sm text-zinc-400 hover:text-white transition-colors">{item}</Link>
+              {[
+                { label: 'Novidades', path: '/catalogo' },
+                { label: 'Coleção da temporada', path: '/catalogo' },
+                { label: 'Vestidos', path: '/catalogo?categoria=Vestidos' },
+                { label: 'Blusas', path: '/catalogo?categoria=Blusas' },
+                { label: 'Calças', path: '/catalogo?categoria=Calças' },
+                { label: 'Conjuntos', path: '/catalogo?categoria=Conjuntos' }
+              ].map((item) => (
+                <li key={item.label}>
+                  <Link to={item.path} className="text-sm text-zinc-400 hover:text-white transition-colors">{item.label}</Link>
                 </li>
               ))}
             </ul>
@@ -44,9 +51,13 @@ export const Footer: React.FC = () => {
           <div>
             <h4 className="text-xs uppercase font-black tracking-widest text-zinc-500 mb-6">Ajuda</h4>
             <ul className="space-y-4">
-              {['Rastrear Pedido', 'Trocas e Devoluções', 'Termos de Serviço', 'Privacidade'].map((item) => (
-                <li key={item}>
-                  <Link to="/" className="text-sm text-zinc-400 hover:text-white transition-colors">{item}</Link>
+              {[
+                { label: 'Acompanhar pedidos', path: '/minha-conta/perfil' },
+                { label: 'Trocas e Devoluções', path: '/' },
+                { label: 'Termos de Serviço', path: '/' }
+              ].map((item) => (
+                <li key={item.label}>
+                  <Link to={item.path} className="text-sm text-zinc-400 hover:text-white transition-colors">{item.label}</Link>
                 </li>
               ))}
             </ul>

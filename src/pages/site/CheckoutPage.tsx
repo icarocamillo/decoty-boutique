@@ -21,6 +21,8 @@ export const CheckoutPage: React.FC = () => {
   const [installments, setInstallments] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showGuestNameModal, setShowGuestNameModal] = useState(false);
+  const [guestName, setGuestName] = useState('');
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -41,6 +43,11 @@ export const CheckoutPage: React.FC = () => {
 
   const handleCheckoutWhatsApp = async () => {
     if (cart.length === 0) return;
+
+    if (!user) {
+      setShowGuestNameModal(true);
+      return;
+    }
 
     setIsProcessing(true);
 
@@ -76,11 +83,12 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
-  const proceedToWhatsApp = () => {
+  const proceedToWhatsApp = (providedName?: string) => {
     const phone = "5519997526144";
     const businessName = "Decoty Boutique";
 
-    let message = `Olá ${businessName}! \n\nGostaria de finalizar meu pedido:\n\n`;
+    const customerName = providedName || user?.user_metadata?.name || 'Cliente';
+    let message = `Olá ${businessName}! Eu sou a ${customerName} e gostaria de reservar os itens abaixo:\n\n`;
 
     cart.forEach(item => {
       message += `• *${item.nome}*\n  Cor: ${item.cor} | Tam: ${item.tamanho}\n  Qtd: ${item.quantidade}x ${formatCurrency(item.preco_unitario)}\n\n`;
@@ -417,12 +425,92 @@ export const CheckoutPage: React.FC = () => {
                   Sua solicitação de reserva foi criada com sucesso em nosso sistema. Agora, finalize seu atendimento no WhatsApp da Decoty.
                 </p>
                 <Button
-                  onClick={proceedToWhatsApp}
+                  onClick={() => proceedToWhatsApp()}
                   className="w-full h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 border-none transition-all shadow-lg active:scale-95"
                 >
                   <Phone size={18} />
                   Continuar para WhatsApp
                 </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Guest Name Modal */}
+      <AnimatePresence>
+        {showGuestNameModal && (
+          <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 sm:p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-zinc-950/80 backdrop-blur-xl"
+              onClick={() => setShowGuestNameModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
+            >
+              <div className="p-8 sm:p-10">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="w-16 h-16 bg-zinc-50 text-zinc-900 rounded-2xl flex items-center justify-center shadow-sm">
+                    <ShoppingBag size={24} />
+                  </div>
+                  <button 
+                    onClick={() => setShowGuestNameModal(false)}
+                    className="w-10 h-10 rounded-full hover:bg-zinc-100 flex items-center justify-center text-zinc-400 transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <h3 className="text-2xl font-serif font-black text-zinc-900 mb-2 leading-tight">
+                  Quase lá!
+                </h3>
+                <p className="text-zinc-500 text-sm font-medium mb-8 leading-relaxed">
+                  Notamos que você está reservando um pedido sem estar registrado em nosso site, por favor, diga o seu <span className="text-zinc-900 font-bold">Nome</span> para que possamos identificar no atendimento.
+                </p>
+
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-black tracking-widest text-zinc-400 ml-1">
+                      Seu Nome
+                    </label>
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Ex: Maria Silva"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      className="w-full h-14 px-6 rounded-2xl bg-zinc-50 border border-zinc-100 focus:border-emerald-500 focus:bg-white transition-all outline-none font-bold text-zinc-900"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && guestName.trim()) {
+                          proceedToWhatsApp(guestName);
+                          setShowGuestNameModal(false);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <Button
+                    disabled={!guestName.trim()}
+                    onClick={() => {
+                      proceedToWhatsApp(guestName);
+                      setShowGuestNameModal(false);
+                    }}
+                    className="w-full h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all shadow-lg shadow-emerald-500/10 border-none active:scale-95 disabled:opacity-50"
+                  >
+                    <Phone size={18} fill="currentColor" />
+                    Confirmar e Ir para WhatsApp
+                  </Button>
+
+                  <p className="text-[10px] text-zinc-400 text-center font-bold uppercase tracking-tighter">
+                    Você será redirecionado para o WhatsApp da Decoty
+                  </p>
+                </div>
               </div>
             </motion.div>
           </div>
