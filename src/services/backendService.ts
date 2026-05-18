@@ -203,6 +203,17 @@ export const backendService = {
     return true;
   },
 
+  updateClientOriginByEmail: async (email: string, userId: string, origin: 'erp_only' | 'site_only' | 'both'): Promise<boolean> => {
+    if (isSupabaseConfigured()) {
+        const { error } = await getSupabase()
+            .from('clients')
+            .update({ origin, user_id: userId })
+            .eq('email', email);
+        return !error;
+    }
+    return true;
+  },
+
   updateClientCrediario: async (clientId: string, amountToSubtract: number): Promise<boolean> => {
     if (isSupabaseConfigured()) {
         const { data: c } = await getSupabase().from('clients').select('saldo_devedor_crediario').eq('id', clientId).single();

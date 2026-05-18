@@ -14,7 +14,7 @@ type PaymentMethod = 'pix' | 'credito' | 'debito';
 export const CheckoutPage: React.FC = () => {
   const { cart, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
   const { paymentDiscounts } = useData();
-  const { user } = useAuth();
+  const { user, userName } = useAuth();
   const navigate = useNavigate();
   const [stockError, setStockError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
@@ -87,7 +87,7 @@ export const CheckoutPage: React.FC = () => {
     const phone = "5519997526144";
     const businessName = "Decoty Boutique";
 
-    const customerName = providedName || user?.user_metadata?.name || 'Cliente';
+    const customerName = providedName || userName || user?.user_metadata?.name || 'Cliente';
     let message = `Olá ${businessName}! Eu sou a ${customerName} e gostaria de reservar os itens abaixo:\n\n`;
 
     cart.forEach(item => {

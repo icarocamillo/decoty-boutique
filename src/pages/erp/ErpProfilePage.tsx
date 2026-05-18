@@ -9,7 +9,7 @@ import { backendService } from '@/services/backendService';
 import { useNavigate } from 'react-router-dom';
 
 export const ErpProfilePage: React.FC = () => {
-  const { user, userName, userRole, signOut } = useAuth();
+  const { user, staffName, staffEmail, userRole, signOut } = useAuth();
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -31,11 +31,11 @@ export const ErpProfilePage: React.FC = () => {
   useEffect(() => {
     if (user) {
       setFormData({
-        name: userName || '',
-        email: user.email || ''
+        name: staffName || '',
+        email: staffEmail || user.email || ''
       });
     }
-  }, [user, userName]);
+  }, [user, staffName, staffEmail]);
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

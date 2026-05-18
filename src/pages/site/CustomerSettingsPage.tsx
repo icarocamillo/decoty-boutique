@@ -174,7 +174,7 @@ export const CustomerSettingsPage: React.FC = () => {
                   <User size={40} />
                 </div>
                 <h2 className="text-2xl font-serif text-zinc-950">{userName || 'Cliente Decoty'}</h2>
-                <p className="text-sm text-zinc-500 mb-8">{user?.email}</p>
+                <p className="text-sm text-zinc-500 mb-8">{userEmail || 'e-mail não cadastrado'}</p>
                 <div className="h-px bg-zinc-50 mb-8" />
                 <div className="space-y-2">
                    {[
@@ -257,7 +257,7 @@ export const CustomerSettingsPage: React.FC = () => {
                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300" size={18} />
                                <input 
                                  type="email" 
-                                 value={user?.email || ''} 
+                                 value={userEmail || 'e-mail não cadastrado'} 
                                  disabled
                                  className="w-full bg-zinc-100 border border-zinc-100 rounded-2xl pl-12 pr-5 py-4 text-sm font-medium text-zinc-400 cursor-not-allowed shadow-inner"
                                />

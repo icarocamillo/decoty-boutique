@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getSupabase, isSupabaseConfigured } from '@/services/supabaseClient';
 import { Session, User } from '@supabase/supabase-js';
+import { backendService } from '@/services/backendService';
 
 interface AuthContextType {
   session: Session | null;
@@ -14,6 +15,8 @@ interface AuthContextType {
   userRole: 'manager' | 'salesperson' | 'customer' | null;
   userName: string | null;
   userEmail: string | null;
+  staffName: string | null;
+  staffEmail: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,6 +31,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userRole, setUserRole] = useState<'manager' | 'salesperson' | 'customer' | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [staffName, setStaffName] = useState<string | null>(null);
+  const [staffEmail, setStaffEmail] = useState<string | null>(null);
+
+  const fetchClientData = async (userId: string) => {
+    if (!isSupabaseConfigured()) return null;
+    const { data, error } = await getSupabase()
+      .from('clients')
+      .select('nome, email')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    if (error || !data) return null;
+    return data;
+  };
+
+  const fetchProfileData = async (userId: string) => {
+    if (!isSupabaseConfigured()) return null;
+    const { data, error } = await getSupabase()
+      .from('profiles')
+      .select('name, email, role')
+      .eq('id', userId)
+      .maybeSingle();
+    
+    if (error || !data) return null;
+    return data;
+  };
 
   // Inicializa usuários mock apenas para ambiente de teste
   useEffect(() => {
@@ -52,10 +81,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (currentSession?.user) {
            const { data: profile } = await getSupabase()
              .from('profiles')
-             .select('name, role, active')
+             .select('name, role, active, email')
              .eq('id', currentSession.user.id)
              .maybeSingle();
- 
+
            if (profile) {
               if (profile.active === false) {
                  await getSupabase().auth.signOut();
@@ -64,13 +93,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               } else {
                  setSession(currentSession);
                  setUser(currentSession.user);
-                 setUserName(profile.name);
+                 
+                 // Dados ERP (Profiles)
+                 setStaffName(profile.name);
+                 setStaffEmail(profile.email || currentSession.user.email || null);
+                 
+                 // Dados Site (Clients)
+                 const clientData = await fetchClientData(currentSession.user.id);
+                 if (clientData) {
+                    setUserName(clientData.nome);
+                    setUserEmail(clientData.email);
+                 } else {
+                    setUserName(null);
+                    setUserEmail(null);
+                 }
+                 
                  setUserRole(profile.role as 'manager' | 'salesperson');
               }
            } else {
               setSession(currentSession);
               setUser(currentSession.user);
-              setUserName(currentSession.user.user_metadata?.name || null);
+              
+              setStaffName(null);
+              setStaffEmail(null);
+              
+              // Buscar dados na tabela clients
+              const clientData = await fetchClientData(currentSession.user.id);
+              if (clientData) {
+                 setUserName(clientData.nome);
+                 setUserEmail(clientData.email);
+              } else {
+                 setUserName(currentSession.user.user_metadata?.name || null);
+                 setUserEmail(currentSession.user.email || null);
+              }
               setUserRole('customer');
            }
         }
@@ -89,10 +144,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (session?.user) {
              const { data: profile } = await getSupabase()
                .from('profiles')
-               .select('name, role, active')
+               .select('name, role, active, email')
                .eq('id', session.user.id)
                .maybeSingle();
- 
+
              if (profile) {
                 if (profile.active === false) {
                    await getSupabase().auth.signOut();
@@ -100,16 +155,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                    setUser(null);
                    setUserName(null);
                    setUserRole(null);
+                   setUserEmail(null);
+                   setStaffName(null);
+                   setStaffEmail(null);
                 } else {
                    setSession(session);
                    setUser(session.user);
-                   setUserName(profile.name);
+                   
+                   // Dados ERP (Profiles)
+                   setStaffName(profile.name);
+                   setStaffEmail(profile.email || session.user.email || null);
+                   
+                   // Dados Site (Clients)
+                   const clientData = await fetchClientData(session.user.id);
+                   if (clientData) {
+                      setUserName(clientData.nome);
+                      setUserEmail(clientData.email);
+                   } else {
+                      setUserName(null);
+                      setUserEmail(null);
+                   }
+                   
                    setUserRole(profile.role as 'manager' | 'salesperson');
                 }
              } else {
                 setSession(session);
                 setUser(session.user);
-                setUserName(session.user.user_metadata?.name || null);
+                
+                setStaffName(null);
+                setStaffEmail(null);
+
+                // Buscar dados na tabela clients
+                const clientData = await fetchClientData(session.user.id);
+                if (clientData) {
+                   setUserName(clientData.nome);
+                   setUserEmail(clientData.email);
+                } else {
+                   setUserName(session.user.user_metadata?.name || null);
+                   setUserEmail(session.user.email || null);
+                }
                 setUserRole('customer');
              }
           } else {
@@ -117,6 +201,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
              setUser(null);
              setUserName(null);
              setUserRole(null);
+             setUserEmail(null);
+             setStaffName(null);
+             setStaffEmail(null);
           }
           setLoading(false);
         });
@@ -155,11 +242,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.user) {
          // 2. Tenta obter perfil de funcionário
-         const { data: profile } = await getSupabase()
-           .from('profiles')
-           .select('name, role, active')
-           .eq('id', data.user.id)
-           .maybeSingle();
+          const { data: profile } = await getSupabase()
+            .from('profiles')
+            .select('name, role, active, email')
+            .eq('id', data.user.id)
+            .maybeSingle();
          
          if (profile) {
             if (profile.active === false) {
@@ -172,7 +259,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
             setSession(data.session);
             setUser(data.user);
-            setUserName(profile.name);
+            
+            // Dados ERP (Profiles)
+            setStaffName(profile.name);
+            setStaffEmail(profile.email || data.user.email || null);
+            
+            // Dados Site (Clients)
+            const clientData = await fetchClientData(data.user.id);
+            if (clientData) {
+               setUserName(clientData.nome);
+               setUserEmail(clientData.email);
+            } else {
+               setUserName(null);
+               setUserEmail(null);
+            }
+            
             setUserRole(profile.role as 'manager' | 'salesperson');
             return { error: null, role: profile.role as any };
          }
@@ -180,7 +281,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
          // Se não tem perfil, é considerado cliente
          setSession(data.session);
          setUser(data.user);
-         setUserName(data.user.user_metadata?.name || null);
+         
+         // Buscar dados na tabela clients
+         const clientData = await fetchClientData(data.user.id);
+         if (clientData) {
+            setUserName(clientData.nome);
+            setUserEmail(clientData.email);
+         } else {
+            setUserName(data.user.user_metadata?.name || null);
+            setUserEmail(data.user.email || null);
+         }
          setUserRole('customer');
          return { error: null, role: 'customer' };
       }
@@ -238,26 +348,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .eq('id', signInData.user.id)
               .maybeSingle();
 
-            if (profile && profile.role === 'customer' && role !== 'customer') {
-               // Cliente virando funcionário (Promoção)
-               const { error: updateError } = await getSupabase()
+            // Ajuste ERP: Se não estamos cadastrando um 'customer', estamos tentando cadastrar um funcionário.
+            // Se o login funcionou, significa que a conta já existe (ex: cliente do site).
+            if (role !== 'customer') {
+               // 1. Atualizar origin na tabela clients para 'both' e vincular user_id
+               await backendService.updateClientOriginByEmail(email, signInData.user.id, 'both');
+
+               // 2. Criar ou atualizar perfil na tabela profiles com o cargo escolhido (upsert)
+               const { error: profileError } = await getSupabase()
                  .from('profiles')
-                 .update({ 
-                   role: role, 
-                   name: name,
+                 .upsert({ 
+                   id: signInData.user.id,
+                   email,
+                   name,
+                   role, 
                    active: true 
-                 })
-                 .eq('id', profile.id);
+                 });
 
                await getSupabase().auth.signOut();
-               if (updateError) return { error: updateError };
+               if (profileError) return { error: profileError };
                return { error: null, promoted: true };
             } else if (profile && (profile.role === 'manager' || profile.role === 'salesperson') && role === 'customer') {
-               // Funcionário virando cliente (Vínculo com site)
-               // Não alteramos a profiles, apenas retornamos sucesso para permitir o fluxo no CustomerLoginPage
+               // Caso inverso: Funcionário tentando se cadastrar no site (Vínculo com site)
                return { error: null, promoted: false };
             } else {
-               // Se for staff tentando virar staff, ou cliente tentando virar cliente (redundante)
+               // Se já for cliente e tentar se cadastrar como cliente novamente (redundante)
                await getSupabase().auth.signOut();
                return { error: { message: 'Este e-mail já está vinculado a uma conta ativa no sistema.' } };
             }
@@ -319,11 +434,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setUserName(null);
     setUserEmail(null);
+    setStaffName(null);
+    setStaffEmail(null);
     setUserRole(null);
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, signIn, signUp, signOut, sendPasswordResetEmail, updatePassword, loading, userRole, userName, userEmail }}>
+    <AuthContext.Provider value={{ 
+      session, 
+      user, 
+      signIn, 
+      signUp, 
+      signOut, 
+      sendPasswordResetEmail, 
+      updatePassword, 
+      loading, 
+      userRole, 
+      userName, 
+      userEmail,
+      staffName,
+      staffEmail
+    }}>
       {children}
     </AuthContext.Provider>
   );

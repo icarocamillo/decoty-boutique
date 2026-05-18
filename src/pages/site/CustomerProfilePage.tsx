@@ -10,7 +10,7 @@ import { backendService } from '@/services/backendService';
 import { OrderReservation } from '@/types';
 
  export const CustomerProfilePage: React.FC = () => {
-  const { user, userName, signOut } = useAuth();
+  const { user, userName, userEmail, signOut } = useAuth();
   const navigate = useNavigate();
 
   const [reservations, setReservations] = useState<OrderReservation[]>([]);
@@ -54,7 +54,7 @@ import { OrderReservation } from '@/types';
                   <User size={40} />
                 </div>
                 <h2 className="text-2xl font-serif text-zinc-950">{userName || 'Cliente Decoty'}</h2>
-                <p className="text-sm text-zinc-500 mb-8">{user?.email}</p>
+                <p className="text-sm text-zinc-500 mb-8">{userEmail || 'e-mail não cadastrado'}</p>
                 <div className="h-px bg-zinc-50 mb-8" />
                 <div className="space-y-2">
                    {[

@@ -12,7 +12,7 @@ interface UserMenuProps {
 export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { user, userRole, userName, signOut } = useAuth();
+  const { user, userRole, staffName, staffEmail, signOut } = useAuth();
   const navigate = useNavigate();
 
   // Close on click outside
@@ -32,7 +32,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
   };
 
   const roleLabel = userRole === 'manager' ? 'Gerente' : 'Vendedor';
-  const displayUserName = userName || 'Usuário';
+  const displayUserName = staffName || 'Usuário';
   const isManager = userRole === 'manager';
 
   return (
@@ -49,7 +49,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
             Perfil de acesso: {roleLabel}
           </span>
           <span className="text-[10px] text-zinc-400 dark:text-zinc-500 leading-tight truncate max-w-[150px]">
-            {user?.email}
+            {staffEmail}
           </span>
         </div>
 
@@ -65,7 +65,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ isDarkMode, toggleTheme }) =
           <div className="px-4 py-3 border-b border-zinc-50 dark:border-zinc-800 sm:hidden">
             <p className="text-sm font-bold text-zinc-900 dark:text-white">{displayUserName}</p>
             <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">Perfil de acesso: {roleLabel}</p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">{user?.email}</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">{staffEmail}</p>
           </div>
           
           <div className="py-1">
