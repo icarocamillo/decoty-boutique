@@ -31,7 +31,7 @@ export const LinkClientModal: React.FC<LinkClientModalProps> = ({ isOpen, onClos
   const filteredStore = useMemo(() => {
     if (!storeSearch) return [];
     return storeClients.filter(c => 
-      c.nome.toLowerCase().includes(storeSearch.toLowerCase()) || 
+      (c.nome || '').toLowerCase().includes(storeSearch.toLowerCase()) || 
       (c.email && c.email.toLowerCase().includes(storeSearch.toLowerCase()))
     ).slice(0, 5);
   }, [storeClients, storeSearch]);
@@ -39,7 +39,7 @@ export const LinkClientModal: React.FC<LinkClientModalProps> = ({ isOpen, onClos
   const filteredSite = useMemo(() => {
     if (!siteSearch) return [];
     return siteClients.filter(c => 
-      c.nome.toLowerCase().includes(siteSearch.toLowerCase()) || 
+      (c.nome || '').toLowerCase().includes(siteSearch.toLowerCase()) || 
       (c.email && c.email.toLowerCase().includes(siteSearch.toLowerCase()))
     ).slice(0, 5);
   }, [siteClients, siteSearch]);

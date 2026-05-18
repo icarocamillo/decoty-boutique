@@ -106,9 +106,9 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
 
   const filteredClients = useMemo(() => {
     if (!clientSearchTerm) return clients; 
-    const lower = clientSearchTerm.toLowerCase();
+    const lower = (clientSearchTerm || '').toLowerCase();
     return clients.filter(c => 
-      c.nome.toLowerCase().includes(lower) || 
+      (c.nome || '').toLowerCase().includes(lower) || 
       (c.email && c.email.toLowerCase().includes(lower)) ||
       (c.celular && c.celular.includes(lower)) ||
       (c.cpf && c.cpf.includes(lower))
@@ -257,20 +257,20 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({ isOpen, onClose, onS
     if (!productSearchTerm && !selectedBrand && !selectedCategory) return [];
     
     const results: any[] = [];
-    const term = productSearchTerm.toLowerCase();
+    const term = (productSearchTerm || '').toLowerCase();
     
     products.forEach(p => {
-       const vid = formatProductId(p).toLowerCase();
+       const vid = (formatProductId(p) || '').toLowerCase();
        const matchesParent = 
-          (p.nome.toLowerCase().includes(term) || vid.includes(term)) &&
+          ((p.nome || '').toLowerCase().includes(term) || vid.includes(term)) &&
           (!selectedBrand || p.marca === selectedBrand) &&
           (!selectedCategory || p.categoria === selectedCategory);
        
        p.variants?.forEach(v => {
            const matchVariant = 
-              v.sku.toLowerCase().includes(term) || 
-              v.ean.toLowerCase().includes(term) || 
-              v.cor.toLowerCase().includes(term);
+              (v.sku || '').toLowerCase().includes(term) || 
+              (v.ean || '').toLowerCase().includes(term) || 
+              (v.cor || '').toLowerCase().includes(term);
 
            if ((matchesParent || matchVariant) && v.quantidade_estoque > 0) {
                results.push({

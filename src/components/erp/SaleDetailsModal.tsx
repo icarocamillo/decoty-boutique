@@ -444,8 +444,8 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
 
   const filteredClientsToLink = clientsList.filter(c => {
       if (!linkSearchTerm) return false;
-      const term = linkSearchTerm.toLowerCase();
-      return c.nome.toLowerCase().includes(term) || (c.cpf && c.cpf.includes(term));
+      const term = (linkSearchTerm || '').toLowerCase();
+      return (c.nome || '').toLowerCase().includes(term) || (c.cpf && c.cpf.includes(term));
   }).slice(0, 5); 
 
   const handleSelectClientToLink = async (client: Client) => {

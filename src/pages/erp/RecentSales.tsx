@@ -135,7 +135,7 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales: propsSales, onU
                       onClick={(e) => {
                         if (sale.cliente_id) {
                           e.stopPropagation();
-                          navigate(`/clients/${sale.cliente_id}/history`);
+                          navigate(`/erp/clients/${sale.cliente_id}/history`);
                         }
                       }}
                       className={`font-bold text-zinc-900 dark:text-zinc-100 truncate ${sale.cliente_id ? 'hover:text-blue-600 hover:underline cursor-pointer' : ''}`}
@@ -259,7 +259,7 @@ export const RecentSales: React.FC<RecentSalesProps> = ({ sales: propsSales, onU
                         onClick={(e) => {
                           if (sale.cliente_id) {
                             e.stopPropagation();
-                            navigate(`/clients/${sale.cliente_id}/history`);
+                            navigate(`/erp/clients/${sale.cliente_id}/history`);
                           }
                         }}
                         className={`truncate max-w-[120px] font-bold transition-colors ${sale.cliente_id ? 'hover:text-blue-600 hover:underline cursor-pointer' : ''}`} 

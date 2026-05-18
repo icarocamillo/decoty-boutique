@@ -499,7 +499,7 @@ export const ProductFormPage: React.FC = () => {
 
     const parentPayload = {
       ...formData,
-      slug: formData.slug || formData.nome.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '')
+      slug: formData.slug || (formData.nome || '').toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '')
     };
 
     const variantsPayload = variants.map(v => ({
@@ -1226,9 +1226,9 @@ export const ProductFormPage: React.FC = () => {
                       .filter(item => 
                         (item.product.id !== productToEdit?.id || item.cor !== selectedSourceColor) &&
                         (
-                          item.product.nome.toLowerCase().includes(combinationSearch.toLowerCase()) || 
-                          item.cor.toLowerCase().includes(combinationSearch.toLowerCase()) ||
-                          item.product.marca.toLowerCase().includes(combinationSearch.toLowerCase())
+                          (item.product.nome || '').toLowerCase().includes((combinationSearch || '').toLowerCase()) || 
+                          (item.cor || '').toLowerCase().includes((combinationSearch || '').toLowerCase()) ||
+                          (item.product.marca || '').toLowerCase().includes((combinationSearch || '').toLowerCase())
                         ) &&
                         !colorCombinations.some(c => c.product_id === item.product.id && c.cor === item.cor)
                       )
@@ -1272,7 +1272,7 @@ export const ProductFormPage: React.FC = () => {
                           </Button>
                         </div>
                       ))}
-                    {combinationSearch && products.filter(p => p.nome.toLowerCase().includes(combinationSearch.toLowerCase())).length === 0 && (
+                    {combinationSearch && products.filter(p => (p.nome || '').toLowerCase().includes((combinationSearch || '').toLowerCase())).length === 0 && (
                       <div className="text-center py-10 opacity-50">
                          <AlertCircle size={32} className="mx-auto mb-2" />
                          <p className="text-xs italic">Nenhuma peça ou cor encontrada.</p>

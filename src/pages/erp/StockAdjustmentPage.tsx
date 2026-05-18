@@ -113,20 +113,20 @@ export const StockAdjustmentPage: React.FC = () => {
 
   const filteredVariants = useMemo(() => {
     if (!searchTerm && !selectedBrand && !selectedCategory && !selectedSize) return [];
-    const lowerTerm = searchTerm.toLowerCase();
+    const lowerTerm = (searchTerm || '').toLowerCase();
     
     const results: any[] = [];
     products.forEach(p => {
-       const vid = formatProductId(p).toLowerCase();
+       const vid = (formatProductId(p) || '').toLowerCase();
        const matchesParent = 
-          (p.nome.toLowerCase().includes(lowerTerm) || vid.includes(lowerTerm)) &&
+          ((p.nome || '').toLowerCase().includes(lowerTerm) || vid.includes(lowerTerm)) &&
           (!selectedBrand || p.marca === selectedBrand) &&
           (!selectedCategory || p.categoria === selectedCategory);
        
        p.variants?.forEach(v => {
            const matchVariant = 
-              v.sku.toLowerCase().includes(lowerTerm) || 
-              v.cor.toLowerCase().includes(lowerTerm);
+              (v.sku || '').toLowerCase().includes(lowerTerm) || 
+              (v.cor || '').toLowerCase().includes(lowerTerm);
            
            const matchesSize = !selectedSize || v.tamanho === selectedSize;
 
@@ -148,8 +148,8 @@ export const StockAdjustmentPage: React.FC = () => {
 
   const filteredClients = useMemo(() => {
       if (!clientSearch) return [];
-      const lower = clientSearch.toLowerCase();
-      return clients.filter(c => c.nome.toLowerCase().includes(lower) || (c.cpf && c.cpf.includes(lower))).slice(0, 5);
+      const lower = (clientSearch || '').toLowerCase();
+      return clients.filter(c => (c.nome || '').toLowerCase().includes(lower) || (c.cpf && c.cpf.includes(lower))).slice(0, 5);
   }, [clients, clientSearch]);
 
   const addProductToList = (v: any) => {

@@ -45,9 +45,9 @@ export const ClientList: React.FC = () => {
   const filteredClients = useMemo(() => {
     let result = clients.filter(client => {
       // 1. Text Search (Name, Email or CPF)
-      const searchLower = searchTerm.toLowerCase();
+      const searchLower = (searchTerm || '').toLowerCase();
       const matchesSearch = 
-        client.nome.toLowerCase().includes(searchLower) || 
+        (client.nome || '').toLowerCase().includes(searchLower) || 
         (client.email && client.email.toLowerCase().includes(searchLower)) ||
         (client.cpf && client.cpf.includes(searchLower));
 

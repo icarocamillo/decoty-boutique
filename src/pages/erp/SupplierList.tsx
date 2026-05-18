@@ -17,9 +17,9 @@ export const SupplierList: React.FC = () => {
 
   const filteredSuppliers = useMemo(() => {
     return suppliers.filter(supplier => {
-      const searchLower = searchTerm.toLowerCase();
+      const searchLower = (searchTerm || '').toLowerCase();
       return (
-        supplier.nome_empresa.toLowerCase().includes(searchLower) ||
+        (supplier.nome_empresa || '').toLowerCase().includes(searchLower) || 
         (supplier.fantasy_name && supplier.fantasy_name.toLowerCase().includes(searchLower)) ||
         (supplier.nome_contato && supplier.nome_contato.toLowerCase().includes(searchLower)) ||
         (supplier.cnpj_cpf && supplier.cnpj_cpf.includes(searchLower))

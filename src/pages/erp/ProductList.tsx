@@ -120,13 +120,13 @@ export const ProductList: React.FC = () => {
   const filteredProducts = useMemo(() => {
     let result = products.filter(p => {
       const visualId = formatProductId(p);
-      const searchLower = searchTerm.toLowerCase();
+      const searchLower = (searchTerm || '').toLowerCase();
 
       // Text Search
       const matchesSearch = 
-        p.nome.toLowerCase().includes(searchLower) || 
-        visualId.toLowerCase().includes(searchLower) ||
-        p.variants?.some(v => v.sku.toLowerCase().includes(searchLower) || v.ean.toLowerCase().includes(searchLower));
+        (p.nome || '').toLowerCase().includes(searchLower) || 
+        (visualId || '').toLowerCase().includes(searchLower) ||
+        (p.variants || []).some(v => (v.sku || '').toLowerCase().includes(searchLower) || (v.ean || '').toLowerCase().includes(searchLower));
       
       // Filter Matches
       const matchesBrand = selectedBrand ? p.marca === selectedBrand : true;
