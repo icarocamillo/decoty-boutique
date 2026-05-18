@@ -113,7 +113,7 @@ export const CheckoutPage: React.FC = () => {
 
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
-
+    
     // Limpar carrinho e fechar modal
     clearCart();
     setShowSuccessModal(false);
@@ -460,7 +460,7 @@ export const CheckoutPage: React.FC = () => {
                   <div className="w-16 h-16 bg-zinc-50 text-zinc-900 rounded-2xl flex items-center justify-center shadow-sm">
                     <ShoppingBag size={24} />
                   </div>
-                  <button
+                  <button 
                     onClick={() => setShowGuestNameModal(false)}
                     className="w-10 h-10 rounded-full hover:bg-zinc-100 flex items-center justify-center text-zinc-400 transition-colors"
                   >
