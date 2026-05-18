@@ -58,12 +58,12 @@ export const normalizeClientData = (data: any): Client => {
 };
 
 const prepareClientPayload = (client: any) => {
-  const { endereco, id, data_cadastro, telefone, ...rest } = client;
+  const { endereco, id, data_cadastro, ...rest } = client;
   
   const payload: any = {
     nome: rest.nome,
     cpf: rest.cpf || null,
-    email: rest.email || '',
+    email: rest.email || null,
     telefone_fixo: rest.telefone_fixo || null,
     celular: rest.celular || null,
     is_whatsapp: !!rest.is_whatsapp,
@@ -171,14 +171,22 @@ export const backendService = {
     return getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS).map(normalizeClientData);
   },
 
-  createClient: async (client: Omit<Client, 'id' | 'data_cadastro'>): Promise<boolean> => {
+  createClient: async (client: Omit<Client, 'id' | 'data_cadastro'>, userId?: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
-      const payload = { ...prepareClientPayload(client), origin: 'erp_only' };
+      const payload = { 
+        ...prepareClientPayload(client), 
+        origin: 'store_only',
+        user_id: userId || null 
+      };
       const { error } = await getSupabase().from('clients').insert([payload]);
-      return !error;
+      if (error) {
+        console.error("Erro ao criar cliente:", error);
+        throw new Error(error.message || "Erro ao cadastrar cliente no banco de dados");
+      }
+      return true;
     }
     const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
-    const newClient = { ...client, id: 'c' + Date.now(), data_cadastro: new Date().toISOString(), origin: 'erp_only' };
+    const newClient = { ...client, id: 'c' + Date.now(), data_cadastro: new Date().toISOString(), origin: 'store_only', user_id: userId };
     setLocalData(LS_KEYS.CLIENTS, [...clients, newClient]);
     return true;
   },
@@ -192,18 +200,22 @@ export const backendService = {
       if (current?.origin === 'site_only') {
         (payload as any).origin = 'both';
       } else if (!current?.origin) {
-        (payload as any).origin = 'erp_only';
+        (payload as any).origin = 'store_only';
       }
 
       const { error } = await getSupabase().from('clients').update(payload).eq('id', client.id);
-      return !error;
+      if (error) {
+        console.error("Erro ao atualizar cliente:", error);
+        throw new Error(error.message || "Erro ao atualizar cliente no banco de dados");
+      }
+      return true;
     }
     const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
     setLocalData(LS_KEYS.CLIENTS, clients.map(c => c.id === client.id ? client : c));
     return true;
   },
 
-  updateClientOriginByEmail: async (email: string, userId: string, origin: 'erp_only' | 'site_only' | 'both'): Promise<boolean> => {
+  updateClientOriginByEmail: async (email: string, userId: string, origin: 'store_only' | 'site_only' | 'both'): Promise<boolean> => {
     if (isSupabaseConfigured()) {
         const { error } = await getSupabase()
             .from('clients')
@@ -211,6 +223,95 @@ export const backendService = {
             .eq('email', email);
         return !error;
     }
+    return true;
+  },
+
+  linkClients: async (storeClientId: string, siteClientId: string): Promise<boolean> => {
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabase();
+      
+      // 1. Buscar ambos os clientes para unificação de dados
+      const { data: storeClient } = await supabase.from('clients').select('*').eq('id', storeClientId).single();
+      const { data: siteClient } = await supabase.from('clients').select('*').eq('id', siteClientId).single();
+      
+      if (!storeClient || !siteClient) return false;
+
+      // 2. Preparar dados unificados
+      // Unifica saldos e pendências, prioriza pode_provador do ERP (storeClient)
+      // TAMBÉM prioriza o CPF do ERP conforme solicitado
+      const mergedData = {
+        cpf: storeClient.cpf || siteClient.cpf || null,
+        telefone_fixo: siteClient.telefone_fixo || storeClient.telefone_fixo || null,
+        celular: siteClient.celular || storeClient.celular || null,
+        is_whatsapp: siteClient.is_whatsapp || storeClient.is_whatsapp || false,
+        itens_pendentes_provador: (Number(storeClient.itens_pendentes_provador) || 0) + (Number(siteClient.itens_pendentes_provador) || 0),
+        saldo_vale_presente: roundMoney((Number(storeClient.saldo_vale_presente) || 0) + (Number(siteClient.saldo_vale_presente) || 0)),
+        saldo_devedor_crediario: roundMoney((Number(storeClient.saldo_devedor_crediario) || 0) + (Number(siteClient.saldo_devedor_crediario) || 0)),
+        pode_provador: storeClient.pode_provador === true || (storeClient.pode_provador === false ? false : siteClient.pode_provador),
+        user_id: siteClient.user_id, // Conservamos o ID de autenticação do site
+        origin: 'both' as const
+      };
+
+      // 2.1 Para evitar erro de "duplicate key value violates unique constraint" no CPF,
+      // limpamos o CPF do registro store_only antes de atualizar o site_only.
+      if (storeClient.cpf) {
+        await supabase.from('clients').update({ cpf: null }).eq('id', storeClientId);
+      }
+
+      // 3. Atualizar o registro do site com os dados mesclados
+      const { error: updateError } = await supabase.from('clients').update(mergedData).eq('id', siteClientId);
+      if (updateError) {
+        console.error("Erro ao atualizar cliente unificado:", updateError);
+        return false;
+      }
+
+      // 4. Mover referências de outras tabelas do storeClient para o siteClient
+      // Isso garante que o histórico não seja perdido após a deleção
+      await supabase.from('sales').update({ cliente_id: siteClientId }).eq('cliente_id', storeClientId);
+      await supabase.from('stock_entries').update({ cliente_id: siteClientId }).eq('cliente_id', storeClientId);
+      
+      // Tentar atualizar tabelas secundárias que podem ter cliente_id ou client_id
+      const tablesToUpdate = ['order_reservations', 'crediario_recebimentos', 'client_history'];
+      for (const table of tablesToUpdate) {
+        try {
+          // Tenta ambos os nomes de coluna comuns
+          await supabase.from(table).update({ cliente_id: siteClientId }).eq('cliente_id', storeClientId);
+          await supabase.from(table).update({ client_id: siteClientId }).eq('client_id', storeClientId);
+        } catch (e) {
+          // Ignora se a tabela ou coluna não existir
+        }
+      }
+
+      // 5. Deletar o registro "store_only" agora que os dados foram migrados
+      // Forçamos a limpeza de CPF novamente para garantir que não há travas de unicidade no delete (embora o delete devesse resolver)
+      await supabase.from('clients').update({ cpf: null, email: null }).eq('id', storeClientId);
+      
+      const { error: deleteError } = await supabase.from('clients').delete().eq('id', storeClientId);
+      if (deleteError) {
+        console.error("Erro crítico ao remover registro store_only após unificação:", deleteError);
+        // Se falhou o delete, ao menos garantimos que ele não será mais encontrado como 'store_only' e não terá CPF/Email conflitante
+        await supabase.from('clients').update({ origin: 'deleted_merged' as any }).eq('id', storeClientId);
+      }
+
+      return true;
+    }
+
+    // fallback Mock
+    const clients = getLocalData<Client[]>(LS_KEYS.CLIENTS, MOCK_CLIENTS);
+    const storeC = clients.find(c => c.id === storeClientId);
+    const siteC = clients.find(c => c.id === siteClientId);
+    if (!storeC || !siteC) return false;
+
+    const mergedLocal: Client = {
+      ...siteC,
+      itens_pendentes_provador: (storeC.itens_pendentes_provador || 0) + (siteC.itens_pendentes_provador || 0),
+      saldo_vale_presente: (storeC.saldo_vale_presente || 0) + (siteC.saldo_vale_presente || 0),
+      saldo_devedor_crediario: (storeC.saldo_devedor_crediario || 0) + (siteC.saldo_devedor_crediario || 0),
+      pode_provador: storeC.pode_provador,
+      origin: 'both'
+    };
+
+    setLocalData(LS_KEYS.CLIENTS, clients.map(c => c.id === siteClientId ? mergedLocal : c).filter(c => c.id !== storeClientId));
     return true;
   },
 
@@ -1786,7 +1887,7 @@ export const backendService = {
       // Como o cliente já existia (provavelmente cadastrado na loja) e agora está no site, origin vira 'both'.
       const updateData: any = { user_id: userId };
       
-      if (!clientByEmail.origin || clientByEmail.origin === 'erp_only') {
+      if (!clientByEmail.origin || clientByEmail.origin === 'store_only') {
         updateData.origin = 'both';
       }
 

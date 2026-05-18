@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Client, StockEntry } from '@/types';
-import { User, Phone, Mail, UserPlus, Smartphone, MapPin, Megaphone, Search, Filter, CreditCard, Pencil, Shirt, Gift, ChevronRight, BookOpen } from 'lucide-react';
+import { User, Phone, Mail, UserPlus, Smartphone, MapPin, Megaphone, Search, Filter, CreditCard, Pencil, Shirt, Gift, ChevronRight, BookOpen, Globe } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { ClientFormModal } from '@/components/erp/ClientFormModal';
+import { LinkClientModal } from '@/components/erp/LinkClientModal';
 import { Pagination } from '@/components/ui/Pagination';
 import { formatDateStandard } from '@/utils';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +18,7 @@ export const ClientList: React.FC = () => {
   const { userRole } = useAuth();
   const { clients, refreshData } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
 
   // Filter States
@@ -123,9 +125,18 @@ export const ClientList: React.FC = () => {
            <h2 className="text-2xl font-bold text-zinc-800 dark:text-white">Clientes Cadastrados</h2>
            <p className="text-zinc-500 dark:text-zinc-400">Gerencie sua base de contatos</p>
         </div>
-        <Button onClick={handleCreate} className="flex items-center gap-2 w-full sm:w-auto">
-          <UserPlus size={18} /> Cadastrar Cliente
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button 
+            variant="ghost" 
+            onClick={() => setIsLinkModalOpen(true)} 
+            className="flex items-center gap-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+          >
+            <Globe size={18} /> Vincular Cliente do Site
+          </Button>
+          <Button onClick={handleCreate} className="flex items-center gap-2">
+            <UserPlus size={18} /> Cadastrar Cliente
+          </Button>
+        </div>
       </div>
 
       <Card className="overflow-hidden">
@@ -472,6 +483,12 @@ export const ClientList: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         onSuccess={refreshData}
         clientToEdit={clientToEdit}
+      />
+
+      <LinkClientModal 
+        isOpen={isLinkModalOpen}
+        onClose={() => setIsLinkModalOpen(false)}
+        onSuccess={refreshData}
       />
     </div>
   );

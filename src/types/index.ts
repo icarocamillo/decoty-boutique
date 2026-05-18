@@ -146,7 +146,6 @@ export interface Client {
   nome: string;
   cpf?: string;
   email: string;
-  telefone?: string;
   telefone_fixo?: string;
   celular?: string;
   is_whatsapp?: boolean;
@@ -158,7 +157,7 @@ export interface Client {
   endereco?: ClientAddress;
   data_cadastro: string;
   user_id?: string;
-  origin?: 'erp_only' | 'site_only' | 'both';
+  origin?: 'store_only' | 'site_only' | 'both';
 }
 
 export interface Supplier {

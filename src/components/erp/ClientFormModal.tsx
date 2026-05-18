@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { backendService, normalizeClientData } from '@/services/backendService';
 import { Client } from '@/types';
 import { useData } from '@/contexts/DataContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ClientFormModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [foundClientId, setFoundClientId] = useState<string | null>(null);
   const { clients: allClients } = useData();
+  const { user } = useAuth();
   
   // State for Form Data
   const [formData, setFormData] = useState({
@@ -221,7 +223,6 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
       is_whatsapp: formData.is_whatsapp,
       receber_ofertas: formData.receber_ofertas,
       pode_provador: formData.pode_provador,
-      telefone: formData.celular || formData.telefone_fixo,
       endereco: {
         cep: formData.cep,
         logradouro: formData.logradouro,
@@ -244,7 +245,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
           data_cadastro: clientToEdit?.data_cadastro || new Date().toISOString()
         });
       } else {
-        success = await backendService.createClient(payload);
+        success = await backendService.createClient(payload, user?.id);
       }
       
       if (success) {
