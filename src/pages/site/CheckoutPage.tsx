@@ -113,7 +113,7 @@ export const CheckoutPage: React.FC = () => {
 
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
-    
+
     // Limpar carrinho e fechar modal
     clearCart();
     setShowSuccessModal(false);
@@ -129,11 +129,11 @@ export const CheckoutPage: React.FC = () => {
   };
 
   return (
-    <div className="py-12 bg-white min-h-[calc(100vh-80px)]">
+    <div className="py-6 md:py-12 bg-white min-h-[calc(100vh-80px)]">
       <div className="container mx-auto px-4 sm:px-6">
 
         <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12 border-b border-zinc-100 pb-12">
+          <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-8 border-b border-zinc-100 pb-8">
             <div className="max-w-xl">
               <div className="flex items-center gap-3 text-emerald-600 mb-3">
                 <ShoppingBag size={20} />
@@ -141,7 +141,8 @@ export const CheckoutPage: React.FC = () => {
               </div>
               <h1 className="text-4xl md:text-5xl font-serif text-zinc-950 mb-4">Seu pedido</h1>
               <p className="text-zinc-500 text-lg leading-relaxed">
-                Confira os itens selecionados e finalize seu pedido para atendimento via WhatsApp.
+                <span className="hidden sm:inline">Confira os itens selecionados e finalize seu pedido para atendimento via WhatsApp.</span>
+                <span className="sm:hidden">Finalize seu pedido para atendimento via WhatsApp.</span>
               </p>
             </div>
           </div>
@@ -158,10 +159,10 @@ export const CheckoutPage: React.FC = () => {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
               {/* Item List - Hidden on mobile as per request */}
-              <div className="hidden lg:col-span-8 lg:block space-y-12">
-                <div className="space-y-8">
+              <div className="hidden lg:col-span-8 lg:block space-y-6 md:space-y-8">
+                <div className="space-y-4 md:space-y-6">
                   <div className="flex items-center gap-4 mb-2">
                     <span className="w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center text-xs font-black">01</span>
                     <h2 className="text-xl font-serif font-black text-zinc-900 uppercase">Confira seu pedido</h2>
@@ -239,12 +240,12 @@ export const CheckoutPage: React.FC = () => {
               </div>
 
               <div className="lg:col-span-4">
-                <div className="sticky top-32 space-y-8">
+                <div className="sticky top-20 md:top-24 space-y-6">
                   {/* Payment Method Selection - Now in Black Card */}
                   <Card className="!p-0 border border-white/5 bg-zinc-950/80 backdrop-blur-xl text-white rounded-[2rem] shadow-2xl overflow-hidden relative">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-3xl -mr-12 -mt-12" />
 
-                    <div className="p-6 space-y-6">
+                    <div className="p-5 sm:p-6 space-y-5 sm:space-y-6">
                       <div className="flex items-center gap-3 relative z-10">
                         <div className="w-10 h-10 rounded-full bg-white text-zinc-900 flex items-center justify-center text-xs font-black shrink-0">
                           <span className="lg:hidden">01</span>
@@ -263,7 +264,7 @@ export const CheckoutPage: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-3 relative z-10">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-2 sm:gap-3 relative z-10">
                         {[
                           { id: 'pix', label: 'PIX', icon: () => <span className="text-lg">💠</span>, desc: paymentDiscounts?.pix ? `${paymentDiscounts.pix}% de desc.` : 'Instantâneo' },
                           { id: 'credito', label: 'Crédito', icon: CreditCard, desc: installments === 1 && paymentDiscounts?.credit_spot ? `${paymentDiscounts.credit_spot}% de desc. à vista` : 'Até 5x s/ juros' },
@@ -328,9 +329,9 @@ export const CheckoutPage: React.FC = () => {
 
                   <div className="space-y-4">
                     <Card className="!p-0 border border-white/5 bg-zinc-950/80 backdrop-blur-xl text-white rounded-[2rem] shadow-2xl relative overflow-hidden group">
-                      <div className="p-8">
+                      <div className="p-6 sm:p-8">
                         {/* Step Title Header inside card */}
-                        <div className="flex items-center gap-3 mb-8 relative z-10">
+                        <div className="flex items-center gap-3 mb-6 sm:mb-8 relative z-10">
                           <span className="w-10 h-10 rounded-full bg-white text-zinc-900 flex items-center justify-center text-xs font-black shrink-0">
                             <span className="lg:hidden">02</span>
                             <span className="hidden lg:inline">03</span>
@@ -342,7 +343,7 @@ export const CheckoutPage: React.FC = () => {
                         <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-emerald-500/20" />
                         <div className="absolute bottom-0 left-0 w-32 h-32 bg-zinc-800/50 rounded-full blur-3xl -ml-16 -mb-16" />
 
-                        <div className="space-y-4 mb-8 relative z-10">
+                        <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8 relative z-10">
                           <div className="flex justify-between text-zinc-400 text-sm">
                             <span className="uppercase tracking-widest font-bold text-[10px]">Subtotal</span>
                             <span className="font-bold">{formatCurrency(cartTotal)}</span>
@@ -459,7 +460,7 @@ export const CheckoutPage: React.FC = () => {
                   <div className="w-16 h-16 bg-zinc-50 text-zinc-900 rounded-2xl flex items-center justify-center shadow-sm">
                     <ShoppingBag size={24} />
                   </div>
-                  <button 
+                  <button
                     onClick={() => setShowGuestNameModal(false)}
                     className="w-10 h-10 rounded-full hover:bg-zinc-100 flex items-center justify-center text-zinc-400 transition-colors"
                   >
