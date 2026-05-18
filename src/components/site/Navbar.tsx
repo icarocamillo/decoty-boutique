@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { ShoppingBag, User, Search, Menu, X, Settings, ChevronDown, ArrowRight } from 'lucide-react';
+import { ShoppingBag, User, Search, Menu, X, Settings, ChevronDown, ArrowRight, LogOut } from 'lucide-react';
 import { BrandLogo } from '@/components/shared/BrandLogo';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,8 +17,13 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isInverse = location.pathname.startsWith('/produto/') || location.pathname === '/finalizar-pedido';
-  const { user, userRole, userName } = useAuth();
+  const { user, userRole, userName, signOut } = useAuth();
   const { cartCount, setIsCartOpen } = useCart();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   const getFirstName = (name: string | null) => {
     if (!name) return '';
@@ -115,7 +120,7 @@ export const Navbar: React.FC = () => {
  
           <div className="hidden md:flex">
             <Link to="/" className="flex items-center gap-3 xl:gap-4 group shrink-0">
-              <BrandLogo size="md" className="transition-transform group-hover:scale-110" />
+              <BrandLogo size="md" className="transition-transform group-hover:scale-110 brightness-200" />
               <span className={`font-rouge text-xl xl:text-4xl hidden md:block ${textColor}`}>
                 <span className="xl:inline hidden">Decoty Boutique</span>
                 <span className="xl:hidden inline text-2xl">Decoty</span>
@@ -129,7 +134,7 @@ export const Navbar: React.FC = () => {
           {/* Logo - Centered on mobile ONLY */}
           <div className="md:hidden absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2">
             <Link to="/" className="group">
-              <BrandLogo size="md" className="transition-transform group-hover:scale-110" />
+              <BrandLogo size="md" className="transition-transform group-hover:scale-110 brightness-200" />
             </Link>
           </div>
 
@@ -289,7 +294,7 @@ export const Navbar: React.FC = () => {
           >
             <div className="flex items-center justify-between mb-8 shrink-0">
               <div className="flex items-center gap-3">
-                <BrandLogo size="md" />
+                <BrandLogo size="md" className="brightness-200" />
                 <span className="font-rouge text-2xl text-zinc-900">Decoty Boutique</span>
               </div>
               <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 -mr-2 text-zinc-900">
@@ -319,16 +324,28 @@ export const Navbar: React.FC = () => {
               ))}
             </div>
 
-            <div className="mt-auto pt-6 border-t border-zinc-100">
+            <div className="mt-auto pt-6 border-t border-zinc-100 space-y-3">
               {user ? (
-                <Link 
-                  to="/minha-conta" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center justify-center gap-3 w-full text-center py-3 bg-zinc-950 text-white rounded-xl font-bold"
-                >
-                  <User size={18} />
-                  Olá, {getFirstName(userName)}
-                </Link>
+                <>
+                  <Link 
+                    to="/minha-conta" 
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center justify-center gap-3 w-full text-center py-3 bg-zinc-950 text-white rounded-xl font-bold"
+                  >
+                    <User size={18} />
+                    Olá, {getFirstName(userName)}
+                  </Link>
+                  <button 
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="flex items-center justify-center gap-3 w-full text-center py-3 border border-red-100 text-red-500 rounded-xl font-bold hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut size={18} />
+                    Sair da Conta
+                  </button>
+                </>
               ) : (
                 <Link 
                   to="/entrar" 

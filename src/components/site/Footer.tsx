@@ -52,7 +52,7 @@ export const Footer: React.FC = () => {
             <h4 className="text-xs uppercase font-black tracking-widest text-zinc-500 mb-6">Ajuda</h4>
             <ul className="space-y-4">
               {[
-                { label: 'Acompanhar pedidos', path: '/minha-conta/perfil' },
+                { label: 'Acompanhar Pedidos', path: '/minha-conta' },
                 { label: 'Trocas e Devoluções', path: '/' },
                 { label: 'Termos de Serviço', path: '/' }
               ].map((item) => (

@@ -840,7 +840,11 @@ export const ProductDetailsPage: React.FC = () => {
         );
       })()}
 
-      <SizeGuideModal isOpen={isSizeGuideOpen} onClose={() => setIsSizeGuideOpen(false)} />
+      <SizeGuideModal 
+        isOpen={isSizeGuideOpen} 
+        onClose={() => setIsSizeGuideOpen(false)} 
+        category={product.categoria} 
+      />
     </div>
   );
 };
