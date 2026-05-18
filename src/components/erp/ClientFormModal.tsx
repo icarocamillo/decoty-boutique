@@ -51,20 +51,20 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
          setFoundClientId(localMatch.id);
          setFormData(prev => ({
            ...prev,
-           nome: localMatch.nome,
-           cpf: localMatch.cpf || prev.cpf,
-           celular: localMatch.celular || prev.celular,
-           telefone_fixo: localMatch.telefone_fixo || prev.telefone_fixo,
-           is_whatsapp: localMatch.is_whatsapp || prev.is_whatsapp,
-           receber_ofertas: localMatch.receber_ofertas || prev.receber_ofertas,
-           pode_provador: localMatch.pode_provador || prev.pode_provador,
-           cep: localMatch.endereco?.cep || prev.cep,
-           logradouro: localMatch.endereco?.logradouro || prev.logradouro,
-           numero: localMatch.endereco?.numero || prev.numero,
-           complemento: localMatch.endereco?.complemento || prev.complemento,
-           bairro: localMatch.endereco?.bairro || prev.bairro,
-           cidade: localMatch.endereco?.cidade || prev.cidade,
-           estado: localMatch.endereco?.estado || prev.estado
+           nome: localMatch.nome || '',
+           cpf: localMatch.cpf || prev.cpf || '',
+           celular: localMatch.celular || prev.celular || '',
+           telefone_fixo: localMatch.telefone_fixo || prev.telefone_fixo || '',
+           is_whatsapp: localMatch.is_whatsapp ?? prev.is_whatsapp ?? false,
+           receber_ofertas: localMatch.receber_ofertas ?? prev.receber_ofertas ?? false,
+           pode_provador: localMatch.pode_provador ?? prev.pode_provador ?? false,
+           cep: localMatch.endereco?.cep || prev.cep || '',
+           logradouro: localMatch.endereco?.logradouro || prev.logradouro || '',
+           numero: localMatch.endereco?.numero || prev.numero || '',
+           complemento: localMatch.endereco?.complemento || prev.complemento || '',
+           bairro: localMatch.endereco?.bairro || prev.bairro || '',
+           cidade: localMatch.endereco?.cidade || prev.cidade || '',
+           estado: localMatch.endereco?.estado || prev.estado || ''
          }));
          setIsCheckingEmail(false);
          return;
@@ -78,20 +78,20 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
         const normalized = normalizeClientData(client);
         setFormData(prev => ({
           ...prev,
-          nome: client.nome || prev.nome,
-          cpf: client.cpf || prev.cpf,
-          celular: client.celular || prev.celular,
-          telefone_fixo: client.telefone_fixo || prev.telefone_fixo,
-          is_whatsapp: client.is_whatsapp || prev.is_whatsapp,
-          receber_ofertas: client.receber_ofertas || prev.receber_ofertas,
-          pode_provador: client.pode_provador || prev.pode_provador,
-          cep: client.cep || prev.cep,
-          logradouro: client.logradouro || prev.logradouro,
-          numero: client.numero || prev.numero,
-          complemento: client.complemento || prev.complemento,
-          bairro: client.bairro || prev.bairro,
-          cidade: client.cidade || prev.cidade,
-          estado: client.estado || client.uf || prev.estado
+          nome: client.nome || prev.nome || '',
+          cpf: client.cpf || prev.cpf || '',
+          celular: client.celular || prev.celular || '',
+          telefone_fixo: client.telefone_fixo || prev.telefone_fixo || '',
+          is_whatsapp: typeof client.is_whatsapp === 'boolean' ? client.is_whatsapp : (prev.is_whatsapp || false),
+          receber_ofertas: typeof client.receber_ofertas === 'boolean' ? client.receber_ofertas : (prev.receber_ofertas || false),
+          pode_provador: typeof client.pode_provador === 'boolean' ? client.pode_provador : (prev.pode_provador || false),
+          cep: client.cep || prev.cep || '',
+          logradouro: client.logradouro || prev.logradouro || '',
+          numero: client.numero || prev.numero || '',
+          complemento: client.complemento || prev.complemento || '',
+          bairro: client.bairro || prev.bairro || '',
+          cidade: client.cidade || prev.cidade || '',
+          estado: client.estado || client.uf || prev.estado || ''
         }));
       }
     } catch (err) {
@@ -107,9 +107,9 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
       setFoundClientId(null);
       if (clientToEdit) {
         setFormData({
-          nome: clientToEdit.nome,
+          nome: clientToEdit.nome || '',
           cpf: clientToEdit.cpf || '',
-          email: clientToEdit.email,
+          email: clientToEdit.email || '',
           telefone_fixo: clientToEdit.telefone_fixo || '',
           celular: clientToEdit.celular || '',
           is_whatsapp: clientToEdit.is_whatsapp || false,
@@ -213,24 +213,26 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
     }
 
     setLoading(true);
+
+    const nullify = (val: string) => val.trim() === '' ? null : val;
     
     const payload = {
       nome: formData.nome,
-      cpf: formData.cpf,
-      email: formData.email,
-      telefone_fixo: formData.telefone_fixo,
-      celular: formData.celular,
+      cpf: nullify(formData.cpf),
+      email: nullify(formData.email),
+      telefone_fixo: nullify(formData.telefone_fixo),
+      celular: nullify(formData.celular),
       is_whatsapp: formData.is_whatsapp,
       receber_ofertas: formData.receber_ofertas,
       pode_provador: formData.pode_provador,
       endereco: {
-        cep: formData.cep,
-        logradouro: formData.logradouro,
-        numero: formData.numero,
-        complemento: formData.complemento,
-        bairro: formData.bairro,
-        cidade: formData.cidade,
-        estado: formData.estado
+        cep: nullify(formData.cep),
+        logradouro: nullify(formData.logradouro),
+        numero: nullify(formData.numero),
+        complemento: nullify(formData.complemento),
+        bairro: nullify(formData.bairro),
+        cidade: nullify(formData.cidade),
+        estado: nullify(formData.estado)
       }
     };
 
@@ -294,7 +296,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                     type="text"
                     name="nome"
                     required
-                    value={formData.nome}
+                    value={formData.nome || ''}
                     onChange={handleChange}
                     placeholder="Ex: Maria Silva"
                     className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none"
@@ -308,7 +310,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                     <input
                       type="text"
                       name="cpf"
-                      value={formData.cpf}
+                      value={formData.cpf || ''}
                       onChange={handleCpfChange}
                       placeholder="000.000.000-00"
                       className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:outline-none font-mono transition-all ${
@@ -335,7 +337,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                     <input
                       type="email"
                       name="email"
-                      value={formData.email}
+                      value={formData.email || ''}
                       onChange={handleChange}
                       onBlur={handleEmailBlur}
                       placeholder="Ex: maria@email.com"
@@ -353,7 +355,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                     <input
                       type="tel"
                       name="telefone_fixo"
-                      value={formData.telefone_fixo}
+                      value={formData.telefone_fixo || ''}
                       onChange={handleFixoChange}
                       placeholder="(00) 0000-0000"
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none font-mono"
@@ -377,7 +379,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                     <input
                       type="tel"
                       name="celular"
-                      value={formData.celular}
+                      value={formData.celular || ''}
                       onChange={handleCelularChange}
                       placeholder="(00) 0 0000-0000"
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none font-mono"
@@ -399,7 +401,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                     <input
                       type="text"
                       name="cep"
-                      value={formData.cep}
+                      value={formData.cep || ''}
                       onChange={handleCepChange}
                       placeholder="00000-000"
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none"
@@ -410,7 +412,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                     <input
                       type="text"
                       name="logradouro"
-                      value={formData.logradouro}
+                      value={formData.logradouro || ''}
                       onChange={handleChange}
                       placeholder="Ex: Av. Paulista"
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none"
@@ -421,7 +423,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                     <input
                       type="text"
                       name="numero"
-                      value={formData.numero}
+                      value={formData.numero || ''}
                       onChange={handleChange}
                       placeholder="123"
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none"
@@ -435,7 +437,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                     <input
                       type="text"
                       name="complemento"
-                      value={formData.complemento}
+                      value={formData.complemento || ''}
                       onChange={handleChange}
                       placeholder="Ex: Apto 402, Bloco B"
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none"
@@ -446,7 +448,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                     <input
                       type="text"
                       name="bairro"
-                      value={formData.bairro}
+                      value={formData.bairro || ''}
                       onChange={handleChange}
                       placeholder="Ex: Centro"
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none"
@@ -460,7 +462,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                     <input
                       type="text"
                       name="cidade"
-                      value={formData.cidade}
+                      value={formData.cidade || ''}
                       onChange={handleChange}
                       placeholder="Ex: São Paulo"
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none"
@@ -470,7 +472,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClos
                     <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">UF</label>
                     <select
                       name="estado"
-                      value={formData.estado}
+                      value={formData.estado || ''}
                       onChange={(e) => handleChange(e as any)}
                       className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none"
                     >
