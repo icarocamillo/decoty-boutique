@@ -283,14 +283,21 @@ export const backendService = {
       }
 
       // 5. Deletar o registro "store_only" agora que os dados foram migrados
-      // Forçamos a limpeza de CPF novamente para garantir que não há travas de unicidade no delete (embora o delete devesse resolver)
-      await supabase.from('clients').update({ cpf: null, email: null }).eq('id', storeClientId);
-      
       const { error: deleteError } = await supabase.from('clients').delete().eq('id', storeClientId);
+      
       if (deleteError) {
-        console.error("Erro crítico ao remover registro store_only após unificação:", deleteError);
-        // Se falhou o delete, ao menos garantimos que ele não será mais encontrado como 'store_only' e não terá CPF/Email conflitante
-        await supabase.from('clients').update({ origin: 'deleted_merged' as any }).eq('id', storeClientId);
+        console.error("Aviso: Falha na deleção física (provavelmente RLS). Executando limpeza lógica...", deleteError);
+        // Se a deleção física falhou, limpamos TUDO e mudamos a origem para 'deleted_merged'
+        // Isso garante que ele não apareça em nenhum filtro (store, site ou both) e não gere conflitos de CPF/Email
+        await supabase.from('clients').update({ 
+          nome: `[UNIFICADO] ${storeClient.nome}`,
+          cpf: null,
+          email: null,
+          telefone_fixo: null,
+          celular: null,
+          origin: 'deleted_merged' as any, // Categoria interna para registros processados
+          user_id: null 
+        }).eq('id', storeClientId);
       }
 
       return true;
