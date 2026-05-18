@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, User, CreditCard, Tag, Package, Receipt, Link, AlertTriangle, Mail, ShieldCheck, PieChart, Activity, Phone, Smartphone, Search, Loader2, Check, Gift, Undo2, Wallet, DollarSign, BookOpen, ShoppingBag, Hourglass, Banknote, CheckCircle2 } from 'lucide-react';
+import { X, User, CreditCard, Package, Receipt, Link, AlertTriangle, Mail, ShieldCheck, PieChart, Activity, Phone, Smartphone, Search, Loader2, Check, Gift, Undo2, Wallet, DollarSign, BookOpen, ShoppingBag, Hourglass, Banknote, CheckCircle2 } from 'lucide-react';
 import { Sale, Client, SaleItem, UserProfile, PaymentFees } from '@/types';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -658,6 +658,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                       <th className="px-4 py-3 text-center">Qtd</th>
                       <th className="px-4 py-3 text-center">Status</th>
                       <th className="px-4 py-3 text-center">Pagamento</th>
+                      <th className="px-4 py-3 text-right whitespace-nowrap">Vlr. Unit</th>
                       <th className="px-4 py-3 text-right">Subtotal</th>
                     </tr>
                   </thead>
@@ -680,13 +681,15 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                           <td className="px-4 py-3 text-center">
                              {!isReturned && currentSale.status !== 'cancelled' && (item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[9px] h-4 gap-1"><Check size={8} /> Pago</Badge> : <Badge variant="warning" className="text-[9px] h-4 px-1.5 gap-1"><DollarSign size={8} /> Pendente</Badge>)}
                           </td>
+                          <td className="px-4 py-3 text-right text-zinc-500 whitespace-nowrap">{formatCurrency(item.preco_unitario)}</td>
+
                           <td className="px-4 py-3 text-right font-bold text-zinc-900 dark:text-zinc-100">{formatCurrency(item.subtotal)}</td>
                         </tr>
                       );
                     })}
                     {unrolledItems.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-4 py-8 text-center text-zinc-500 italic bg-zinc-50 dark:bg-zinc-800/20">
+                        <td colSpan={8} className="px-4 py-8 text-center text-zinc-500 italic bg-zinc-50 dark:bg-zinc-800/20">
                           <div className="flex flex-col items-center gap-2">
                             <span className="text-zinc-400 dark:text-zinc-500">Detalhes dos itens não carregados. Resumo:</span>
                             <span className="text-zinc-600 dark:text-zinc-300 font-medium">{currentSale.produtos_resumo || 'Nenhum detalhe disponível.'}</span>
@@ -712,7 +715,12 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                           <Badge variant="outline" className="text-[9px] dark:text-zinc-300 border-zinc-200 dark:border-zinc-700">{item.tamanho}</Badge>
                       </div>
                       <div className="flex justify-between items-center mt-2">
-                          <span className="text-xs text-zinc-700 dark:text-zinc-200 font-bold">{formatCurrency(item.subtotal)}</span>
+                          <div className="flex flex-col">
+                            <span className="text-xs text-zinc-700 dark:text-zinc-200 font-bold">{formatCurrency(item.subtotal)}</span>
+                            <div className="flex items-center gap-2">
+                               <span className="text-[9px] text-zinc-400">Unit: {formatCurrency(item.preco_unitario)}</span>
+                            </div>
+                          </div>
                           <div className="flex items-center gap-2">
                              <span className="text-[10px] text-zinc-500 dark:text-zinc-400">Qtd: {item.quantidade}</span>
                              {isReturned ? <Badge variant="destructive" className="text-[8px]">Devolvido</Badge> : (item.status_pagamento === 'pago' ? <Badge variant="success" className="text-[8px]">Pago</Badge> : <Badge variant="warning" className="text-[8px]">Pendente</Badge>)}

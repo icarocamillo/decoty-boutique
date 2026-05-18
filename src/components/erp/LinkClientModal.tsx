@@ -25,7 +25,7 @@ export const LinkClientModal: React.FC<LinkClientModalProps> = ({ isOpen, onClos
   }, [clients]);
 
   const siteClients = useMemo(() => {
-    return clients.filter(c => c.origin === 'site_only');
+    return clients.filter(c => c.origin === 'site_only' || c.origin === 'both');
   }, [clients]);
 
   const filteredStore = useMemo(() => {
@@ -193,7 +193,7 @@ export const LinkClientModal: React.FC<LinkClientModalProps> = ({ isOpen, onClos
                     </div>
                   )}
                   {siteSearch && filteredSite.length === 0 && (
-                    <p className="text-[10px] text-zinc-400 text-center italic">Nenhum cliente "site somente" encontrado</p>
+                    <p className="text-[10px] text-zinc-400 text-center italic">Nenhum cliente do site encontrado</p>
                   )}
                 </div>
               ) : (

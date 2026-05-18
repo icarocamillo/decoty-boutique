@@ -108,10 +108,12 @@ const flattenSaleItems = (sale: any): Sale => {
     ui_id: sale.sales_id || sale.ui_id,
     items: (sale.items || []).map((item: any) => ({
       ...item,
-      nome_produto: item.variant?.product?.nome || item.nome_produto,
-      marca: item.variant?.product?.marca || item.marca,
-      cor: item.variant?.cor || item.cor,
-      tamanho: item.variant?.tamanho || item.tamanho,
+      nome_produto: item.nome_produto || item.variant?.product?.nome,
+      marca: item.marca || item.variant?.product?.marca,
+      cor: item.cor || item.variant?.cor,
+      tamanho: item.tamanho || item.variant?.tamanho,
+      preco_unitario: item.preco_unitario != null ? item.preco_unitario : item.variant?.product?.preco_venda,
+      custo_unitario: item.custo_unitario != null ? item.custo_unitario : item.variant?.product?.preco_custo,
       ui_id: (item as any).ui_id,
       product_ui_id: item.variant?.ui_id
     }))
@@ -990,6 +992,8 @@ export const backendService = {
                 quantidade: 1,
                 preco_unitario: item.preco_unitario,
                 custo_unitario: item.preco_custo || 0,
+                cor: item.cor || '',
+                tamanho: item.tamanho || '',
                 desconto: unitDiscount,
                 subtotal: unitSubtotal,
                 status: 'sold' as const,
