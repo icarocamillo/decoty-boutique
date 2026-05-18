@@ -93,6 +93,15 @@ export const ProductFormPage: React.FC = () => {
   }, [formData.marca, suppliers]);
 
   const { availableCategories, availableMaterials, isMaterialLocked } = useMemo(() => {
+    // Lógica específica para Vicky Bijou
+    if (formData.marca === 'Vicky Bijou') {
+      return {
+        availableCategories: ACCESSORY_CATEGORIES,
+        availableMaterials: MATERIALS_ACCESSORIES,
+        isMaterialLocked: true
+      };
+    }
+
     const type = selectedSupplier?.tipo_fornecedor;
     const isAccessoryCategory = ACCESSORY_CATEGORIES.includes(formData.categoria);
 
@@ -126,7 +135,7 @@ export const ProductFormPage: React.FC = () => {
     }
 
     return { availableCategories: cats, availableMaterials: [], isMaterialLocked: false };
-  }, [selectedSupplier, formData.categoria]);
+  }, [selectedSupplier, formData.categoria, formData.marca]);
 
   const maxSubId = useMemo(() => {
     if (!productToEdit || !productToEdit.variants) return 0;
@@ -145,6 +154,40 @@ export const ProductFormPage: React.FC = () => {
       navigate(`/erp/products/update/${productToEdit.ui_id}`, { replace: true });
     }
   }, [id, productToEdit, navigate]);
+
+  // Lógica específica para a marca Vicky Bijou e limpeza ao trocar de marca
+  useEffect(() => {
+    if (formData.marca === 'Vicky Bijou') {
+      setFormData(prev => {
+        const needsUpdate = prev.tipo_material !== 'Bijuteria' || (prev.categoria && !ACCESSORY_CATEGORIES.includes(prev.categoria));
+        if (needsUpdate) {
+          return {
+            ...prev,
+            tipo_material: 'Bijuteria',
+            categoria: ACCESSORY_CATEGORIES.includes(prev.categoria) ? prev.categoria : ''
+          };
+        }
+        return prev;
+      });
+      
+      // Forçar tamanho 00 para Vicky Bijou
+      setVariants(prev => {
+        const needsUpdate = prev.some(v => v.tamanho !== '00');
+        if (needsUpdate) {
+          return prev.map(v => ({ ...v, tamanho: '00' }));
+        }
+        return prev;
+      });
+    } else {
+      // Caso troque de Vicky Bijou para outra marca:
+      // Se o material atual (Bijuteria) não for mais permitido para a nova marca/categoria, resetamos
+      if (formData.tipo_material === 'Bijuteria' && !availableMaterials.includes('Bijuteria')) {
+        setFormData(prev => ({ ...prev, tipo_material: '' }));
+        // E limpamos os tamanhos '00' nas variantes para permitir a nova escolha
+        setVariants(prev => prev.map(v => v.tamanho === '00' ? { ...v, tamanho: '' } : v));
+      }
+    }
+  }, [formData.marca, availableMaterials]);
 
   useEffect(() => {
     if (id && productToEdit) {
