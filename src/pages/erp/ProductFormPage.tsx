@@ -12,7 +12,7 @@ import { useData } from '@/contexts/DataContext';
 import { COLOR_CATALOG, getColorValue, normalizeColorName } from '@/utils/colorUtils';
 
 // Categorias segregadas
-const CLOTHING_CATEGORIES = ['Vestidos', 'Blusas', 'Camisas', 'Calças', 'Saias', 'Casacos', 'Jaquetas', 'Bermudas'];
+const CLOTHING_CATEGORIES = ['Vestidos', 'Blusas', 'Camisas', 'Calças', 'Saias', 'Casacos', 'Jaquetas', 'Bermudas', 'Conjuntos'];
 const ACCESSORY_CATEGORIES = ['Pulseira', 'Brinco', 'Colar'];
 
 const MATERIALS_CLOTHING = ['Malha', 'Tecido Plano'];

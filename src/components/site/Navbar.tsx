@@ -74,23 +74,24 @@ export const Navbar: React.FC = () => {
       name: 'Categorias',
       path: '/catalogo',
       items: [
-        { name: 'Vestidos', path: '/catalogo?category=Vestidos' },
+        { name: 'Bermudas', path: '/catalogo?category=Bermudas' },
         { name: 'Blusas', path: '/catalogo?category=Blusas' },
-        { name: 'Camisas', path: '/catalogo?category=Camisas' },
         { name: 'Calças', path: '/catalogo?category=Calças' },
-        { name: 'Saias', path: '/catalogo?category=Saias' },
+        { name: 'Camisas', path: '/catalogo?category=Camisas' },
         { name: 'Casacos', path: '/catalogo?category=Casacos' },
+        { name: 'Conjuntos', path: '/catalogo?category=Conjuntos' },
         { name: 'Jaquetas', path: '/catalogo?category=Jaquetas' },
-        { name: 'Bermudas', path: '/catalogo?category=Bermudas' }
+        { name: 'Saias', path: '/catalogo?category=Saias' },
+        { name: 'Vestidos', path: '/catalogo?category=Vestidos' }
       ]
     },
     {
       name: 'Acessórios',
       path: '/catalogo',
       items: [
-        { name: 'Pulseiras', path: '/catalogo?category=Pulseiras' },
         { name: 'Brincos', path: '/catalogo?category=Brincos' },
-        { name: 'Colares', path: '/catalogo?category=Colares' }
+        { name: 'Colares', path: '/catalogo?category=Colares' },
+        { name: 'Pulseiras', path: '/catalogo?category=Pulseiras' }
       ]
     },
   ];

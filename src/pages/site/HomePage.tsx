@@ -42,6 +42,34 @@ export const HomePage: React.FC = () => {
   // Filtrar produtos que devem aparecer no site (flag show_on_site)
   const siteProducts = products.filter(p => p.show_on_site && p.variants && p.variants.length > 0);
 
+  // Grid de Produtos a serem exibidos (expandidos por cor como no catálogo)
+  const displayProducts = useMemo(() => {
+    const expanded: any[] = [];
+    
+    siteProducts.forEach(p => {
+      const colorsInProduct = Array.from(new Set(p.variants?.map(v => v.cor))).filter(Boolean) as string[];
+      
+      if (colorsInProduct.length === 0) {
+        expanded.push({ displayId: p.id, product: p, preferredColor: undefined });
+      } else {
+        colorsInProduct.forEach(color => {
+          // Verifica se há estoque para esta cor
+          const hasStock = p.variants?.some(v => v.cor === color && v.quantidade_estoque > 0);
+          if (hasStock) {
+            expanded.push({
+              displayId: `${p.id}-${color}`,
+              product: p,
+              preferredColor: color
+            });
+          }
+        });
+      }
+    });
+
+    // Limitamos aos primeiros 8 para manter a home organizada e com foco
+    return expanded.slice(0, 8);
+  }, [siteProducts]);
+
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
@@ -139,8 +167,8 @@ export const HomePage: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8">
-              {siteProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+              {displayProducts.map((item) => (
+                <ProductCard key={item.displayId} product={item.product} preferredColor={item.preferredColor} />
               ))}
             </div>
           )}
@@ -173,9 +201,9 @@ export const HomePage: React.FC = () => {
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 alt="Acessórios"
               />
-              <div className="absolute inset-0 bg-black/10 flex items-center justify-center transition-all duration-500 group-hover:bg-black/30">
-                <div className="px-6 py-3 rounded-full border border-white/30 backdrop-blur-md bg-white/5 transition-all duration-500 group-hover:border-white/60 group-hover:bg-white/10 group-hover:scale-105">
-                  <h3 className="text-white text-lg font-serif uppercase tracking-[0.2em] text-center">Acessórios Modernos</h3>
+              <div className="absolute inset-0 bg-black/5 flex items-center justify-center transition-all duration-500 group-hover:bg-black/20">
+                <div className="px-6 py-3 rounded-full border border-black/10 backdrop-blur-md bg-white/40 transition-all duration-500 group-hover:border-black/20 group-hover:bg-white/60 group-hover:scale-105">
+                  <h3 className="text-zinc-950 text-xl font-serif text-center">Acessórios Modernos</h3>
                 </div>
               </div>
             </Link>
