@@ -784,11 +784,34 @@ export const ProductDetailsPage: React.FC = () => {
 
       {/* Seção Produtos Similares */}
       {(() => {
-        const similarProducts = products
-          .filter(p => p.categoria === product.categoria && p.id !== product.id && p.show_on_site)
-          .slice(0, 12);
+        const similarProductsRaw = products
+          .filter(p => p.categoria === product.categoria && p.id !== product.id && p.show_on_site);
 
-        if (similarProducts.length === 0) return null;
+        // Expandir por cor para respeitar a imagem principal da cor conforme solicitado
+        const expandedSimilar: { displayId: string; product: any; preferredColor?: string }[] = [];
+        
+        similarProductsRaw.forEach(p => {
+          const colorsInProduct = Array.from(new Set(p.variants?.map(v => v.cor))).filter(Boolean) as string[];
+          
+          if (colorsInProduct.length === 0) {
+            expandedSimilar.push({ displayId: p.id, product: p });
+          } else {
+            colorsInProduct.forEach(color => {
+              const hasStock = p.variants?.some(v => v.cor === color && v.quantidade_estoque > 0);
+              if (hasStock) {
+                expandedSimilar.push({
+                  displayId: `${p.id}-${color}`,
+                  product: p,
+                  preferredColor: color
+                });
+              }
+            });
+          }
+        });
+
+        const displaySimilar = expandedSimilar.slice(0, 12);
+
+        if (displaySimilar.length === 0) return null;
 
         return (
           <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 border-t border-zinc-100 dark:border-zinc-800/50 mt-2">
@@ -803,11 +826,11 @@ export const ProductDetailsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="relative group px-1">
+            <div className="relative px-1">
               {/* Botões de Navegação - Sempre visíveis e centrados nas fotos */}
               <button 
                 onClick={() => scrollSimilar('left')}
-                className="absolute left-2 md:left-4 top-[32%] -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 flex items-center justify-center hover:bg-zinc-900 hover:text-white dark:hover:bg-emerald-600 transition-all active:scale-90 shadow-xl"
+                className="absolute left-2 md:left-4 top-[40%] md:top-[32%] -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 flex items-center justify-center hover:bg-zinc-900 hover:text-white dark:hover:bg-emerald-600 transition-all active:scale-90 shadow-xl"
                 aria-label="Anterior"
               >
                 <ChevronLeft size={24} />
@@ -815,7 +838,7 @@ export const ProductDetailsPage: React.FC = () => {
               
               <button 
                 onClick={() => scrollSimilar('right')}
-                className="absolute right-2 md:right-4 top-[32%] -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 flex items-center justify-center hover:bg-zinc-900 hover:text-white dark:hover:bg-emerald-600 transition-all active:scale-90 shadow-xl"
+                className="absolute right-2 md:right-4 top-[40%] md:top-[32%] -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 flex items-center justify-center hover:bg-zinc-900 hover:text-white dark:hover:bg-emerald-600 transition-all active:scale-90 shadow-xl"
                 aria-label="Próximo"
               >
                 <ChevronRight size={24} />
@@ -825,9 +848,9 @@ export const ProductDetailsPage: React.FC = () => {
                 ref={similarCarouselRef}
                 className="flex gap-4 md:gap-5 overflow-x-auto pb-4 snap-x no-scrollbar scroll-smooth"
               >
-                {similarProducts.map((p) => (
-                  <div key={p.id} className="w-[170px] md:w-[200px] lg:w-[220px] shrink-0 snap-start flex flex-col">
-                    <ProductCard product={p} />
+                {displaySimilar.map((item) => (
+                  <div key={item.displayId} className="w-[170px] md:w-[200px] lg:w-[220px] shrink-0 snap-start flex flex-col">
+                    <ProductCard product={item.product} preferredColor={item.preferredColor} />
                   </div>
                 ))}
               </div>
