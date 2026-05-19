@@ -17,7 +17,7 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isInverse = location.pathname.startsWith('/produto/') || location.pathname === '/finalizar-pedido';
-  const { user, userRole, userName, signOut } = useAuth();
+  const { user, userRole, userName, isSiteAuthenticated, signOut } = useAuth();
   const { cartCount, setIsCartOpen } = useCart();
 
   const handleLogout = async () => {
@@ -207,12 +207,12 @@ export const Navbar: React.FC = () => {
           </form>
 
           <Link
-            to={user ? "/minha-conta" : "/entrar"}
+            to={isSiteAuthenticated ? "/minha-conta" : "/entrar"}
             className={`p-2 transition-colors flex items-center gap-2 ${subTextColor}`}
           >
             <User size={20} />
             <span className="hidden xl:inline text-xs font-semibold uppercase tracking-wider">
-              {user ? `Olá, ${getFirstName(userName)}` : 'Entrar'}
+              {isSiteAuthenticated ? `Olá, ${getFirstName(userName)}` : 'Entrar'}
             </span>
           </Link>
 
@@ -325,7 +325,7 @@ export const Navbar: React.FC = () => {
             </div>
 
             <div className="mt-auto pt-6 border-t border-zinc-100 space-y-3">
-              {user ? (
+              {isSiteAuthenticated ? (
                 <>
                   <Link 
                     to="/minha-conta" 

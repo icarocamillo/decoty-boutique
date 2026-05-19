@@ -17,6 +17,8 @@ interface AuthContextType {
   userEmail: string | null;
   staffName: string | null;
   staffEmail: string | null;
+  clientOrigin: 'site_only' | 'store_only' | 'both' | null;
+  isSiteAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,12 +35,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [staffName, setStaffName] = useState<string | null>(null);
   const [staffEmail, setStaffEmail] = useState<string | null>(null);
+  const [clientOrigin, setClientOrigin] = useState<'site_only' | 'store_only' | 'both' | null>(null);
+
+  const isSiteAuthenticated = !!session && (clientOrigin === 'site_only' || clientOrigin === 'both');
 
   const fetchClientData = async (userId: string) => {
     if (!isSupabaseConfigured()) return null;
     const { data, error } = await getSupabase()
       .from('clients')
-      .select('nome, email')
+      .select('nome, email, origin')
       .eq('user_id', userId)
       .maybeSingle();
     
@@ -103,9 +108,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                  if (clientData) {
                     setUserName(clientData.nome);
                     setUserEmail(clientData.email);
+                    setClientOrigin(clientData.origin);
                  } else {
                     setUserName(null);
                     setUserEmail(null);
+                    setClientOrigin(null);
                  }
                  
                  setUserRole(profile.role as 'manager' | 'salesperson');
@@ -122,9 +129,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               if (clientData) {
                  setUserName(clientData.nome);
                  setUserEmail(clientData.email);
+                 setClientOrigin(clientData.origin);
               } else {
                  setUserName(currentSession.user.user_metadata?.name || null);
                  setUserEmail(currentSession.user.email || null);
+                 setClientOrigin(null);
               }
               setUserRole('customer');
            }
@@ -171,9 +180,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                    if (clientData) {
                       setUserName(clientData.nome);
                       setUserEmail(clientData.email);
+                      setClientOrigin(clientData.origin);
                    } else {
                       setUserName(null);
                       setUserEmail(null);
+                      setClientOrigin(null);
                    }
                    
                    setUserRole(profile.role as 'manager' | 'salesperson');
@@ -190,9 +201,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (clientData) {
                    setUserName(clientData.nome);
                    setUserEmail(clientData.email);
+                   setClientOrigin(clientData.origin);
                 } else {
                    setUserName(session.user.user_metadata?.name || null);
                    setUserEmail(session.user.email || null);
+                   setClientOrigin(null);
                 }
                 setUserRole('customer');
              }
@@ -269,9 +282,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (clientData) {
                setUserName(clientData.nome);
                setUserEmail(clientData.email);
+               setClientOrigin(clientData.origin);
             } else {
                setUserName(null);
                setUserEmail(null);
+               setClientOrigin(null);
             }
             
             setUserRole(profile.role as 'manager' | 'salesperson');
@@ -287,9 +302,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
          if (clientData) {
             setUserName(clientData.nome);
             setUserEmail(clientData.email);
+            setClientOrigin(clientData.origin);
          } else {
             setUserName(data.user.user_metadata?.name || null);
             setUserEmail(data.user.email || null);
+            setClientOrigin(null);
          }
          setUserRole('customer');
          return { error: null, role: 'customer' };
@@ -434,6 +451,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setUserName(null);
     setUserEmail(null);
+    setClientOrigin(null);
     setStaffName(null);
     setStaffEmail(null);
     setUserRole(null);
@@ -453,7 +471,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       userName, 
       userEmail,
       staffName,
-      staffEmail
+      staffEmail,
+      clientOrigin,
+      isSiteAuthenticated
     }}>
       {children}
     </AuthContext.Provider>

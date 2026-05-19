@@ -13,8 +13,13 @@ type AuthMode = 'login' | 'register';
 
 export const CustomerLoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn, signUp, signOut } = useAuth();
+  const { signIn, signUp, signOut, isSiteAuthenticated } = useAuth();
   
+  // Se já estiver autenticado no site, manda para home
+  React.useEffect(() => {
+    if (isSiteAuthenticated) navigate('/');
+  }, [isSiteAuthenticated, navigate]);
+
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -60,6 +65,13 @@ export const CustomerLoginPage: React.FC = () => {
              // É funcionário mas não tem registro de cliente
              setError('Você já possui acesso ao ERP como funcionário, mas precisa se cadastrar como cliente para acessar o site. Clique em "Criar Nova Conta" abaixo para vincular seu perfil.');
              // Desloga por segurança para não "entrar" sem o registro
+             await signOut();
+             setLoading(false);
+             return;
+          }
+
+          if (client.origin === 'store_only') {
+             setError('Seu cadastro está configurado apenas para compras na loja física. Para acessar o site, você deve atualizar seu cadastro ou entrar em contato com a gerência.');
              await signOut();
              setLoading(false);
              return;

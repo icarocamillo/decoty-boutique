@@ -56,6 +56,18 @@ const ManagerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   return <>{children}</>;
 };
 
+const SiteProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isSiteAuthenticated, loading } = useAuth();
+  
+  if (loading) return null;
+  
+  if (!isSiteAuthenticated) {
+    return <Navigate to="/entrar" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
 const App = () => {
   return (
     <>
@@ -70,9 +82,9 @@ const App = () => {
               <Route path="/catalogo" element={<SiteLayout><ProductListingPage /></SiteLayout>} />
               <Route path="/produto/:identifier" element={<SiteLayout><ProductDetailsPage /></SiteLayout>} />
               <Route path="/finalizar-pedido" element={<SiteLayout><CheckoutPage /></SiteLayout>} />
-              <Route path="/minha-conta" element={<SiteLayout><CustomerProfilePage /></SiteLayout>} />
-              <Route path="/minha-conta/favoritos" element={<SiteLayout><FavoritesPage /></SiteLayout>} />
-              <Route path="/minha-conta/meus_dados" element={<SiteLayout><CustomerSettingsPage /></SiteLayout>} />
+              <Route path="/minha-conta" element={<SiteProtectedRoute><SiteLayout><CustomerProfilePage /></SiteLayout></SiteProtectedRoute>} />
+              <Route path="/minha-conta/favoritos" element={<SiteProtectedRoute><SiteLayout><FavoritesPage /></SiteLayout></SiteProtectedRoute>} />
+              <Route path="/minha-conta/meus_dados" element={<SiteProtectedRoute><SiteLayout><CustomerSettingsPage /></SiteLayout></SiteProtectedRoute>} />
               <Route path="/entrar" element={<CustomerLoginPage />} />
 
               {/* ─── AUTH ROUTES (ERP) ─────────────────────────────────── */}
