@@ -239,17 +239,31 @@ export const backendService = {
       if (!storeClient || !siteClient) return false;
 
       // 2. Preparar dados unificados
-      // Unifica saldos e pendências, prioriza pode_provador do ERP (storeClient)
-      // TAMBÉM prioriza o CPF do ERP conforme solicitado
+      // Unifica saldos e pendências, prioriza dados do ERP (storeClient) conforme solicitado
       const mergedData = {
+        nome: storeClient.nome || siteClient.nome,
         cpf: storeClient.cpf || siteClient.cpf || null,
-        telefone_fixo: siteClient.telefone_fixo || storeClient.telefone_fixo || null,
-        celular: siteClient.celular || storeClient.celular || null,
-        is_whatsapp: siteClient.is_whatsapp || storeClient.is_whatsapp || false,
+        celular: storeClient.celular || siteClient.celular || null,
+        telefone_fixo: storeClient.telefone_fixo || siteClient.telefone_fixo || null,
+        email: siteClient.email || storeClient.email || null,
+        is_whatsapp: storeClient.is_whatsapp != null ? storeClient.is_whatsapp : (siteClient.is_whatsapp || false),
+        receber_ofertas: storeClient.receber_ofertas != null ? storeClient.receber_ofertas : (siteClient.receber_ofertas || false),
+        pode_provador: storeClient.pode_provador != null ? storeClient.pode_provador : (siteClient.pode_provador || false),
+        
+        // Endereço - Prioridade para Loja (ERP)
+        cep: storeClient.cep || siteClient.cep || '',
+        logradouro: storeClient.logradouro || siteClient.logradouro || '',
+        numero: storeClient.numero || siteClient.numero || '',
+        complemento: storeClient.complemento || siteClient.complemento || '',
+        bairro: storeClient.bairro || siteClient.bairro || '',
+        cidade: storeClient.cidade || siteClient.cidade || '',
+        estado: (storeClient.estado || storeClient.uf) || (siteClient.estado || siteClient.uf) || '',
+
+        // Saldos e Pendências - Somados para não haver perda de dados conforme alerta na UI
         itens_pendentes_provador: (Number(storeClient.itens_pendentes_provador) || 0) + (Number(siteClient.itens_pendentes_provador) || 0),
         saldo_vale_presente: roundMoney((Number(storeClient.saldo_vale_presente) || 0) + (Number(siteClient.saldo_vale_presente) || 0)),
         saldo_devedor_crediario: roundMoney((Number(storeClient.saldo_devedor_crediario) || 0) + (Number(siteClient.saldo_devedor_crediario) || 0)),
-        pode_provador: storeClient.pode_provador === true || (storeClient.pode_provador === false ? false : siteClient.pode_provador),
+        
         user_id: siteClient.user_id, // Conservamos o ID de autenticação do site
         origin: 'both' as const
       };
@@ -313,10 +327,29 @@ export const backendService = {
 
     const mergedLocal: Client = {
       ...siteC,
-      itens_pendentes_provador: (storeC.itens_pendentes_provador || 0) + (siteC.itens_pendentes_provador || 0),
-      saldo_vale_presente: (storeC.saldo_vale_presente || 0) + (siteC.saldo_vale_presente || 0),
-      saldo_devedor_crediario: (storeC.saldo_devedor_crediario || 0) + (siteC.saldo_devedor_crediario || 0),
-      pode_provador: storeC.pode_provador,
+      nome: storeC.nome || siteC.nome,
+      cpf: storeC.cpf || siteC.cpf || null,
+      email: siteC.email || storeC.email || null,
+      celular: storeC.celular || siteC.celular || null,
+      telefone_fixo: storeC.telefone_fixo || siteC.telefone_fixo || null,
+      is_whatsapp: storeC.is_whatsapp != null ? storeC.is_whatsapp : (siteC.is_whatsapp || false),
+      receber_ofertas: storeC.receber_ofertas != null ? storeC.receber_ofertas : (siteC.receber_ofertas || false),
+      pode_provador: storeC.pode_provador != null ? storeC.pode_provador : (siteC.pode_provador || false),
+      
+      // Endereço (Mock utiliza estrutura aninhada)
+      endereco: {
+        cep: storeC.endereco?.cep || siteC.endereco?.cep || '',
+        logradouro: storeC.endereco?.logradouro || siteC.endereco?.logradouro || '',
+        numero: storeC.endereco?.numero || siteC.endereco?.numero || '',
+        complemento: storeC.endereco?.complemento || siteC.endereco?.complemento || '',
+        bairro: storeC.endereco?.bairro || siteC.endereco?.bairro || '',
+        cidade: storeC.endereco?.cidade || siteC.endereco?.cidade || '',
+        estado: storeC.endereco?.estado || siteC.endereco?.estado || '',
+      },
+
+      itens_pendentes_provador: (Number(storeC.itens_pendentes_provador) || 0) + (Number(siteC.itens_pendentes_provador) || 0),
+      saldo_vale_presente: (Number(storeC.saldo_vale_presente) || 0) + (Number(siteC.saldo_vale_presente) || 0),
+      saldo_devedor_crediario: (Number(storeC.saldo_devedor_crediario) || 0) + (Number(siteC.saldo_devedor_crediario) || 0),
       origin: 'both'
     };
 
