@@ -7,7 +7,8 @@ import { User, Package, Heart, UserCircle, LogOut, ChevronRight, Lock, Save, Mes
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { backendService } from '@/services/backendService';
-import { OrderReservation } from '@/types';
+import { OrderReservation, Client, StockEntry } from '@/types';
+import { Shirt, Trash2 } from 'lucide-react';
 
  export const CustomerProfilePage: React.FC = () => {
   const { user, userName, userEmail, signOut } = useAuth();
@@ -15,6 +16,8 @@ import { OrderReservation } from '@/types';
 
   const [reservations, setReservations] = useState<OrderReservation[]>([]);
   const [giftCardBalance, setGiftCardBalance] = useState<number | null>(null);
+  const [clientData, setClientData] = useState<Client | null>(null);
+  const [stockHistory, setStockHistory] = useState<StockEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<OrderReservation | null>(null);
 
@@ -22,14 +25,21 @@ import { OrderReservation } from '@/types';
     const loadData = async () => {
       if (!user) return;
       try {
-        const [reservationsData, clientData] = await Promise.all([
+        const [reservationsData, cData] = await Promise.all([
           backendService.getOrderReservationsByUserId(user.id),
           backendService.getClientByUserId(user.id)
         ]);
         
         setReservations(reservationsData);
-        if (clientData) {
-          setGiftCardBalance(clientData.saldo_vale_presente || 0);
+        if (cData) {
+          setClientData(cData);
+          setGiftCardBalance(cData.saldo_vale_presente || 0);
+
+          // Se tiver itens pendentes ou puder provador, buscamos o histórico de estoque
+          if ((cData.itens_pendentes_provador || 0) > 0 || cData.pode_provador) {
+            const history = await backendService.getClientStockHistory(cData.id);
+            setStockHistory(history);
+          }
         }
       } catch (err) {
         console.error("Erro ao carregar dados do perfil:", err);
@@ -40,6 +50,14 @@ import { OrderReservation } from '@/types';
 
     loadData();
   }, [user]);
+
+  // Filtra itens que estão no provador (saídas de provador)
+  const pendingProvadorItems = stockHistory
+    .filter(entry => 
+      (entry.motivo.toLowerCase().includes('provador') || entry.motivo.toLowerCase().includes('saída manual')) && 
+      entry.quantidade < 0
+    )
+    .slice(0, clientData?.itens_pendentes_provador || 0);
 
   return (
     <div className="py-12 bg-zinc-50 min-h-[calc(100vh-80px)]">
@@ -138,7 +156,71 @@ import { OrderReservation } from '@/types';
                      </div>
                    )}
 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
+                   {/* Provador Section */}
+                   {clientData?.pode_provador && (clientData?.itens_pendentes_provador || 0) > 0 && (
+                     <Card className="p-7 bg-white border border-purple-100 shadow-sm rounded-3xl md:col-span-2">
+                        <div className="flex items-center gap-3 mb-6">
+                           <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600">
+                             <Shirt size={24} />
+                           </div>
+                           <div>
+                             <h4 className="text-xl font-serif text-zinc-950">Meus Itens no Provador</h4>
+                             <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+                               Atualmente com você: {clientData.itens_pendentes_provador} {clientData.itens_pendentes_provador === 1 ? 'item' : 'itens'}
+                             </p>
+                           </div>
+                        </div>
+
+                        <div className="space-y-3">
+                           {pendingProvadorItems.map((item, idx) => (
+                             <div key={idx} className="flex justify-between items-center bg-purple-50/30 p-4 rounded-2xl border border-purple-100/50">
+                               <div className="flex items-center gap-3">
+                                 <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-purple-600 border border-purple-100">
+                                   <Shirt size={18} />
+                                 </div>
+                                 <div>
+                                   <p className="text-sm font-bold text-zinc-900">{item.produto_nome}</p>
+                                   <p className="text-[10px] text-zinc-400 font-medium">
+                                     Retirado em: {new Date(item.data_entrada).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
+                                   </p>
+                                 </div>
+                               </div>
+                               <Badge variant="purple" className="text-[9px] font-black uppercase tracking-widest h-6">Pendente</Badge>
+                             </div>
+                           ))}
+                           {pendingProvadorItems.length < (clientData.itens_pendentes_provador || 0) && (
+                             <p className="text-[10px] text-zinc-400 italic text-center py-2">
+                               + {(clientData.itens_pendentes_provador || 0) - pendingProvadorItems.length} itens não listados recentemente.
+                             </p>
+                           )}
+                        </div>
+                     </Card>
+                   )}
+
+                   {/* Crediário Section */}
+                   {Number(clientData?.saldo_devedor_crediario || 0) > 0 && (
+                     <Card className="p-7 bg-white border border-red-100 shadow-sm rounded-3xl md:col-span-2">
+                        <div className="flex items-center justify-between">
+                           <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600">
+                                <Banknote size={24} />
+                              </div>
+                              <div>
+                                <h4 className="text-xl font-serif text-zinc-950">Meu Saldo Crediário</h4>
+                                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">Saldo devedor pendente na loja</p>
+                              </div>
+                           </div>
+                           <div className="text-right">
+                              <p className="text-2xl font-serif font-black text-red-600">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(clientData?.saldo_devedor_crediario || 0)}
+                              </p>
+                              <p className="text-[10px] text-zinc-400 font-medium italic">Vencimento conforme acordado</p>
+                           </div>
+                        </div>
+                     </Card>
+                   )}
+
                   <Card className="p-7 bg-zinc-950 text-white border border-amber-500/20 shadow-2xl shadow-amber-900/10 overflow-hidden relative rounded-3xl group">
                      <div className="relative z-10">
                         <h4 className="text-xl font-serif mb-1 text-amber-100">Vale Presente</h4>

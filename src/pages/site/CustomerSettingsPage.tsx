@@ -23,6 +23,7 @@ export const CustomerSettingsPage: React.FC = () => {
     celular: '',
     telefone_fixo: '',
     receber_ofertas: true,
+    is_whatsapp: false,
     cep: '',
     logradouro: '',
     numero: '',
@@ -70,6 +71,7 @@ export const CustomerSettingsPage: React.FC = () => {
             celular: data.celular || '',
             telefone_fixo: data.telefone_fixo || '',
             receber_ofertas: data.receber_ofertas ?? true,
+            is_whatsapp: data.is_whatsapp ?? false,
             cep: data.endereco?.cep || '',
             logradouro: data.endereco?.logradouro || '',
             numero: data.endereco?.numero || '',
@@ -102,6 +104,7 @@ export const CustomerSettingsPage: React.FC = () => {
       celular: formData.celular,
       telefone_fixo: formData.telefone_fixo,
       receber_ofertas: formData.receber_ofertas,
+      is_whatsapp: formData.is_whatsapp,
       cep: formData.cep,
       logradouro: formData.logradouro,
       numero: formData.numero,
@@ -309,7 +312,34 @@ export const CustomerSettingsPage: React.FC = () => {
                              </div>
                           </div>
 
-                          <div className="md:col-span-2">
+                          <div className="md:col-span-2 space-y-4">
+                             <label className="flex items-start gap-4 cursor-pointer p-4 bg-zinc-50 rounded-2xl hover:bg-zinc-100 transition-all border border-zinc-100 group">
+                               <div className="relative flex items-center justify-center mt-1">
+                                 <input 
+                                   type="checkbox"
+                                   checked={formData.is_whatsapp}
+                                   onChange={e => setFormData({...formData, is_whatsapp: e.target.checked})}
+                                   className="peer sr-only"
+                                 />
+                                 <div className="w-6 h-6 border-2 border-zinc-200 rounded-lg bg-white transition-all peer-checked:bg-zinc-900 peer-checked:border-zinc-900 group-hover:border-zinc-400" />
+                                 <svg 
+                                   className="absolute w-4 h-4 text-white opacity-0 transition-opacity peer-checked:opacity-100" 
+                                   fill="none" 
+                                   viewBox="0 0 24 24" 
+                                   stroke="currentColor" 
+                                   strokeWidth="4"
+                                 >
+                                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                 </svg>
+                               </div>
+                               <div>
+                                 <p className="text-sm font-bold text-zinc-900">Este número é WhatsApp</p>
+                                 <p className="text-xs text-zinc-500 leading-relaxed">
+                                   Facilita o nosso atendimento rápido com você.
+                                 </p>
+                               </div>
+                             </label>
+
                              <label className="flex items-start gap-4 cursor-pointer p-4 bg-zinc-50 rounded-2xl hover:bg-zinc-100 transition-all border border-zinc-100 group">
                                <div className="relative flex items-center justify-center mt-1">
                                  <input 
