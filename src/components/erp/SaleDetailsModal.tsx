@@ -520,9 +520,9 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ isOpen, onCl
                               <div className="min-w-0 flex-1">
                                  <p className={`text-xl font-bold text-zinc-900 dark:text-white leading-tight ${currentSale.cliente_id ? 'hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer underline decoration-dotted transition-colors' : ''}`} onClick={() => { if (currentSale.cliente_id) { navigate(`/clients/${currentSale.cliente_id}/history`); onClose(); } }}>{currentSale.cliente_nome || 'Cliente Balcão'}</p>
                                  <div className="flex flex-col gap-2 mt-3">
-                                    {(currentSale.cliente_cpf || clientDetails?.cpf) && (
+                                    {currentSale.cliente_cpf && (
                                       <p className="text-xs text-zinc-600 dark:text-zinc-400 font-mono flex items-center gap-2 bg-zinc-50 dark:bg-zinc-900/50 w-fit px-2 py-1 rounded-md border border-zinc-100 dark:border-zinc-800">
-                                        <CreditCard size={14} className="text-zinc-400" /> {currentSale.cliente_cpf || clientDetails?.cpf}
+                                        <CreditCard size={14} className="text-zinc-400" /> {currentSale.cliente_cpf}
                                       </p>
                                     )}
                                     

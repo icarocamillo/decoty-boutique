@@ -936,7 +936,7 @@ export const backendService = {
         valor_liquido_lojista: totalValue - fixedFeeValue, 
         cliente_id: client.id || null,
         cliente_nome: client.name,
-        cliente_cpf: client.cpf || null,
+        cliente_cpf: client.cpf || "CPF não cadastrado",
         produtos_resumo: cart.map(i => `${i.quantidade}x ${i.nome}`).join(', '),
         metodo_pagamento: method,
         status_pagamento: (isCrediario ? 'pendente' : 'pago') as 'pendente' | 'pago',
