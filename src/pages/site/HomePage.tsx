@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useData } from '@/contexts/DataContext';
 import { ProductCard } from '@/components/site/ProductCard';
-import { ShoppingBag, ArrowRight, Sparkles, ChevronDown } from 'lucide-react';
+import { ShoppingBag, ArrowRight, Sparkles, ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 const HOME_PHRASES = [
@@ -25,6 +25,7 @@ const HOME_PHRASES = [
 export const HomePage: React.FC = () => {
   const { products, isLoading } = useData();
   const [scrollY, setScrollY] = React.useState(0);
+  const [isAboutModalOpen, setIsAboutModalOpen] = React.useState(false);
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -106,7 +107,12 @@ export const HomePage: React.FC = () => {
                   Vitrine de Hoje
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="w-full sm:w-48 !text-white border-white hover:bg-white hover:!text-black rounded-full h-12 text-sm flex items-center justify-center gap-2 backdrop-blur-sm bg-white/10 font-bold transition-all duration-300">
+              <Button 
+                size="lg" 
+                variant="outline" 
+                onClick={() => setIsAboutModalOpen(true)}
+                className="w-full sm:w-48 !text-white border-white hover:bg-white hover:!text-black rounded-full h-12 text-sm flex items-center justify-center gap-2 backdrop-blur-sm bg-white/10 font-bold transition-all duration-300"
+              >
                 Sobre a Decoty
               </Button>
             </div>
@@ -186,9 +192,9 @@ export const HomePage: React.FC = () => {
                 alt="Destaque"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex flex-col justify-end p-8 md:p-12">
-                <h3 className="text-white text-3xl md:text-5xl font-serif mb-2 leading-tight">Looks para Eventos</h3>
+                <h3 className="text-white text-3xl md:text-5xl font-serif mb-2 leading-tight">Conjuntos para Eventos</h3>
                 <p className="text-white/90 mb-6 text-sm md:text-lg max-w-xs md:max-w-sm font-medium">Destaque-se com brilho e sofisticação em seus compromissos.</p>
-                <Link to="/catalogo">
+                <Link to="/catalogo?category=Conjuntos">
                   <Button className="w-fit bg-zinc-900 !text-white hover:bg-zinc-800 rounded-full font-bold px-8 h-12 shadow-xl border border-white/10 transition-transform active:scale-95">
                     Explorar Categoria
                   </Button>
@@ -221,6 +227,61 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {/* Modal - Sobre a Decoty em Construção */}
+      <AnimatePresence>
+        {isAboutModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAboutModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+
+            {/* Modal Content */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", duration: 0.5 }}
+              className="relative bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl p-8 shadow-2xl z-10 border border-zinc-100 dark:border-zinc-800 text-center"
+            >
+              <button
+                onClick={() => setIsAboutModalOpen(false)}
+                className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                aria-label="Fechar"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Sparkles className="text-zinc-900 dark:text-zinc-100 animate-pulse" size={30} />
+              </div>
+
+              <h3 className="text-2xl font-serif font-bold text-zinc-900 dark:text-zinc-100 mb-3">
+                História em Moda...
+              </h3>
+              
+              <p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed mb-6">
+                Nossa página <strong className="text-zinc-900 dark:text-zinc-100 font-bold">Sobre a Decoty</strong> está sendo cuidadosamente desenhada! 
+                Em breve, compartilharemos com você toda a nossa paixão, inspiração e a história por trás de cada detalhe da nossa boutique de moda. 
+                <br /><br />
+                Agradecemos pelo carinho e pela companhia! ✨
+              </p>
+
+              <Button
+                onClick={() => setIsAboutModalOpen(false)}
+                className="w-full bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 rounded-full py-3 font-bold h-12 transition-transform active:scale-95 shadow-lg"
+              >
+                Até breve!
+              </Button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

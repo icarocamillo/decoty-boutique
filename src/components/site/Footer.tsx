@@ -35,10 +35,10 @@ export const Footer: React.FC = () => {
               {[
                 { label: 'Novidades', path: '/catalogo' },
                 { label: 'Coleção da temporada', path: '/catalogo' },
-                { label: 'Vestidos', path: '/catalogo?categoria=Vestidos' },
-                { label: 'Blusas', path: '/catalogo?categoria=Blusas' },
-                { label: 'Calças', path: '/catalogo?categoria=Calças' },
-                { label: 'Conjuntos', path: '/catalogo?categoria=Conjuntos' }
+                { label: 'Vestidos', path: '/catalogo?category=Vestidos' },
+                { label: 'Blusas', path: '/catalogo?category=Blusas' },
+                { label: 'Calças', path: '/catalogo?category=Calças' },
+                { label: 'Conjuntos', path: '/catalogo?category=Conjuntos' }
               ].map((item) => (
                 <li key={item.label}>
                   <Link to={item.path} className="text-sm text-zinc-400 hover:text-white transition-colors">{item.label}</Link>

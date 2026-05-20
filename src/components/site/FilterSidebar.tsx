@@ -1,6 +1,80 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { getColorValue } from '@/utils/colorUtils';
+
+// Detecta propriedades cromáticas/HSL para ordenar e agrupar por similaridade
+const getColorHueAndDetails = (colorName: string) => {
+  const hexOrVal = getColorValue(colorName);
+  
+  if (!hexOrVal.startsWith('#')) {
+    if (colorName.toLowerCase() === 'multicor' || colorName.toLowerCase() === 'multicolor') {
+      return { h: 360, s: 100, l: 50, isAchromatic: false, isMulticolor: true };
+    }
+    return { h: 0, s: 0, l: 50, isAchromatic: true, isMulticolor: false };
+  }
+
+  const hex = hexOrVal.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16) / 255;
+  const g = parseInt(hex.substring(2, 4), 16) / 255;
+  const b = parseInt(hex.substring(4, 6), 16) / 255;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+
+  const hue = Math.round(h * 360);
+  const sat = Math.round(s * 100);
+  const light = Math.round(l * 100);
+
+  // Considerar cinza/preto/branco/off-white (tons acromáticos) se a saturação for muito baixa (< 12) ou luminosidade extrema (< 12 ou > 88)
+  const isAchromatic = sat < 12 || light < 12 || light > 88;
+
+  return { h: hue, s: sat, l: light, isAchromatic, isMulticolor: false };
+};
+
+const sortColorsBySimilarity = (colorList: string[]) => {
+  return [...colorList].sort((a, b) => {
+    const infoA = getColorHueAndDetails(a);
+    const infoB = getColorHueAndDetails(b);
+
+    // 1. Multicor sempre por último
+    if (infoA.isMulticolor && !infoB.isMulticolor) return 1;
+    if (!infoA.isMulticolor && infoB.isMulticolor) return -1;
+
+    // 2. Acromáticas (neutras) vão no final das cores normais (antes de Multicor)
+    if (infoA.isAchromatic && !infoB.isAchromatic) return 1;
+    if (!infoA.isAchromatic && infoB.isAchromatic) return -1;
+
+    if (infoA.isAchromatic && infoB.isAchromatic) {
+      // Ordena acromáticos do mais brilhante (Branco/Gelo/Off-White) para o mais escuro (Cinza, Preto)
+      return infoB.l - infoA.l;
+    }
+
+    // 3. Cromáticas normais: ordena pelo círculo cromático (matiz / hue)
+    if (infoA.h !== infoB.h) {
+      return infoA.h - infoB.h;
+    }
+
+    // 4. Critérios de desempate: saturação e depois luminosidade
+    if (infoA.s !== infoB.s) {
+      return infoB.s - infoA.s;
+    }
+    return infoB.l - infoA.l;
+  });
+};
 
 interface FilterSidebarProps {
   categories: string[];
@@ -35,6 +109,10 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
     size: true,
     price: true
   });
+
+  const sortedColors = useMemo(() => {
+    return sortColorsBySimilarity(colors);
+  }, [colors]);
 
   const toggleSection = (section: string) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -95,7 +173,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
           <SectionTitle id="color" title="Cores" />
           {openSections.color && (
             <div className="pt-4 grid grid-cols-5 gap-y-4 gap-x-2 px-1.5 pb-2">
-              {colors.map((color) => {
+              {sortedColors.map((color) => {
                 const isActive = activeFilters.color.includes(color);
                 return (
                   <button
