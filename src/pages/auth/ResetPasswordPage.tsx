@@ -15,11 +15,7 @@ export const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate();
 
   const handleRedirect = () => {
-    if (userRole === 'customer') {
-      navigate('/entrar');
-    } else {
-      navigate('/erp/login');
-    }
+    navigate('/entrar');
   };
 
   // Monitorar a sessão que deve ser injetada pelo Supabase via URL
@@ -102,7 +98,7 @@ export const ResetPasswordPage: React.FC = () => {
             className="w-full h-12 rounded-xl"
             onClick={handleRedirect}
           >
-            {userRole === 'customer' ? 'Acessar minha conta' : 'Ir para o ERP'}
+            Acessar minha conta
           </Button>
         </div>
       </div>
