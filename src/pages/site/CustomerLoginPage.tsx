@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
-import { Mail, Lock, User, Loader2, AlertCircle, ArrowRight, CheckCircle2, CreditCard } from 'lucide-react';
+import { Mail, Lock, User, Loader2, AlertCircle, ArrowRight, ArrowLeft, CheckCircle2, CreditCard } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BrandLogo } from '@/components/shared/BrandLogo';
 import { backendService } from '@/services/backendService';
@@ -201,6 +201,14 @@ export const CustomerLoginPage: React.FC = () => {
           </div>
 
           <div className="mb-10">
+            <Link 
+              to="/" 
+              className="group inline-flex items-center gap-1.5 text-xs uppercase tracking-widest font-black text-zinc-400 hover:text-zinc-950 transition-colors mb-8"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" />
+              <span>Voltar ao Site</span>
+            </Link>
+
             <h2 className="text-3xl font-serif text-zinc-950 mb-2">
               {mode === 'login' ? 'Bem-vinda de volta' : 'Crie sua conta'}
             </h2>
@@ -340,11 +348,7 @@ export const CustomerLoginPage: React.FC = () => {
              </button>
           </div>
           
-          <div className="mt-12 text-center">
-             <Link to="/" className="text-sm text-zinc-400 hover:text-zinc-950 transition-colors inline-flex items-center gap-2">
-                Voltar para a página inicial
-             </Link>
-          </div>
+
         </div>
       </div>
     </div>
