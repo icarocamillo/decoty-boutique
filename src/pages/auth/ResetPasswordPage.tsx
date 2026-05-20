@@ -11,13 +11,21 @@ export const ResetPasswordPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const { updatePassword, session } = useAuth();
+  const { updatePassword, session, userRole } = useAuth();
   const navigate = useNavigate();
+
+  const handleRedirect = () => {
+    if (userRole === 'customer') {
+      navigate('/entrar');
+    } else {
+      navigate('/erp/login');
+    }
+  };
 
   // Monitorar a sessão que deve ser injetada pelo Supabase via URL
   useEffect(() => {
-    console.log("ResetPasswordPage: Verificando sessão...", { hasSession: !!session });
-  }, [session]);
+    console.log("ResetPasswordPage: Verificando sessão...", { hasSession: !!session, userRole });
+  }, [session, userRole]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,9 +100,9 @@ export const ResetPasswordPage: React.FC = () => {
           </p>
           <Button 
             className="w-full h-12 rounded-xl"
-            onClick={() => navigate('/erp/login')}
+            onClick={handleRedirect}
           >
-            Ir para o Sistema
+            {userRole === 'customer' ? 'Acessar minha conta' : 'Ir para o ERP'}
           </Button>
         </div>
       </div>
@@ -107,7 +115,7 @@ export const ResetPasswordPage: React.FC = () => {
         <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl p-8 border border-zinc-100 dark:border-zinc-800">
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">Nova Senha</h1>
           <p className="text-zinc-600 dark:text-zinc-400 mb-8">
-            Crie uma nova senha segura para sua conta corporativa.
+            Crie uma nova senha segura para acessar sua conta.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">

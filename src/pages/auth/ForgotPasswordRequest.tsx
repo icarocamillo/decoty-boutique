@@ -12,6 +12,9 @@ export const ForgotPasswordRequest: React.FC = () => {
   const { sendPasswordResetEmail } = useAuth();
   const navigate = useNavigate();
 
+  const type = new URLSearchParams(window.location.search).get('type');
+  const loginPath = type === 'site' ? '/entrar' : '/erp/login';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -45,7 +48,7 @@ export const ForgotPasswordRequest: React.FC = () => {
           </p>
           <Button 
             className="w-full h-12 rounded-xl"
-            onClick={() => navigate('/erp/login')}
+            onClick={() => navigate(loginPath)}
           >
             Voltar para o Login
           </Button>
@@ -58,7 +61,7 @@ export const ForgotPasswordRequest: React.FC = () => {
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <button 
-          onClick={() => navigate('/erp/login')}
+          onClick={() => navigate(loginPath)}
           className="mb-6 flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors group"
         >
           <div className="p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 shadow-sm group-hover:shadow-md transition-all">
@@ -70,7 +73,7 @@ export const ForgotPasswordRequest: React.FC = () => {
         <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl shadow-zinc-200/50 dark:shadow-none p-8 border border-zinc-100 dark:border-zinc-800">
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">Esqueceu a senha?</h1>
           <p className="text-zinc-600 dark:text-zinc-400 mb-8">
-            Digite seu e-mail corporativo cadastrado para receber as instruções de recuperação.
+            Digite seu e-mail cadastrado em nosso sistema para receber as instruções de recuperação.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">

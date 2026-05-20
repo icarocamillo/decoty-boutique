@@ -90,8 +90,8 @@ const App = () => {
               {/* ─── AUTH ROUTES (ERP) ─────────────────────────────────── */}
               <Route path="/erp/login" element={<LoginPage />} />
               <Route path="/erp/register" element={<RegisterPage />} />
-              <Route path="/erp/forgot-password" element={<ForgotPasswordRequest />} />
-              <Route path="/erp/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/recuperar-senha" element={<ForgotPasswordRequest />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
 
               {/* ─── ERP ROUTES (PROTECTED) ───────────────────────────── */}
               <Route path="/erp" element={<ProtectedRoute><ErpLayout><Navigate to="/erp/home" replace /></ErpLayout></ProtectedRoute>} />

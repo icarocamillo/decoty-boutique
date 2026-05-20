@@ -107,7 +107,7 @@ export const LoginPage: React.FC = () => {
                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Senha</label>
                  <button 
                    type="button"
-                   onClick={() => navigate('/erp/forgot-password')}
+                   onClick={() => navigate('/recuperar-senha?type=erp')}
                    className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
                  >
                    Esqueceu a senha?

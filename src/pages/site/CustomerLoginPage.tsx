@@ -292,7 +292,7 @@ export const CustomerLoginPage: React.FC = () => {
                   <div className="flex justify-between items-center px-1">
                     <label className="text-xs font-black uppercase tracking-widest transition-colors group-focus-within:text-zinc-900">Senha</label>
                     {mode === 'login' && (
-                      <Link to="/forgot-password" size="sm" className="text-[10px] uppercase font-bold text-zinc-400 hover:text-zinc-950 transition-colors">
+                      <Link to="/recuperar-senha?type=site" size="sm" className="text-[10px] uppercase font-bold text-zinc-400 hover:text-zinc-950 transition-colors">
                         Esqueceu?
                       </Link>
                     )}
