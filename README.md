@@ -3,9 +3,9 @@
 ![Project Status](https://img.shields.io/badge/status-v1.3.2%20%7C%20Production%20Ready-success)
 ![Stack](https://img.shields.io/badge/stack-React%20%7C%20TypeScript%20%7C%20Supabase-blueviolet)
 
-> **Um sistema de gestão de varejo ponta-a-ponta, focado na integridade financeira e na experiência do usuário.**
+> **Um sistema de gestão de varejo ponta-a-ponta (E-commerce & ERP/PDV), focado na integridade financeira e na experiência do usuário.**
 
-## 📖 1. Visão Geral do Produto
+## 1. Visão Geral do Produto
 
 O sistema **Decoty Boutique** é um ecossistema unificado para gestão e venda de moda, composto por duas grandes frentes:
 
@@ -143,7 +143,7 @@ decoty-boutique/
     ├── App.tsx             # Roteador principal e injeção de Providers globais
     ├── main.tsx            # Ponto de entrada de renderização do React
     ├── index.css           # Estilos globais e tokens de design vanilla CSS
-    ├── constants.ts        # Dados Mock iniciais (MOCK_PRODUCTS, MOCK_CLIENTS, etc.)
+    ├── constants.ts        # Dados fixos de tamanho utilizados no cadastro de produtos
     ├── vite-env.d.ts       # Declarações de tipos de ambiente do Vite
     │
     ├── types/
@@ -245,14 +245,7 @@ decoty-boutique/
 (Devolução Parcial de Item Não Pago) ──> [Subtrai do Saldo Devedor]
 ```
 
-### 5.2. Hibridismo de Banco de Dados (Supabase vs Mock Local)
-O arquivo [backendService.ts](file:///d:/CVS/Sistemas/decoty-boutique/src/services/backendService.ts) encapsula todas as chamadas. Cada método avalia se o Supabase está configurado através do método `isSupabaseConfigured()`.
-- **Modo Supabase**: Executa requisições diretas via SDK JavaScript do Supabase com tratamento robusto de erros e conversão de schemas relacionais complexos em objetos tipados.
-- **Modo Local (Offline)**: Consome e atualiza estruturas armazenadas na memória local do navegador via `localStorage` utilizando dados padrões do arquivo `constants.ts`. Isso assegura que a aplicação permaneça perfeitamente funcional em ambientes de demonstração ou sob instabilidade de rede.
-
-
-
-## 🛠️ Tech Stack
+## 5.2 Tech Stack
 
 O projeto foi construído focando em performance, tipagem estática e segurança.
 
@@ -272,7 +265,7 @@ O projeto foi construído focando em performance, tipagem estática e segurança
 - **Módulo:** ESModules (importação direta via ESM.sh)
 - **Segurança:** Criptografia SHA-256 via Web Crypto API para validação de acesso.
 
-## 📸 Algumas Screenshots (ERP Interface)
+## 6. Algumas Screenshots (ERP Interface)
 
 **Tela de login:**
 - **Descrição:** Usuário do sistema efetua login ou faz um novo cadastro (sistema verifica se está conectado em produção).
@@ -324,14 +317,14 @@ O projeto foi construído focando em performance, tipagem estática e segurança
 
 ---
 
-### 🔆/🌛 Modo Claro ou Escuro
+## 7. Modo Claro ou Escuro
 
 - **Descrição:** O sistema tem suporte a modo claro e escuro para facilitar a visualização em ambientes iluminados ou melhorar a experiencia de uso em ambientes mais escuros.
 <img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/7e78119c-64ee-41d1-841a-e764164ce536" />
 <br> </br>
 <img width="1919" height="1079" alt="Image" src="https://github.com/user-attachments/assets/da7a396e-4d2f-4cf7-8d84-6739b83919eb" />
 
-### 📱/💻 Responsividade
+## 8. Responsividade
 
 - **Descrição:** O sistema é responsivo e se adpta a diferentes tamanho de tabela: PC / Tablet / Celular.
 
