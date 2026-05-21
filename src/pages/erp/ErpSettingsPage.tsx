@@ -4,7 +4,6 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Lock, RefreshCw, Check, Settings, ShieldAlert, Database, CreditCard, Percent, DollarSign, Wallet, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 import { backendService, PaymentDiscounts, PaymentFees } from '@/services/backendService';
-import { isSupabaseConfigured } from '@/services/supabaseClient';
 import { generateHash } from '@/utils';
 
 export const ErpSettingsPage: React.FC = () => {
@@ -35,7 +34,6 @@ export const ErpSettingsPage: React.FC = () => {
   }, []);
 
   const loadSettings = async () => {
-  console.log('isSupabaseConfigured:', isSupabaseConfigured()); // ← adiciona isso
      try {
        const [hash, discData, feeData] = await Promise.all([
          backendService.getStoreAccessHash(),
@@ -230,7 +228,7 @@ export const ErpSettingsPage: React.FC = () => {
                         <Database className="shrink-0 mt-1 text-zinc-400" size={18} />
                         <div>
                             <p className="font-semibold text-zinc-900 dark:text-white">Conexão</p>
-                            <p>{isSupabaseConfigured() ? 'Supabase Cloud (Produção)' : 'LocalStorage (Offline)'}</p>
+                            <p>Supabase Cloud (Produção)</p>
                         </div>
                     </div>
                     <div className="flex items-start gap-3">

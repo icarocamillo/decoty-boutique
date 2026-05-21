@@ -3,8 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
-import { Mail, Lock, Loader2, AlertCircle, Database, CheckCircle2, Eye, EyeOff } from 'lucide-react';
-import { isSupabaseConfigured } from '@/services/supabaseClient';
+import { Mail, Lock, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { BrandLogo } from '@/components/shared/BrandLogo';
 
 export const LoginPage: React.FC = () => {
@@ -21,12 +20,10 @@ export const LoginPage: React.FC = () => {
   const [showProdBadge, setShowProdBadge] = useState(true);
 
   useEffect(() => {
-    if (isSupabaseConfigured()) {
-      const timer = setTimeout(() => {
-        setShowProdBadge(false);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
+    const timer = setTimeout(() => {
+      setShowProdBadge(false);
+    }, 5000);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -65,18 +62,11 @@ export const LoginPage: React.FC = () => {
         <div className="p-8">
           <h2 className="text-xl font-bold text-zinc-800 dark:text-white mb-6 text-center">Acessar Sistema</h2>
           
-          {!isSupabaseConfigured() ? (
-            <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-900/30 rounded-lg text-xs text-yellow-800 dark:text-yellow-400 text-center flex items-center justify-center gap-2">
-              <Database size={14} />
-              <span><strong>Ambiente de Teste</strong></span>
+          {showProdBadge && (
+            <div className="mb-6 p-2 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 rounded-lg text-xs text-green-700 dark:text-green-400 text-center flex items-center justify-center gap-2 animate-fade-in">
+              <CheckCircle2 size={14} />
+              <span className="font-medium">Ambiente de Produção</span>
             </div>
-          ) : (
-             showProdBadge && (
-               <div className="mb-6 p-2 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 rounded-lg text-xs text-green-700 dark:text-green-400 text-center flex items-center justify-center gap-2 animate-fade-in">
-                <CheckCircle2 size={14} />
-                <span className="font-medium">Ambiente de Produção</span>
-              </div>
-             )
           )}
 
           {error && (

@@ -25,16 +25,7 @@ if (!SUPABASE_URL.includes('supabase.co')) {
 }
 
 export const isSupabaseConfigured = (): boolean => {
-  try {
-    if (!ENABLE_DB_CONNECTION) return false;
-    return (
-      SUPABASE_URL.length > 0 &&
-      SUPABASE_URL.includes('supabase.co') &&
-      SUPABASE_ANON_KEY.length > 0
-    );
-  } catch {
-    return false;
-  }
+  return true;
 };
 
 // Cliente único e simples — sem fetch customizado, sem AbortController.

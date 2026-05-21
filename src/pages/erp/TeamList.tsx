@@ -3,7 +3,6 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { User, ShieldCheck, Mail, Hash, UserX, UserCheck, Users, Lock, Loader2, AlertTriangle, ChevronRight } from 'lucide-react';
-import { isSupabaseConfigured } from '@/services/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { backendService } from '@/services/backendService';
 import { UserProfile } from '@/types';
@@ -65,13 +64,6 @@ export const TeamList: React.FC = () => {
       </div>
 
       <Card className="overflow-hidden border-zinc-200 dark:border-zinc-800">
-        {!isSupabaseConfigured() && (
-          <div className="p-4 bg-yellow-50 dark:bg-yellow-900/10 border-b border-yellow-100 dark:border-yellow-900/30 text-xs text-yellow-800 dark:text-yellow-400 flex items-center gap-2">
-             <Hash size={14} />
-             <span>Ambiente de Teste: Usuários salvos localmente.</span>
-          </div>
-        )}
-        
         <div className="min-h-[300px]">
           {loading ? (
              <div className="flex justify-center items-center h-48 text-zinc-400">
@@ -250,24 +242,20 @@ export const TeamList: React.FC = () => {
 
           {!loading && users.length === 0 && (
             <div className="p-12 text-center text-zinc-500">
-              {isSupabaseConfigured() ? (
-                <div className="flex flex-col items-center gap-4">
-                   <Users size={48} className="text-zinc-300" />
-                   <div className="space-y-1">
-                      <p className="font-bold text-zinc-700 dark:text-zinc-200">Nenhum usuário encontrado</p>
-                      <p className="text-sm max-w-xs mx-auto">Verifique se as tabelas e políticas de segurança (RLS) no Supabase estão configuradas corretamente.</p>
-                   </div>
-                   <div className="max-w-md p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/30 text-xs text-blue-700 dark:text-blue-300 text-left flex gap-3">
-                      <AlertTriangle className="shrink-0" size={20} />
-                      <div>
-                        <p className="font-bold mb-1">Nota para o Administrador</p>
-                        <p>É necessário que os usuários existam na tabela <code>profiles</code> e que você possua permissão de leitura para visualizar esta lista.</p>
-                      </div>
-                   </div>
-                </div>
-              ) : (
-                "Nenhum usuário encontrado no sistema."
-              )}
+              <div className="flex flex-col items-center gap-4">
+                 <Users size={48} className="text-zinc-300" />
+                 <div className="space-y-1">
+                    <p className="font-bold text-zinc-700 dark:text-zinc-200">Nenhum usuário encontrado</p>
+                    <p className="text-sm max-w-xs mx-auto">Verifique se as tabelas e políticas de segurança (RLS) no Supabase estão configuradas corretamente.</p>
+                 </div>
+                 <div className="max-w-md p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/30 text-xs text-blue-700 dark:text-blue-300 text-left flex gap-3">
+                    <AlertTriangle className="shrink-0" size={20} />
+                    <div>
+                      <p className="font-bold mb-1">Nota para o Administrador</p>
+                      <p>É necessário que os usuários existam na tabela <code>profiles</code> e que você possua permissão de leitura para visualizar esta lista.</p>
+                    </div>
+                 </div>
+              </div>
             </div>
           )}
         </div>
