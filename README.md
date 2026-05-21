@@ -1,4 +1,4 @@
-# 🛍️ Decoty Boutique - E-commerce & ERP Especializado em Moda (🇧🇷)
+# 🛍️ Decoty Boutique - E-commerce & ERP Especializado em Moda
 
 ![Project Status](https://img.shields.io/badge/status-v1.3.2%20%7C%20Production%20Ready-success)
 ![Stack](https://img.shields.io/badge/stack-React%20%7C%20TypeScript%20%7C%20Supabase-blueviolet)
