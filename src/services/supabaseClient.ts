@@ -50,8 +50,3 @@ export const SUPABASE_CONFIG = {
   hasValidConfig: isSupabaseConfigured()
 } as const;
 
-if (import.meta.env.DEV) {
-  console.log('🔧 Ambiente:', import.meta.env.MODE);
-  console.log('🔗 Supabase URL:', SUPABASE_URL);
-  console.log('🔑 Anon Key:', SUPABASE_ANON_KEY.substring(0, 20) + '...');
-}

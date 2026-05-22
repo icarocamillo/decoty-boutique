@@ -143,7 +143,7 @@ export const ProductFormPage: React.FC = () => {
     return ids.length > 0 ? Math.max(...ids) : 0;
   }, [productToEdit]);
   const availableSizesForMaterial = (tipoMaterial: string) => {
-    if (tipoMaterial === 'Bijuteria') return ['00'];
+    if (tipoMaterial === 'Bijuteria') return ['UN'];
     if (tipoMaterial === 'Malha') return SIZES_LETTERS;
     if (tipoMaterial === 'Tecido Plano') return SIZES_NUMBERS;
     return [...SIZES_LETTERS, ...SIZES_NUMBERS];
@@ -170,11 +170,11 @@ export const ProductFormPage: React.FC = () => {
         return prev;
       });
       
-      // Forçar tamanho 00 para Vicky Bijou
+      // Forçar tamanho UN para Vicky Bijou
       setVariants(prev => {
-        const needsUpdate = prev.some(v => v.tamanho !== '00');
+        const needsUpdate = prev.some(v => v.tamanho !== 'UN');
         if (needsUpdate) {
-          return prev.map(v => ({ ...v, tamanho: '00' }));
+          return prev.map(v => ({ ...v, tamanho: 'UN' }));
         }
         return prev;
       });
@@ -183,8 +183,8 @@ export const ProductFormPage: React.FC = () => {
       // Se o material atual (Bijuteria) não for mais permitido para a nova marca/categoria, resetamos
       if (formData.tipo_material === 'Bijuteria' && !availableMaterials.includes('Bijuteria')) {
         setFormData(prev => ({ ...prev, tipo_material: '' }));
-        // E limpamos os tamanhos '00' nas variantes para permitir a nova escolha
-        setVariants(prev => prev.map(v => v.tamanho === '00' ? { ...v, tamanho: '' } : v));
+        // E limpamos os tamanhos 'UN' nas variantes para permitir a nova escolha
+        setVariants(prev => prev.map(v => v.tamanho === 'UN' ? { ...v, tamanho: '' } : v));
       }
     }
   }, [formData.marca, availableMaterials]);

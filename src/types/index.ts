@@ -1,5 +1,5 @@
 
-export type ProductSize = 'P' | 'M' | 'G' | 'GG' | 'G1' | '40' | '42' | '44' | '46' | '48' | '00' | string;
+export type ProductSize = 'P' | 'M' | 'G' | 'GG' | 'G1' | '40' | '42' | '44' | '46' | '48' | 'UN' | string;
 
 export interface Product {
   id: string; // UUID (Supabase)
