@@ -108,6 +108,9 @@ export const COLOR_MAP: Record<string, string> = {
   'dourado': '#D4AF37',
   'obre': '#CC7722',
   'cobre': '#B87333',
+  'jazz': '#A50B5E',
+  'urban': '#7A7571',
+  'merengue': '#F6F0DF',
 };
 
 /**
@@ -133,7 +136,7 @@ export const COLOR_CATALOG = [
   'Rosa', 'Rosa Claro', 'Rosa Choque', 'Pink', 'Magenta', 'Fúcsia', 'Rose', 'Rose Gold', 'Roxo', 'Roxo Escuro', 'Violeta', 'Lilás', 'Lavanda', 'Berinjela',
   
   // Amarelos & Metálicos
-  'Amarelo', 'Amarelo Ouro', 'Mostarda', 'Ouro', 'Dourado', 'Cobre', 'Multicor'
+  'Amarelo', 'Amarelo Ouro', 'Mostarda', 'Ouro', 'Dourado', 'Cobre', 'Multicor', 'Jazz', 'Urban', 'Merengue'
 ].sort();
 
 /**

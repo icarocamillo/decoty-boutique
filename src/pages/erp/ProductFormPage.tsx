@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Package, Check, Loader2, Tag, Layers, Plus, Minus, ArrowLeft, Save, AlertCircle, Barcode, Hash, Trash2, Image as ImageIcon, Upload, Star, MoreVertical } from 'lucide-react';
+import { Package, Check, Loader2, Tag, Layers, Plus, Minus, ArrowLeft, Save, AlertCircle, Barcode, Hash, Trash2, Image as ImageIcon, Upload, Star, MoreVertical, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -277,6 +277,64 @@ export const ProductFormPage: React.FC = () => {
     const { name, value } = e.target;
     const updated = [...variants];
     updated[index][name] = value;
+
+    // Se alterou tamanho ou cor e o SKU está em branco, podemos sugerir o SKU automaticamente para essa variante
+    if ((name === 'tamanho' || name === 'cor') && !updated[index].sku && formData.categoria) {
+      const norm = (str: string) => {
+        if (!str) return '';
+        return str
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]/g, '');
+      };
+      const normWithDash = (str: string) => {
+        if (!str) return '';
+        return str
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-');
+      };
+      const normCategory = (str: string) => {
+        if (!str) return '';
+        let cleaned = str
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .trim();
+        if (cleaned.endsWith('s')) {
+          cleaned = cleaned.substring(0, cleaned.length - 1);
+        }
+        return cleaned
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-');
+      };
+
+      const catPart = normCategory(formData.categoria);
+      
+      const vCor = name === 'cor' ? value : updated[index].cor;
+      const vTamanho = name === 'tamanho' ? value : updated[index].tamanho;
+      
+      const sizePart = norm(vTamanho || 'u');
+      
+      // Verificar se há mais de uma cor única e preenchida
+      const allColors = updated.map((v, i) => i === index && name === 'cor' ? value : v.cor).filter(Boolean);
+      const uniqueColors = Array.from(new Set(allColors));
+      const hasMultipleColors = uniqueColors.length > 1;
+      const colorPart = (vCor && hasMultipleColors) ? `-${normWithDash(vCor)}` : '';
+
+      const generated = `${catPart}-${sizePart}${colorPart}`
+        .replace(/-+/g, '-')
+        .replace(/-$/, '')
+        .replace(/^-/, '');
+
+      updated[index].sku = generated;
+    }
+
     setVariants(updated);
   };
 
@@ -316,6 +374,71 @@ export const ProductFormPage: React.FC = () => {
   const removeVariant = (index: number) => {
     if (variants.length === 1) return;
     setVariants(variants.filter((_, i) => i !== index));
+  };
+
+  const autoGenerateSKUs = () => {
+    if (!formData.categoria) {
+      alert("Por favor, preencha a Categoria do produto primeiro!");
+      return;
+    }
+
+    const norm = (str: string) => {
+      if (!str) return '';
+      return str
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '');
+    };
+
+    const normWithDash = (str: string) => {
+      if (!str) return '';
+      return str
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+    };
+
+    const normCategory = (str: string) => {
+      if (!str) return '';
+      let cleaned = str
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+      if (cleaned.endsWith('s')) {
+        cleaned = cleaned.substring(0, cleaned.length - 1);
+      }
+      return cleaned
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+    };
+
+    // Identificar se há mais de uma cor preenchida nas variações
+    const uniqueColors = Array.from(new Set(variants.map(v => v.cor).filter(Boolean)));
+    const hasMultipleColors = uniqueColors.length > 1;
+
+    const updated = variants.map(v => {
+      const catPart = normCategory(formData.categoria);
+      const sizePart = norm(v.tamanho || 'u');
+      const colorPart = (v.cor && hasMultipleColors) ? `-${normWithDash(v.cor)}` : '';
+
+      const generated = `${catPart}-${sizePart}${colorPart}`
+        .replace(/-+/g, '-')
+        .replace(/-$/, '')
+        .replace(/^-/, '');
+
+      return {
+        ...v,
+        sku: generated
+      };
+    });
+
+    setVariants(updated);
   };
 
   const validate = () => {
@@ -828,6 +951,9 @@ export const ProductFormPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <Button type="button" size="sm" variant="outline" onClick={addVariant} className="flex items-center gap-2 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 h-9 whitespace-nowrap">
                   <Plus size={16} /> Adicionar Variação
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={autoGenerateSKUs} className="flex items-center gap-2 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 h-9 whitespace-nowrap" title="Auto-gerar SKUs de todas as variações de acordo com as regras estabelecidas">
+                  <Sparkles size={16} /> Gerar SKUs
                 </Button>
                 <Button 
                   type="button" 
