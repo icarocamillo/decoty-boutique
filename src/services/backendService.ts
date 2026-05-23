@@ -724,6 +724,12 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
         .filter((vid: string) => !newVariantIds.includes(vid));
 
     if (variantsToDelete.length > 0) {
+        // Deletar associações em variant_combinations primeiro para evitar erros de restrição de FK
+        await getSupabase()
+            .from('variant_combinations')
+            .delete()
+            .or(`variant_id.in.(${variantsToDelete.join(',')}),related_variant_id.in.(${variantsToDelete.join(',')})`);
+
         const { error: delError } = await getSupabase()
             .from('product_variants')
             .delete()
@@ -1332,18 +1338,48 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
   deleteProduct: async (productId: string): Promise<boolean> => {
     const supabase = getSupabase();
     
-    // 1. Remover variantes do produto
+    // 1. Buscar todas as variantes do produto para poder remover suas combinações
+    const { data: variants } = await supabase
+        .from('product_variants')
+        .select('id')
+        .eq('product_id', productId);
+
+    if (variants && variants.length > 0) {
+        const variantIds = variants.map(v => v.id);
+        // Deletar associações em variant_combinations primeiro
+        await supabase
+            .from('variant_combinations')
+            .delete()
+            .or(`variant_id.in.(${variantIds.join(',')}),related_variant_id.in.(${variantIds.join(',')})`);
+    }
+
+    // 2. Buscar todas as imagens do produto para removê-las fisicamente do storage
+    const { data: images } = await supabase
+        .from('product_images')
+        .select('id, url')
+        .eq('product_id', productId);
+
+    if (images && images.length > 0) {
+        for (const img of images) {
+            await backendService.deleteProductImage(img.id, img.url);
+        }
+    }
+
+    // 3. Remover variantes do produto
     const { error: variantError } = await supabase
         .from('product_variants')
         .delete()
         .eq('product_id', productId);
         
     if (variantError) {
+        if (variantError.code === '23503') {
+            throw new Error("Não é possível excluir um produto que possui variações com histórico de vendas ou movimentação.");
+        }
         console.error("Erro ao deletar variantes:", variantError);
         return false;
     }
 
-    // 2. Remover referências de imagens no banco
+    // 4. Remover referências de imagens remanescentes no banco (se houver)
     const { error: imageError } = await supabase
         .from('product_images')
         .delete()
@@ -1351,10 +1387,9 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
 
     if (imageError) {
         console.error("Erro ao deletar referências de imagens:", imageError);
-        // Prosseguimos mesmo assim para tentar apagar o produto
     }
 
-    // 3. Remover o produto pai
+    // 5. Remover o produto pai
     const { error: productError } = await supabase
         .from('products')
         .delete()
