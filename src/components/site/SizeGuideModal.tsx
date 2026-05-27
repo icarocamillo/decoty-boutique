@@ -9,45 +9,74 @@ interface SizeGuideModalProps {
 }
 
 export const SizeGuideModal: React.FC<SizeGuideModalProps> = ({ isOpen, onClose, category }) => {
-  const isBottom = category?.toLowerCase().includes('calça') || category?.toLowerCase().includes('short') || category?.toLowerCase().includes('saia');
-  const isFull = category?.toLowerCase().includes('vestido') || category?.toLowerCase().includes('conjunto') || category?.toLowerCase().includes('macacão');
+  const catLower = category?.toLowerCase() || '';
+
+  const isBottom = catLower.includes('saia') || catLower.includes('bermuda') || catLower.includes('calça') || catLower.includes('short');
+  const isFull = catLower.includes('vestido') || catLower.includes('conjunto') || catLower.includes('macacão');
+  const isTop = catLower.includes('blusa') || catLower.includes('jaqueta') || catLower.includes('casaco') || catLower.includes('camisa') || (!isBottom && !isFull);
 
   const renderTable = () => {
     if (isBottom) {
       return (
-        <table className="w-full text-left border-collapse table-fixed">
+        <table className="w-full text-left border-collapse min-w-[600px]">
           <thead>
             <tr className="bg-zinc-50">
-              <th className="py-2.5 px-2 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100 w-[28%]">Tam.</th>
-              <th className="py-2.5 px-2 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Cintura</th>
-              <th className="py-2.5 px-2 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Quadril</th>
-              <th className="py-2.5 px-2 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Comp.</th>
+              <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100 w-[20%]">Tam.</th>
+              <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Cintura</th>
+              <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Quadril</th>
+              <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">C. Calça</th>
+              <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">C. Bermuda</th>
+              <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">C. Saia Midi</th>
             </tr>
           </thead>
           <tbody className="text-[11px] sm:text-xs text-zinc-600">
             <tr>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50 font-bold">P (36/38)</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">66-70</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">94-98</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">100-102</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">PP / 38</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">81 - 85 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">97 - 101 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">102 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">45 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">75 cm</td>
             </tr>
             <tr>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50 font-bold">M (40)</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">74-78</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">102-106</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">102-104</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">P / 40</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">86 - 90 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">102 - 106 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">103 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">46 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">76 cm</td>
             </tr>
             <tr>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50 font-bold">G (42)</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">82-86</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">110-114</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">104-106</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">M / 42</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">91 - 95 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">107 - 111 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">104 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">47 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">77 cm</td>
             </tr>
             <tr>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50 font-bold">GG (44)</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">90-94</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">118-122</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">106-108</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">G / 44</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">96 - 100 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">112 - 116 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">105 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">48 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">78 cm</td>
+            </tr>
+            <tr>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">GG / 46</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">101 - 105 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">117 - 121 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">106 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">49 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">79 cm</td>
+            </tr>
+            <tr>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">G1 / 48</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">106 - 110 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">122 - 126 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">107 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">50 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">80 cm</td>
             </tr>
           </tbody>
         </table>
@@ -56,80 +85,118 @@ export const SizeGuideModal: React.FC<SizeGuideModalProps> = ({ isOpen, onClose,
 
     if (isFull) {
       return (
-        <table className="w-full text-left border-collapse table-fixed">
+        <table className="w-full text-left border-collapse min-w-[600px]">
           <thead>
             <tr className="bg-zinc-50">
-              <th className="py-2.5 px-2 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Tam.</th>
-              <th className="py-2.5 px-2 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Busto</th>
-              <th className="py-2.5 px-2 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Cintura</th>
-              <th className="py-2.5 px-2 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Quadril</th>
+              <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100 w-[20%]">Tam.</th>
+              <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Busto</th>
+              <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Cintura</th>
+              <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Quadril</th>
+              <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">C. Calça</th>
+              <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">C. Vest. Midi</th>
             </tr>
           </thead>
           <tbody className="text-[11px] sm:text-xs text-zinc-600">
             <tr>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50 font-bold">P</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">84-88</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">66-70</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">94-98</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">PP / 38</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">91 - 95 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">81 - 85 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">97 - 101 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">102 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">110 cm</td>
             </tr>
             <tr>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50 font-bold">M</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">92-96</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">74-78</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">102-106</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">P / 40</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">96 - 100 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">86 - 90 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">102 - 106 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">103 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">112 cm</td>
             </tr>
             <tr>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50 font-bold">G</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">100-104</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">82-86</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">110-114</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">M / 42</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">101 - 105 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">91 - 95 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">107 - 111 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">104 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">114 cm</td>
             </tr>
             <tr>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50 font-bold">GG</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">108-112</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">90-94</td>
-              <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">118-122</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">G / 44</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">106 - 110 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">96 - 100 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">112 - 116 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">105 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">116 cm</td>
+            </tr>
+            <tr>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">GG / 46</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">111 - 115 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">101 - 105 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">117 - 121 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">106 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">118 cm</td>
+            </tr>
+            <tr>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">G1 / 48</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">116 - 120 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">106 - 110 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">122 - 126 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">107 cm</td>
+              <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">120 cm</td>
             </tr>
           </tbody>
         </table>
       );
     }
 
-    // Default table for Blusas/Others
+    // fallback/isTop
     return (
-      <table className="w-full text-left border-collapse table-fixed">
+      <table className="w-full text-left border-collapse min-w-[400px]">
         <thead>
           <tr className="bg-zinc-50">
-            <th className="py-2.5 px-2 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Tam.</th>
-            <th className="py-2.5 px-2 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Busto</th>
-            <th className="py-2.5 px-2 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Cintura</th>
-            <th className="py-2.5 px-2 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Comp.</th>
+            <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100 w-[25%]">Tam.</th>
+            <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Busto</th>
+            <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Cintura</th>
+            <th className="py-2.5 px-3 sm:px-4 text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-zinc-400 border-b border-zinc-100">Quadril</th>
           </tr>
         </thead>
         <tbody className="text-[11px] sm:text-xs text-zinc-600">
           <tr>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50 font-bold">P</td>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">84-88</td>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">66-70</td>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">58-60</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">PP / 38</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">91 - 95 cm</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">81 - 85 cm</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">97 - 101 cm</td>
           </tr>
           <tr>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50 font-bold">M</td>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">92-96</td>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">74-78</td>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">60-62</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">P / 40</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">96 - 100 cm</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">86 - 90 cm</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">102 - 106 cm</td>
           </tr>
           <tr>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50 font-bold">G</td>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">100-104</td>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">82-86</td>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">62-64</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">M / 42</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">101 - 105 cm</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">91 - 95 cm</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">107 - 111 cm</td>
           </tr>
           <tr>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50 font-bold">GG</td>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">108-112</td>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">90-94</td>
-            <td className="py-2.5 px-2 sm:px-4 border-b border-zinc-50">64-66</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">G / 44</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">106 - 110 cm</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">96 - 100 cm</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">112 - 116 cm</td>
+          </tr>
+          <tr>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">GG / 46</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">111 - 115 cm</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">101 - 105 cm</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">117 - 121 cm</td>
+          </tr>
+          <tr>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50 font-bold">G1 / 48</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">116 - 120 cm</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">106 - 110 cm</td>
+            <td className="py-2.5 px-3 sm:px-4 border-b border-zinc-50">122 - 126 cm</td>
           </tr>
         </tbody>
       </table>
@@ -213,7 +280,7 @@ export const SizeGuideModal: React.FC<SizeGuideModalProps> = ({ isOpen, onClose,
               <section className="space-y-4 sm:space-y-6">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tabela de Medidas (cm)</h3>
                 <div className="rounded-[1.5rem] sm:rounded-[2rem] border border-zinc-100 overflow-hidden shadow-sm bg-zinc-50/50">
-                  <div className="overflow-x-hidden">
+                  <div className="overflow-x-auto">
                     {renderTable()}
                   </div>
                 </div>
