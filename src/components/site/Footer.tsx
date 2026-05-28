@@ -99,7 +99,7 @@ export const Footer: React.FC = () => {
           <div className="text-zinc-600 text-xs text-center lg:text-left space-y-1 lg:space-y-0">
             <span>&copy; {new Date().getFullYear()} Decoty Boutique. Todos os direitos reservados.</span>
             <span className="hidden lg:inline mx-2 text-zinc-800">•</span>
-            <span className="block lg:inline">CNPJ: 64.555.147/0001-20</span>
+            <span className="block lg:inline">CNPJ: 96.324.223/0001-83</span>
           </div>
 
           {/* Meios de Pagamento & Segurança */}
@@ -146,7 +146,7 @@ export const Footer: React.FC = () => {
                 </div>
                 <div className="h-6 px-2.5 bg-zinc-900 border border-sky-500/10 rounded flex items-center gap-1.5 text-sky-500 text-[10px] font-bold" title="Google Safe Browsing">
                   <svg className="w-2.5 h-2.5 fill-current text-sky-500/80" viewBox="0 0 24 24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
                   </svg>
                   <span>Google Verificado</span>
                 </div>
