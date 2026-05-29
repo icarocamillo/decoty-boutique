@@ -23,6 +23,16 @@ const HOME_PHRASES = [
   "Onde o clássico encontra o moderno."
 ];
 
+const EMAIL_DOMAINS = [
+  'gmail.com',
+  'hotmail.com',
+  'outlook.com',
+  'yahoo.com',
+  'uol.com.br',
+  'bol.com.br',
+  'icloud.com'
+];
+
 export const HomePage: React.FC = () => {
   const { products, isLoading } = useData();
   const [scrollY, setScrollY] = React.useState(0);
@@ -32,11 +42,50 @@ export const HomePage: React.FC = () => {
   const [isSubmittingNewsletter, setIsSubmittingNewsletter] = React.useState(false);
   const [newsletterMessage, setNewsletterMessage] = React.useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
+  // States and Ref for domain suggestions
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = React.useState(0);
+  const [showSuggestions, setShowSuggestions] = React.useState(false);
+  const suggestionsContainerRef = React.useRef<HTMLDivElement>(null);
+
+  const suggestions = React.useMemo(() => {
+    const trimmed = newsletterEmail.trim();
+    if (!trimmed) return [];
+    
+    if (!trimmed.includes('@')) {
+      return EMAIL_DOMAINS.map(domain => `${trimmed}@${domain}`);
+    }
+    
+    const atIndex = trimmed.indexOf('@');
+    const prefix = trimmed.slice(0, atIndex);
+    const suffix = trimmed.slice(atIndex + 1).toLowerCase();
+    
+    if (!prefix) return [];
+    
+    const matchingDomains = EMAIL_DOMAINS.filter(domain => domain.startsWith(suffix));
+    
+    if (matchingDomains.length === 1 && matchingDomains[0] === suffix) {
+      return [];
+    }
+    
+    return matchingDomains.map(domain => `${prefix}@${domain}`);
+  }, [newsletterEmail]);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionsContainerRef.current && !suggestionsContainerRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleNewsletterSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newsletterEmail) return;
     setIsSubmittingNewsletter(true);
     setNewsletterMessage(null);
+    setShowSuggestions(false);
     try {
       const res = await backendService.subscribeNewsletter(newsletterEmail);
       if (res.success) {
@@ -238,7 +287,7 @@ export const HomePage: React.FC = () => {
                 </div>
               </div>
             </Link>
-            <div className="md:col-span-4 md:row-span-1 relative rounded-3xl overflow-hidden group bg-zinc-900 border border-zinc-800 p-10 flex flex-col justify-center">
+            <div className="md:col-span-4 md:row-span-1 relative rounded-3xl group bg-zinc-900 border border-zinc-800 p-10 flex flex-col justify-center">
               <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mb-6">
                 <ShoppingBag className="text-white" />
               </div>
@@ -246,15 +295,59 @@ export const HomePage: React.FC = () => {
               <p className="text-zinc-500 text-sm mb-6">Receba ofertas exclusivas e avisos de lançamentos em primeira mão.</p>
               <form onSubmit={handleNewsletterSubscribe} className="space-y-3">
                 <div className="flex gap-2">
-                  <input
-                    type="email"
-                    required
-                    value={newsletterEmail}
-                    onChange={(e) => setNewsletterEmail(e.target.value)}
-                    placeholder="Seu melhor e-mail"
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-white/20"
-                    disabled={isSubmittingNewsletter}
-                  />
+                  <div ref={suggestionsContainerRef} className="relative flex-1">
+                    <input
+                      type="email"
+                      required
+                      value={newsletterEmail}
+                      onChange={(e) => {
+                        setNewsletterEmail(e.target.value);
+                        setActiveSuggestionIndex(0);
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      onKeyDown={(e) => {
+                        if (!showSuggestions || suggestions.length === 0) return;
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setActiveSuggestionIndex((prev) => (prev + 1) % suggestions.length);
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setActiveSuggestionIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
+                        } else if (e.key === 'Enter') {
+                          e.preventDefault();
+                          setNewsletterEmail(suggestions[activeSuggestionIndex]);
+                          setShowSuggestions(false);
+                        } else if (e.key === 'Escape') {
+                          setShowSuggestions(false);
+                        }
+                      }}
+                      placeholder="Seu melhor e-mail"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-white/20"
+                      disabled={isSubmittingNewsletter}
+                    />
+                    {showSuggestions && suggestions.length > 0 && (
+                      <ul className="absolute left-0 right-0 mt-1 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto overflow-x-hidden divide-y divide-white/5">
+                        {suggestions.map((sug, index) => (
+                          <li
+                            key={sug}
+                            onClick={() => {
+                              setNewsletterEmail(sug);
+                              setShowSuggestions(false);
+                            }}
+                            onMouseEnter={() => setActiveSuggestionIndex(index)}
+                            className={`px-4 py-2 text-xs cursor-pointer text-left font-mono transition-colors duration-150 ${
+                              index === activeSuggestionIndex 
+                                ? 'bg-white/10 text-white font-medium' 
+                                : 'text-zinc-400 hover:text-white'
+                            }`}
+                          >
+                            {sug}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                   <Button
                     type="submit"
                     className="bg-white text-black shrink-0 font-medium h-auto py-2"

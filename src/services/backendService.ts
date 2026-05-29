@@ -2105,33 +2105,10 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
         }
       }
 
-      if (clientId) {
-        return { 
-          success: true, 
-          message: "E-mail cadastrado com sucesso!" 
-        };
-      } else {
-        // Formata os resultados de RPC para mostrar o que de fato aconteceu
-        const successfulRPCsWithNull = rpcAttempts.filter(a => !a.error && a.hasData);
-        const rpcErrors = rpcAttempts.filter(a => a.error).map(a => `${a.name}(${a.arg}): ${a.error?.message || a.error?.code || JSON.stringify(a.error)}`);
-        
-        let diagMsg = `Nenhum cliente correspondente encontrado no banco (salvo como sem vínculo).`;
-        if (successfulRPCsWithNull.length > 0) {
-          diagMsg += ` O RPC ${successfulRPCsWithNull[0].name} foi chamado com sucesso mas retornou vazio/nulo. Verifique se o e-mail existe exatamente igual no banco.`;
-        } else if (rpcErrors.length > 0) {
-          // Pega os primeiros 2 erros únicos relevantes
-          const uniqueErrors = Array.from(new Set(rpcErrors)).slice(0, 2);
-          diagMsg += ` Erros RPC: ${uniqueErrors.join(' | ')}.`;
-        }
-        if (fallbackError) {
-          diagMsg += ` Fallback RLS: ${fallbackError.message || JSON.stringify(fallbackError)}.`;
-        }
-
-        return { 
-          success: true, 
-          message: `E-mail cadastrado com sucesso! Aviso: ${diagMsg}` 
-        };
-      }
+      return { 
+        success: true, 
+        message: "E-mail cadastrado com sucesso!" 
+      };
     } catch (err: any) {
       console.error("Erro interno ao assinar newsletter:", err);
       return { success: false, message: "Erro no servidor ao processar a assinatura." };
