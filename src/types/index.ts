@@ -231,3 +231,10 @@ export interface OrderReservation {
   created_at: string;
   status: 'whatsapp_contact' | 'completed';
 }
+
+export interface NewsletterSubscription {
+  email: string;
+  client_id?: string | null;
+  created_at?: string;
+}
+

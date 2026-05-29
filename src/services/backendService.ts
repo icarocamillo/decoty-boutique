@@ -149,10 +149,22 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
       origin: 'store_only',
       user_id: userId || null 
     };
-    const { error } = await getSupabase().from('clients').insert([payload]);
+    const { data: inserted, error } = await getSupabase().from('clients').insert([payload]).select('id').single();
     if (error) {
       console.error("Erro ao criar cliente:", error);
       throw new Error(error.message || "Erro ao cadastrar cliente no banco de dados");
+    }
+
+    // Sincroniza newsletter_subscriptions se houver e-mail
+    if (client.email && inserted) {
+      try {
+        const emailParsed = client.email.trim().toLowerCase();
+        await getSupabase()
+          .from('newsletter_subscriptions')
+          .upsert({ email: emailParsed, client_id: inserted.id, active: !!client.receber_ofertas }, { onConflict: 'email' });
+      } catch (syncErr) {
+        console.error("Erro ao sincronizar newsletter na criação do cliente:", syncErr);
+      }
     }
     return true;
   },
@@ -172,6 +184,22 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
     if (error) {
       console.error("Erro ao atualizar cliente:", error);
       throw new Error(error.message || "Erro ao atualizar cliente no banco de dados");
+    }
+
+    // Sincroniza newsletter_subscriptions
+    if (client.email) {
+      try {
+        const emailParsed = client.email.trim().toLowerCase();
+        await getSupabase()
+          .from('newsletter_subscriptions')
+          .upsert({ 
+            email: emailParsed, 
+            client_id: client.id, 
+            active: !!client.receber_ofertas 
+          }, { onConflict: 'email' });
+      } catch (syncErr) {
+        console.error("Erro ao sincronizar newsletter na atualização de cliente:", syncErr);
+      }
     }
     return true;
   },
@@ -1638,8 +1666,36 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
       .update(allowedData)
       .eq('user_id', userId);
       
-    if (error) console.error("Erro ao atualizar perfil do cliente:", error);
-    return !error;
+    if (error) {
+      console.error("Erro ao atualizar perfil do cliente:", error);
+      return false;
+    }
+
+    // Se receber_ofertas mudou, sincroniza com a tabela newsletter_subscriptions
+    if (typeof profileData.receber_ofertas === 'boolean') {
+      try {
+        const { data: clientData } = await getSupabase()
+          .from('clients')
+          .select('id, email')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (clientData && clientData.email) {
+          const clientEmail = clientData.email.trim().toLowerCase();
+          await getSupabase()
+            .from('newsletter_subscriptions')
+            .upsert({ 
+              email: clientEmail, 
+              client_id: clientData.id, 
+              active: profileData.receber_ofertas 
+            }, { onConflict: 'email' });
+        }
+      } catch (syncErr) {
+        console.error("Erro ao sincronizar newsletter na atualização de perfil:", syncErr);
+      }
+    }
+
+    return true;
   },
 
   getOrderReservationsByUserId: async (userId: string): Promise<OrderReservation[]> => {
@@ -1692,6 +1748,25 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
       }
 
       await getSupabase().from('clients').update(updateData).eq('id', clientByEmail.id);
+
+      // Se já existia uma subscrição com esse e-mail, vincula o id do cliente nela
+      try {
+        const emailParsed = email.trim().toLowerCase();
+        const { data: sub } = await getSupabase()
+          .from('newsletter_subscriptions')
+          .select('email')
+          .eq('email', emailParsed)
+          .maybeSingle();
+        if (sub) {
+          await getSupabase()
+            .from('newsletter_subscriptions')
+            .update({ client_id: clientByEmail.id })
+            .eq('email', emailParsed);
+        }
+      } catch (syncErr) {
+        console.error("Erro ao sincronizar newsletter no vínculo de cliente por e-mail:", syncErr);
+      }
+
       return clientByEmail.id;
     }
     
@@ -1720,6 +1795,18 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
     if (error) {
       console.error("Erro ao criar registro de cliente para o usuário:", error);
       return null;
+    }
+
+    // Sincroniza com a newsletter pois receber_ofertas é true por padrão
+    if (newClient) {
+      try {
+        const emailParsed = email.trim().toLowerCase();
+        await getSupabase()
+          .from('newsletter_subscriptions')
+          .upsert({ email: emailParsed, client_id: newClient.id, active: true }, { onConflict: 'email' });
+      } catch (syncErr) {
+        console.error("Erro ao sincronizar newsletter na criação automática de cliente via site:", syncErr);
+      }
     }
     
     return newClient?.id || null;
@@ -1882,5 +1969,172 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
     }
 
     return true;
+  },
+
+  subscribeNewsletter: async (email: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const parsedEmail = email.trim().toLowerCase();
+      if (!parsedEmail) {
+        return { success: false, message: "Por favor, digite um e-mail válido." };
+      }
+
+      let clientId: string | null = null;
+      let clientReceberOfertas: boolean | null = null;
+      let rpcSuccess = false;
+      const rpcAttempts: Array<{ name: string; arg: string; error: any; hasData: boolean; dataVal: any }> = [];
+
+      // Nomes possíveis da função RPC do Supabase
+      const rpcNames = [
+        'get_client_id_by_email',
+        'get_client_by_email',
+        'obter_cliente_por_email',
+        'buscar_cliente_por_email',
+        'obter_client_id_por_email',
+        'get_client_id',
+        'get_client',
+        'obter_cliente',
+        'buscar_cliente'
+      ];
+
+      // Nomes possíveis de argumentos que a função pode aceitar
+      const rpcArgs = [
+        'email_param',
+        'p_email',
+        'email',
+        'client_email',
+        'email_val',
+        'p_email_param'
+      ];
+
+      for (const name of rpcNames) {
+        if (rpcSuccess) break;
+        for (const argName of rpcArgs) {
+          if (rpcSuccess) break;
+          try {
+            const { data, error } = await getSupabase().rpc(name, { [argName]: parsedEmail });
+            rpcAttempts.push({
+              name,
+              arg: argName,
+              error,
+              hasData: data !== undefined && data !== null,
+              dataVal: data
+            });
+
+            if (!error && data !== undefined && data !== null) {
+              // Se retornar UUID diretamente (string de 36 caracteres)
+              if (typeof data === 'string' && data.length === 36) {
+                clientId = data;
+                rpcSuccess = true;
+              } else if (Array.isArray(data)) {
+                // Se retornar um array
+                const row = data[0];
+                if (row) {
+                  if (typeof row === 'string') {
+                    clientId = row;
+                    rpcSuccess = true;
+                  } else if (typeof row === 'object') {
+                    clientId = row.id || row.client_id || row.uuid || null;
+                    clientReceberOfertas = typeof row.receber_ofertas === 'boolean' ? row.receber_ofertas : null;
+                    if (clientId) rpcSuccess = true;
+                  }
+                }
+              } else if (typeof data === 'object') {
+                // Se retornar um único objeto
+                clientId = data.id || data.client_id || data.uuid || null;
+                clientReceberOfertas = typeof data.receber_ofertas === 'boolean' ? data.receber_ofertas : null;
+                if (clientId) rpcSuccess = true;
+              }
+            }
+          } catch (err: any) {
+            rpcAttempts.push({
+              name,
+              arg: argName,
+              error: err?.message || err,
+              hasData: false,
+              dataVal: null
+            });
+          }
+        }
+      }
+
+      let fallbackError: any = null;
+      let fallbackHadClient = false;
+
+      // Fallback: Busca direta por consulta da tabela (requer permissão de leitura pela RLS)
+      if (!rpcSuccess) {
+        try {
+          const { data: client, error: clientErr } = await getSupabase()
+            .from('clients')
+            .select('id, receber_ofertas')
+            .ilike('email', parsedEmail)
+            .maybeSingle();
+
+          fallbackError = clientErr;
+          if (!clientErr && client) {
+            clientId = client.id;
+            clientReceberOfertas = client.receber_ofertas;
+            fallbackHadClient = true;
+          }
+        } catch (err: any) {
+          fallbackError = err?.message || err;
+          console.error("Erro no fallback do subscribeNewsletter:", err);
+        }
+      }
+
+      // 2. Cadastra na tabela newsletter_subscriptions com a FK client_id caso o e-mail pertença a um cliente
+      const { error: subErr } = await getSupabase()
+        .from('newsletter_subscriptions')
+        .upsert({ email: parsedEmail, client_id: clientId, active: true }, { onConflict: 'email' });
+
+      if (subErr) {
+        console.error("Erro ao inserir na newsletter_subscriptions:", subErr);
+        return { success: false, message: `Erro ao cadastrar e-mail na newsletter: ${subErr.message}` };
+      }
+
+      // 3. Sincroniza com a tabela clients se o e-mail existir lá e receber_ofertas estiver como falso ou nulo
+      if (clientId) {
+        try {
+          if (clientReceberOfertas === false || clientReceberOfertas === null) {
+            await getSupabase()
+              .from('clients')
+              .update({ receber_ofertas: true })
+              .eq('id', clientId);
+          }
+        } catch (err) {
+          // Ignora erros de RLS caso o usuário final não tenha permissão de alterar a tabela clients
+        }
+      }
+
+      if (clientId) {
+        return { 
+          success: true, 
+          message: "E-mail cadastrado com sucesso!" 
+        };
+      } else {
+        // Formata os resultados de RPC para mostrar o que de fato aconteceu
+        const successfulRPCsWithNull = rpcAttempts.filter(a => !a.error && a.hasData);
+        const rpcErrors = rpcAttempts.filter(a => a.error).map(a => `${a.name}(${a.arg}): ${a.error?.message || a.error?.code || JSON.stringify(a.error)}`);
+        
+        let diagMsg = `Nenhum cliente correspondente encontrado no banco (salvo como sem vínculo).`;
+        if (successfulRPCsWithNull.length > 0) {
+          diagMsg += ` O RPC ${successfulRPCsWithNull[0].name} foi chamado com sucesso mas retornou vazio/nulo. Verifique se o e-mail existe exatamente igual no banco.`;
+        } else if (rpcErrors.length > 0) {
+          // Pega os primeiros 2 erros únicos relevantes
+          const uniqueErrors = Array.from(new Set(rpcErrors)).slice(0, 2);
+          diagMsg += ` Erros RPC: ${uniqueErrors.join(' | ')}.`;
+        }
+        if (fallbackError) {
+          diagMsg += ` Fallback RLS: ${fallbackError.message || JSON.stringify(fallbackError)}.`;
+        }
+
+        return { 
+          success: true, 
+          message: `E-mail cadastrado com sucesso! Aviso: ${diagMsg}` 
+        };
+      }
+    } catch (err: any) {
+      console.error("Erro interno ao assinar newsletter:", err);
+      return { success: false, message: "Erro no servidor ao processar a assinatura." };
+    }
   }
 };

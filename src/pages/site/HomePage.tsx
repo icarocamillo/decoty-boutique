@@ -5,6 +5,7 @@ import { useData } from '@/contexts/DataContext';
 import { ProductCard } from '@/components/site/ProductCard';
 import { ShoppingBag, ArrowRight, Sparkles, ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { backendService } from '@/services/backendService';
 
 const HOME_PHRASES = [
   "A elegância mora nos detalhes.",
@@ -26,6 +27,30 @@ export const HomePage: React.FC = () => {
   const { products, isLoading } = useData();
   const [scrollY, setScrollY] = React.useState(0);
   const [isAboutModalOpen, setIsAboutModalOpen] = React.useState(false);
+
+  const [newsletterEmail, setNewsletterEmail] = React.useState('');
+  const [isSubmittingNewsletter, setIsSubmittingNewsletter] = React.useState(false);
+  const [newsletterMessage, setNewsletterMessage] = React.useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+  const handleNewsletterSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newsletterEmail) return;
+    setIsSubmittingNewsletter(true);
+    setNewsletterMessage(null);
+    try {
+      const res = await backendService.subscribeNewsletter(newsletterEmail);
+      if (res.success) {
+        setNewsletterMessage({ text: res.message, type: 'success' });
+        setNewsletterEmail('');
+      } else {
+        setNewsletterMessage({ text: res.message, type: 'error' });
+      }
+    } catch (err) {
+      setNewsletterMessage({ text: 'Ocorreu um erro ao assinar a newsletter.', type: 'error' });
+    } finally {
+      setIsSubmittingNewsletter(false);
+    }
+  };
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -219,10 +244,31 @@ export const HomePage: React.FC = () => {
               </div>
               <h3 className="text-white text-xl font-bold mb-4">Newsletter Decoty</h3>
               <p className="text-zinc-500 text-sm mb-6">Receba ofertas exclusivas e avisos de lançamentos em primeira mão.</p>
-              <div className="flex gap-2">
-                <input type="email" placeholder="Seu melhor e-mail" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 text-sm text-white focus:outline-none focus:border-white/20" />
-                <Button className="bg-white text-black shrink-0">Assinar</Button>
-              </div>
+              <form onSubmit={handleNewsletterSubscribe} className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    required
+                    value={newsletterEmail}
+                    onChange={(e) => setNewsletterEmail(e.target.value)}
+                    placeholder="Seu melhor e-mail"
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-white/20"
+                    disabled={isSubmittingNewsletter}
+                  />
+                  <Button
+                    type="submit"
+                    className="bg-white text-black shrink-0 font-medium h-auto py-2"
+                    disabled={isSubmittingNewsletter}
+                  >
+                    {isSubmittingNewsletter ? 'Enviando...' : 'Assinar'}
+                  </Button>
+                </div>
+                {newsletterMessage && (
+                  <p className={`text-xs mt-1 font-medium ${newsletterMessage.type === 'success' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {newsletterMessage.text}
+                  </p>
+                )}
+              </form>
             </div>
           </div>
         </div>
