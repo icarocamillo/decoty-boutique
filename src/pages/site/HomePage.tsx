@@ -38,6 +38,21 @@ export const HomePage: React.FC = () => {
   const [scrollY, setScrollY] = React.useState(0);
   const [isAboutModalOpen, setIsAboutModalOpen] = React.useState(false);
 
+  // State for product rotation offset across refreshes
+  const [rotationOffset, setRotationOffset] = React.useState(0);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('decoty_home_products_offset');
+      const current = stored ? parseInt(stored, 10) : 0;
+      localStorage.setItem('decoty_home_products_offset', String(current + 1));
+      setRotationOffset(current);
+    } catch (e) {
+      // Fallback inside sandboxed frame or on privacy error
+      setRotationOffset(Math.floor(Date.now() / 10000) % 20);
+    }
+  }, []);
+
   const [newsletterEmail, setNewsletterEmail] = React.useState('');
   const [isSubmittingNewsletter, setIsSubmittingNewsletter] = React.useState(false);
   const [newsletterMessage, setNewsletterMessage] = React.useState<{ text: string, type: 'success' | 'error' } | null>(null);
@@ -119,13 +134,84 @@ export const HomePage: React.FC = () => {
 
   // Grid de Produtos a serem exibidos (expandidos por cor como no catálogo)
   const displayProducts = useMemo(() => {
+    // 1. Primeiro ordenamos todos os produtos do site do mais recente ao mais antigo
+    const sortedProducts = [...siteProducts].sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
+
+    // 2. Agrupamos por categoria, mantendo a ordenação por data já estabelecida
+    const productsByCategory: { [key: string]: typeof siteProducts } = {};
+    sortedProducts.forEach(p => {
+      const cat = p.categoria || 'Sem Categoria';
+      if (!productsByCategory[cat]) {
+        productsByCategory[cat] = [];
+      }
+      productsByCategory[cat].push(p);
+    });
+
+    // 3. Selecionamos os produtos intercalando as categorias (round-robin)
+    // Coletamos uma lista ordenada de chaves de categorias
+    // Para ser determinístico, as categorias começam pelas que têm o produto mais recente
+    const categoryKeys = Object.keys(productsByCategory).sort((catA, catB) => {
+      const newestA = productsByCategory[catA][0]?.created_at;
+      const newestB = productsByCategory[catB][0]?.created_at;
+      const dateA = newestA ? new Date(newestA).getTime() : 0;
+      const dateB = newestB ? new Date(newestB).getTime() : 0;
+      return dateB - dateA;
+    });
+
+    const maxProductsPerCategory = 2;
+    const selectedByCategory: { [key: string]: typeof siteProducts } = {};
+
+    categoryKeys.forEach(cat => {
+      const catProducts = productsByCategory[cat];
+      const N = catProducts.length;
+      if (N <= maxProductsPerCategory) {
+        selectedByCategory[cat] = catProducts;
+      } else {
+        // Rotaciona as opções suavemente a cada atualização de página (1 em 1 índice)
+        // Isso vai revelando produtos mais antigos passo a passo e depois reinicia (wrap around)
+        const idx1 = rotationOffset % N;
+        const idx2 = (rotationOffset + 1) % N;
+        
+        const p1 = catProducts[idx1];
+        const p2 = catProducts[idx2];
+        
+        if (p1.id === p2.id) {
+          selectedByCategory[cat] = [p1];
+        } else {
+          selectedByCategory[cat] = [p1, p2];
+        }
+      }
+    });
+
+    const selectedProducts: typeof siteProducts = [];
+
+    // Faremos até 2 passagens (já que queremos até 2 produtos de cada categoria)
+    for (let round = 0; round < maxProductsPerCategory; round++) {
+      categoryKeys.forEach(cat => {
+        const prod = selectedByCategory[cat]?.[round];
+        if (prod) {
+          selectedProducts.push(prod);
+        }
+      });
+    }
+
+    // 4. Expandimos os produtos selecionados em cores para exibição, preservando a ordem intercalada
     const expanded: any[] = [];
     
-    siteProducts.forEach(p => {
+    selectedProducts.forEach(p => {
       const colorsInProduct = Array.from(new Set(p.variants?.map(v => v.cor))).filter(Boolean) as string[];
       
       if (colorsInProduct.length === 0) {
-        expanded.push({ displayId: p.id, product: p, preferredColor: undefined });
+        expanded.push({ 
+          displayId: p.id, 
+          product: p, 
+          preferredColor: undefined,
+          createdAt: p.created_at 
+        });
       } else {
         colorsInProduct.forEach(color => {
           // Verifica se há estoque para esta cor
@@ -134,16 +220,17 @@ export const HomePage: React.FC = () => {
             expanded.push({
               displayId: `${p.id}-${color}`,
               product: p,
-              preferredColor: color
+              preferredColor: color,
+              createdAt: p.created_at
             });
           }
         });
       }
     });
 
-    // Limitamos aos primeiros 8 para manter a home organizada e com foco
+    // Limitamos a exatamente 8 itens de exibição para manter um design limpo e estruturado
     return expanded.slice(0, 8);
-  }, [siteProducts]);
+  }, [siteProducts, rotationOffset]);
 
   return (
     <div className="flex flex-col">
