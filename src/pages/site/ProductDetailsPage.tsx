@@ -5,8 +5,9 @@ import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { ProductCard } from '@/components/site/ProductCard';
-import { ShoppingBag, ChevronLeft, ChevronRight, Star, ShieldCheck, Truck, RotateCcw, Ruler, Crown, Heart, MessageCircle, Phone, Plus, Sparkles } from 'lucide-react';
+import { ShoppingBag, ChevronLeft, ChevronRight, Star, ShieldCheck, Truck, RotateCcw, Ruler, Crown, Heart, MessageCircle, Phone, Plus, Sparkles, Share2 } from 'lucide-react';
 import { SizeGuideModal } from '@/components/site/SizeGuideModal';
+import { ShareProductModal } from '@/components/site/ShareProductModal';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getColorValue } from '@/utils/colorUtils';
@@ -21,6 +22,7 @@ export const ProductDetailsPage: React.FC = () => {
   const { user } = useAuth();
   
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [productCombinations, setProductCombinations] = useState<any[]>([]);
   const [loadingCombinations, setLoadingCombinations] = useState(false);
@@ -350,17 +352,28 @@ export const ProductDetailsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Toggle Favorite Heart Button */}
-              <button 
-                onClick={(e) => { e.stopPropagation(); toggleFavorite(); }}
-                className={`absolute top-4 right-4 sm:top-6 sm:right-6 z-30 w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all shadow-xl active:scale-95 ${
-                  isFavorite 
-                    ? 'bg-red-500 text-white' 
-                    : 'bg-white/80 backdrop-blur-md text-zinc-400 hover:text-red-500'
-                }`}
-              >
-                <Heart size={18} className="sm:w-5 sm:h-5" fill={isFavorite ? "currentColor" : "none"} />
-              </button>
+              {/* Gallery Actions (Favorite + Share) */}
+              <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-30 flex flex-col gap-2 sm:gap-3 items-center">
+                {/* Toggle Favorite Heart Button */}
+                <button 
+                  onClick={(e) => { e.stopPropagation(); toggleFavorite(); }}
+                  className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all shadow-xl active:scale-95 ${
+                    isFavorite 
+                      ? 'bg-red-500 text-white' 
+                      : 'bg-white/80 backdrop-blur-md text-zinc-400 hover:text-red-500'
+                  }`}
+                >
+                  <Heart size={18} className="sm:w-5 sm:h-5" fill={isFavorite ? "currentColor" : "none"} />
+                </button>
+
+                {/* Share Button */}
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setIsShareOpen(true); }}
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all shadow-xl active:scale-95 bg-white/80 backdrop-blur-md text-zinc-400 hover:text-zinc-900"
+                >
+                  <Share2 size={18} className="sm:w-5 sm:h-5" />
+                </button>
+              </div>
             </div>
             {/* Gallery Thumbs Carousel */}
             <div className="relative group/thumbs pt-2">
@@ -867,6 +880,13 @@ export const ProductDetailsPage: React.FC = () => {
         isOpen={isSizeGuideOpen} 
         onClose={() => setIsSizeGuideOpen(false)} 
         category={product.categoria} 
+      />
+
+      <ShareProductModal 
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        product={product}
+        preferredColor={selectedVariant?.cor}
       />
     </div>
   );

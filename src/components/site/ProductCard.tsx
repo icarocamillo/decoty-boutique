@@ -4,10 +4,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Product } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, Heart } from 'lucide-react';
+import { ShoppingBag, Heart, Share2 } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
+import { ShareProductModal } from '@/components/site/ShareProductModal';
 
 interface ProductCardProps {
   product: Product;
@@ -16,6 +17,7 @@ interface ProductCardProps {
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, preferredColor }) => {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const { addToCart } = useCart();
   const { user } = useAuth();
   const { favoriteIds, toggleFavorite: backendToggleFavorite } = useData();
@@ -33,6 +35,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, preferredColo
     }
 
     await backendToggleFavorite(product.id, preferredColor);
+  };
+
+  const handleShareClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsShareOpen(true);
   };
 
   // Encontrar o menor preço entre as variantes
@@ -127,6 +135,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, preferredColo
            <Heart size={16} fill={isFavorite ? "currentColor" : "none"} />
         </button>
 
+        {/* Share Icon Overlay */}
+        <button 
+          onClick={handleShareClick}
+          className="absolute top-[3.5rem] right-4 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm lg:opacity-0 lg:group-hover:opacity-100 transform lg:translate-y-2 lg:group-hover:translate-y-0 duration-300 bg-white/80 backdrop-blur-sm text-zinc-400 hover:text-zinc-900 opacity-100 translate-y-0"
+        >
+           <Share2 size={16} />
+        </button>
+
         {/* Hover Actions Overlay */}
         <div className="absolute inset-x-0 bottom-0 z-10 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent translate-y-full lg:group-hover:translate-y-0 transition-transform duration-300 pointer-events-none lg:group-hover:pointer-events-auto hidden lg:block">
           <div className="flex flex-col gap-4">
@@ -182,6 +198,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, preferredColo
           </p>
         </div>
       </div>
+
+      <ShareProductModal 
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        product={product}
+        preferredColor={preferredColor}
+      />
     </motion.div>
   );
 };
