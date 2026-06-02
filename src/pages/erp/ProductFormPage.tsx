@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Package, Check, Loader2, Tag, Layers, Plus, Minus, ArrowLeft, Save, AlertCircle, Barcode, Hash, Trash2, Image as ImageIcon, Upload, Star, MoreVertical, Sparkles } from 'lucide-react';
+import { Package, Check, Loader2, Tag, Layers, Plus, Minus, ArrowLeft, Save, AlertCircle, Barcode, Hash, Trash2, Image as ImageIcon, Upload, Star, MoreVertical, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -58,6 +58,25 @@ export const ProductFormPage: React.FC = () => {
   const [colorCombinations, setColorCombinations] = useState<any[]>([]);
   const [combinationSearch, setCombinationSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'variants' | 'images' | 'combinations'>('variants');
+
+  // State for SKU conflict error modal
+  const [skuConflict, setSkuConflict] = useState<{
+    conflictingProduct: Product;
+    conflictingVariant: any;
+    duplicateSku: string;
+  } | null>(null);
+
+  // State for successful saves toast
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   // Cores disponíveis do produto atual
   const availableColors = useMemo(() => {
@@ -650,7 +669,7 @@ export const ProductFormPage: React.FC = () => {
     return images.filter(img => img.cor === uploadTargetColor);
   }, [images, uploadTargetColor]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, stayOnPage = false) => {
     e.preventDefault();
     if (!validate()) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -677,15 +696,54 @@ export const ProductFormPage: React.FC = () => {
       ean: v.ean?.trim() || null
     }));
 
+    // Verify if any SKU already exists in another product
+    const currentProductId = id && productToEdit ? productToEdit.id : null;
+    let duplicateCheck = null;
+
+    for (const vPayload of variantsPayload) {
+      const skuToTest = vPayload.sku?.trim();
+      if (!skuToTest) continue; // Allow NULL/empty SKU
+
+      for (const p of products) {
+        if (currentProductId && p.id === currentProductId) {
+          continue; // Skip the current product
+        }
+
+        if (p.variants) {
+          const matchingVariant = p.variants.find(
+            dbVar => dbVar.sku && dbVar.sku.trim().toLowerCase() === skuToTest.toLowerCase()
+          );
+
+          if (matchingVariant) {
+            duplicateCheck = {
+              conflictingProduct: p,
+              conflictingVariant: matchingVariant,
+              duplicateSku: skuToTest
+            };
+            break;
+          }
+        }
+      }
+      if (duplicateCheck) break;
+    }
+
+    if (duplicateCheck) {
+      setSkuConflict(duplicateCheck);
+      setLoading(false);
+      return;
+    }
+
     try {
       let productId = id && productToEdit ? productToEdit.id : null;
       let success = false;
+      let newProductObj: any = null;
 
       if (id && productToEdit) {
         success = await backendService.updateProduct({ ...parentPayload, id: productToEdit.id } as any, variantsPayload as any, user?.id || '');
       } else {
         const newProduct = await backendService.createProduct(parentPayload as any, variantsPayload as any, user?.id || '');
         if (newProduct) {
+          newProductObj = newProduct;
           productId = newProduct.id;
           success = true;
 
@@ -724,7 +782,15 @@ export const ProductFormPage: React.FC = () => {
         }
         
         await refreshData();
-        navigate('/erp/products');
+        
+        if (stayOnPage) {
+          setSuccessMessage('Informações e variações salvas com sucesso!');
+          if (!id && newProductObj) {
+            navigate(`/erp/products/update/${newProductObj.ui_id}`, { replace: true });
+          }
+        } else {
+          navigate('/erp/products');
+        }
       } else if (success) {
         alert(`Erro ao processar produto.`);
       }
@@ -957,9 +1023,9 @@ export const ProductFormPage: React.FC = () => {
                 </Button>
                 <Button 
                   type="button" 
-                  onClick={handleSubmit} 
+                  onClick={(e) => handleSubmit(e, true)} 
                   disabled={loading || uploading} 
-                  className="bg-white hover:bg-zinc-100 text-zinc-950 border border-zinc-200 dark:border-zinc-700 h-9 px-4 rounded-xl text-[11px] font-bold shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
+                  className="bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-900 dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 dark:border-zinc-200 h-9 px-4 rounded-xl text-[11px] font-bold shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
                 >
                   {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                   {id ? 'Atualizar Variação' : 'Cadastrar Variação'}
@@ -1234,7 +1300,7 @@ export const ProductFormPage: React.FC = () => {
                     type="button"
                     onClick={handleSubmit}
                     disabled={loading || uploading}
-                    className="bg-white hover:bg-zinc-100 text-zinc-950 border border-zinc-200 dark:border-zinc-700 h-9 px-4 rounded-xl text-[11px] font-bold shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
+                    className="bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-900 dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 dark:border-zinc-200 h-9 px-4 rounded-xl text-[11px] font-bold shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
                   >
                     {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                     Atualizar Imagem
@@ -1513,6 +1579,93 @@ export const ProductFormPage: React.FC = () => {
         </div>
       )}
     </div>
+
+    {skuConflict && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-zinc-200 dark:border-zinc-800 animate-fade-in-up">
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-red-50 dark:bg-red-950/20">
+            <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+              <AlertCircle size={20} className="stroke-[2.5]" />
+              <h3 className="text-base font-bold">SKU Já Cadastrado!</h3>
+            </div>
+            <button 
+              onClick={() => setSkuConflict(null)} 
+              className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full transition-colors text-zinc-500 dark:text-zinc-400"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="p-6 space-y-4">
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              O produto não pôde ser salvo porque o SKU <strong className="text-red-600 dark:text-red-400 font-mono">"{skuConflict.duplicateSku}"</strong> já está sendo utilizado por outro produto cadastrado no sistema.
+            </p>
+
+            <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 space-y-3">
+              <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                Detalhes do Produto Existente
+              </div>
+
+              <div className="grid grid-cols-2 gap-y-2.5 gap-x-4 text-xs">
+                <div>
+                  <span className="text-zinc-400 block font-medium mb-0.5">Produto</span>
+                  <span className="font-semibold text-zinc-800 dark:text-zinc-100">{skuConflict.conflictingProduct.nome}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 block font-medium mb-0.5">Código de Referência</span>
+                  <span className="font-semibold text-zinc-800 dark:text-zinc-100 font-mono">DECOTY-{skuConflict.conflictingProduct.ui_id}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 block font-medium mb-0.5">Marca / Fornecedor</span>
+                  <span className="font-semibold text-zinc-800 dark:text-zinc-100">{skuConflict.conflictingProduct.marca}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 block font-medium mb-0.5">Categoria</span>
+                  <span className="font-semibold text-zinc-800 dark:text-zinc-100">{skuConflict.conflictingProduct.categoria}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 block font-medium mb-0.5">Cor da Variação</span>
+                  <span className="font-bold flex items-center gap-1.5 text-zinc-800 dark:text-zinc-100 animate-fade-in">
+                    {skuConflict.conflictingVariant.cor || 'Sem cor'}
+                    {skuConflict.conflictingVariant.cor && (
+                      <span 
+                        className="w-3.5 h-3.5 rounded-full border border-zinc-200 dark:border-zinc-700 shadow-sm inline-block" 
+                        style={{ background: getColorValue(skuConflict.conflictingVariant.cor) }}
+                      />
+                    )}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 block font-medium mb-0.5">Tamanho da Variação</span>
+                  <span className="font-semibold text-zinc-800 dark:text-zinc-100">{skuConflict.conflictingVariant.tamanho}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-800/30 border-t border-zinc-100 dark:border-zinc-800 flex justify-end">
+            <Button 
+              onClick={() => setSkuConflict(null)}
+              className="bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-950 dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 dark:border-zinc-300 font-bold px-5 py-2 text-xs rounded-xl"
+            >
+              Entendi, Fechar
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {successMessage && (
+      <div className="fixed bottom-5 right-5 z-[100] flex items-center gap-2 bg-zinc-950 border border-zinc-800 dark:bg-emerald-950/95 dark:border-emerald-800 text-white dark:text-emerald-300 px-4 py-3 rounded-xl shadow-lg animate-fade-in text-xs font-semibold">
+        <div className="p-1 rounded-full bg-emerald-500/20 text-emerald-400">
+          <Check size={16} strokeWidth={3} />
+        </div>
+        <span>{successMessage}</span>
+      </div>
+    )}
   </div>
 </div>
 );
