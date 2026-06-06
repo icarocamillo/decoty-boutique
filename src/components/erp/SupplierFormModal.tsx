@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Truck, User, Mail, Phone, Loader2, MapPin, Building, Check, StickyNote, Tag, ShoppingBag } from 'lucide-react';
+import { X, Truck, User, Mail, Phone, Loader2, MapPin, Building, Check, StickyNote, Tag, ShoppingBag, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { backendService } from '@/services/backendService';
 import { Supplier } from '@/types';
@@ -27,7 +27,8 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, on
     telefone: '',
     endereco: '',
     observacoes: '',
-    tipo_fornecedor: '' as any
+    tipo_fornecedor: '' as any,
+    catalogo: ''
   });
 
   useEffect(() => {
@@ -42,7 +43,8 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, on
           telefone: supplierToEdit.telefone || '',
           endereco: supplierToEdit.endereco || '',
           observacoes: supplierToEdit.observacoes || '',
-          tipo_fornecedor: supplierToEdit.tipo_fornecedor || ''
+          tipo_fornecedor: supplierToEdit.tipo_fornecedor || '',
+          catalogo: supplierToEdit.catalogo || ''
         });
       } else {
         setFormData({
@@ -54,7 +56,8 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, on
           telefone: '',
           endereco: '',
           observacoes: '',
-          tipo_fornecedor: ''
+          tipo_fornecedor: '',
+          catalogo: ''
         });
       }
     }
@@ -278,6 +281,20 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, on
                     value={formData.endereco}
                     onChange={handleChange}
                     placeholder="Rua, Número, Bairro, Cidade - UF"
+                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none"
+                  />
+               </div>
+
+               <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                    <Globe size={16} className="text-zinc-400" /> Catálogo online do Fornecedor
+                  </label>
+                  <input
+                    type="text"
+                    name="catalogo"
+                    value={formData.catalogo}
+                    onChange={handleChange}
+                    placeholder="https://exemplo.com.br/catalogo-fornecedor"
                     className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 focus:outline-none"
                   />
                </div>

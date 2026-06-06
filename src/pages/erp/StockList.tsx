@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { StockEntry, Product, UserProfile, Sale } from '@/types';
-import { ArrowDownCircle, ArrowUpCircle, Package, Archive, Search, Filter, User, Shirt, Undo2, Loader2, ChevronRight, Calendar, Clock } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, Package, Archive, Search, Filter, User, Shirt, Undo2, Loader2, ChevronRight, Calendar, Clock, ExternalLink, Settings } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -8,7 +8,7 @@ import { Pagination } from '@/components/ui/Pagination';
 import { SIZES_LIST } from '@/constants';
 import { formatDateStandard, formatProductId } from '@/utils';
 import { backendService } from '@/services/backendService';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useData } from '@/contexts/DataContext';
 
@@ -16,17 +16,37 @@ const CATEGORIES = ['Vestidos', 'Blusas', 'Camisas', 'Calças', 'Saias', 'Casaco
 
 export const StockList: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { stockEntries: entries, products, suppliers, users: profiles, sales, refreshData, isLoading: dataLoading } = useData();
   
+  // Helper to construct the online catalog URL for a supplier SKU
+  const getSupplierCatalogoLink = (marca: string | undefined, sku: string | undefined) => {
+    if (!marca || !sku) return null;
+    const supplier = suppliers.find(s => s.fantasy_name === marca);
+    if (!supplier || !supplier.catalogo) return null;
+    const base = supplier.catalogo.startsWith('http') ? supplier.catalogo : `https://${supplier.catalogo}`;
+    const parts = sku.split('-');
+    const skuWithoutSize = parts.length > 1 ? parts.slice(0, -1).join('-') : sku;
+    return `${base}${skuWithoutSize}`;
+  };
+
   // Estados para mapeamento de IDs para Nomes/Números Reais
   const [salesMapping, setSalesMapping] = useState<Record<string, number>>({});
 
   // States for Filters
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || '');
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
   const [filterType, setFilterType] = useState(''); // '' | 'entrada' | 'saida'
+
+  // Sync searchTerm with navigate triggers
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q !== null) {
+      setSearchTerm(q);
+    }
+  }, [searchParams]);
 
   // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,6 +74,36 @@ export const StockList: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, selectedBrand, selectedCategory, selectedSize, filterType, itemsPerPage]);
+
+  // State for Column Customization
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+  const columnMenuRef = useRef<HTMLDivElement>(null);
+  
+  const [visibleColumns, setVisibleColumns] = useState({
+    data_hora: true,
+    id_produto: true,
+    sku: true,
+    produto: true,
+    tamanho: true,
+    cor: true,
+    quantidade_atual: true,
+    quantidade_movimentada: true,
+    responsavel_acao: true,
+  });
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(event.target as Node)) {
+        setIsColumnMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const toggleColumn = (key: keyof typeof visibleColumns) => {
+    setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const getProductInfo = (entry: StockEntry) => {
     if (!entry.produto_id) return null;
@@ -91,6 +141,7 @@ export const StockList: React.FC = () => {
         const category = productInfo ? productInfo.categoria : '';
         const size = productInfo ? productInfo.tamanho : '';
         const name = productInfo ? productInfo.nome : entry.produto_nome;
+        const sku = productInfo ? productInfo.sku : '';
         
         const clientName = entry.cliente_nome || '';
         const reason = entry.motivo || '';
@@ -99,7 +150,8 @@ export const StockList: React.FC = () => {
             name.toLowerCase().includes(searchLower) || 
             visualId.toLowerCase().includes(searchLower) ||
             clientName.toLowerCase().includes(searchLower) ||
-            reason.toLowerCase().includes(searchLower);
+            reason.toLowerCase().includes(searchLower) ||
+            (sku && sku.toLowerCase().includes(searchLower));
         
         const matchesBrand = selectedBrand ? brand === selectedBrand : true;
         const matchesCategory = selectedCategory ? category === selectedCategory : true;
@@ -269,12 +321,12 @@ export const StockList: React.FC = () => {
 
       <Card className="overflow-hidden">
         <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center">
-           <div className="flex flex-col md:flex-row gap-3 w-full flex-wrap">
+           <div className="flex flex-col md:flex-row gap-3 w-full xl:w-auto flex-wrap">
              <div className="relative w-full md:w-60">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                 <input 
                   type="text" 
-                  placeholder="Produto, Cliente ou Motivo..." 
+                  placeholder="Produto, Cliente, SKU ou Motivo..." 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none transition-all"
@@ -332,6 +384,60 @@ export const StockList: React.FC = () => {
                  </div>
               </div>
            </div>
+
+           {/* Customization */}
+           <div className="relative hidden xl:block" ref={columnMenuRef}>
+             <Button 
+               size="sm" 
+               type="button"
+               variant="outline"
+               onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)} 
+               className="flex items-center gap-2 text-zinc-600 border-zinc-200 dark:border-zinc-700 dark:text-zinc-400 font-medium whitespace-nowrap"
+             >
+               <Settings size={16} /> Personalizar Colunas
+             </Button>
+             
+             {isColumnMenuOpen && (
+               <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 z-20 overflow-hidden animate-fade-in-up">
+                 <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-100 dark:border-zinc-700">
+                   <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">Exibir Colunas</span>
+                 </div>
+                 <div className="p-2 space-y-1 max-h-64 overflow-y-auto text-left">
+                   {[
+                     { key: 'data_hora', label: 'Data / Hora' },
+                     { key: 'id_produto', label: 'ID Produto' },
+                     { key: 'sku', label: 'SKU' },
+                     { key: 'produto', label: 'Produto' },
+                     { key: 'tamanho', label: 'Tamanho' },
+                     { key: 'cor', label: 'Cor' },
+                     { key: 'quantidade_atual', label: 'Qtd Atual' },
+                     { key: 'quantidade_movimentada', label: 'Qtd Movimentada' },
+                     { key: 'responsavel_acao', label: 'Responsável / Ação' },
+                   ].map((col) => (
+                     <button
+                       key={col.key}
+                       type="button"
+                       onClick={() => toggleColumn(col.key as any)}
+                       className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 rounded-md transition-colors"
+                     >
+                       <div className={`w-3.5 h-3.5 border rounded flex items-center justify-center transition-colors ${
+                         visibleColumns[col.key as keyof typeof visibleColumns]
+                           ? 'bg-zinc-900 border-zinc-900 dark:bg-white dark:border-white text-white dark:text-zinc-900'
+                           : 'border-zinc-300 dark:border-zinc-700'
+                       }`}>
+                         {visibleColumns[col.key as keyof typeof visibleColumns] && (
+                           <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 20 20">
+                             <path d="M0 11l2-2 5 5L18 3l2 2L7 18z" />
+                           </svg>
+                         )}
+                       </div>
+                       {col.label}
+                     </button>
+                   ))}
+                 </div>
+               </div>
+             )}
+           </div>
         </div>
 
         <div className="overflow-x-auto min-h-[400px]">
@@ -367,10 +473,37 @@ export const StockList: React.FC = () => {
                           <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm mt-1 truncate">
                             {product?.nome || entry.produto_nome}
                           </h3>
-                          <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex flex-wrap items-center gap-2 mt-0.5">
                             <span className="text-[10px] font-medium text-zinc-500 uppercase">{product?.marca || '-'}</span>
                             <span className="text-zinc-300">•</span>
                             <Badge variant="outline" className="text-[9px] h-4 px-1">{product?.tamanho || '-'}</Badge>
+                            {product?.sku && (
+                              <>
+                                <span className="text-zinc-300">•</span>
+                                {(() => {
+                                  const link = getSupplierCatalogoLink(product.marca, product.sku);
+                                  if (link) {
+                                    return (
+                                      <a
+                                        href={link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-mono font-bold flex items-center gap-0.5"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        SKU: {product.sku}
+                                        <ExternalLink size={10} className="shrink-0 animate-pulse text-blue-500" />
+                                      </a>
+                                    );
+                                  }
+                                  return (
+                                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono font-bold">
+                                      SKU: {product.sku}
+                                    </span>
+                                  );
+                                })()}
+                              </>
+                            )}
                           </div>
                         </div>
                         <Badge variant={isPositive ? "success" : "destructive"} className="text-[10px] shrink-0 font-black">
@@ -444,14 +577,15 @@ export const StockList: React.FC = () => {
               <table className="hidden sm:table w-full text-sm text-left">
                 <thead className="text-xs text-zinc-500 dark:text-zinc-400 uppercase bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800">
                   <tr>
-                    <th className="px-6 py-4 font-medium">Data / Hora</th>
-                    <th className="px-6 py-4 font-medium">ID Produto</th>
-                    <th className="px-6 py-4 font-medium">Produto</th>
-                    <th className="px-6 py-4 font-medium text-center">Tam.</th>
-                    <th className="px-6 py-4 font-medium text-center">Cor</th>
-                    <th className="px-6 py-4 font-medium text-center">Quantidade Atual</th>
-                    <th className="px-6 py-4 font-medium text-center">Quantidade Movimentada</th>
-                    <th className="px-6 py-4 font-medium">Responsável / Ação</th>
+                    {visibleColumns.data_hora && <th className="px-6 py-4 font-medium">Data / Hora</th>}
+                    {visibleColumns.id_produto && <th className="px-6 py-4 font-medium">ID Produto</th>}
+                    {visibleColumns.sku && <th className="px-6 py-4 font-medium">SKU</th>}
+                    {visibleColumns.produto && <th className="px-6 py-4 font-medium">Produto</th>}
+                    {visibleColumns.tamanho && <th className="px-6 py-4 font-medium text-center">Tam.</th>}
+                    {visibleColumns.cor && <th className="px-6 py-4 font-medium text-center">Cor</th>}
+                    {visibleColumns.quantidade_atual && <th className="px-6 py-4 font-medium text-center">Quantidade Atual</th>}
+                    {visibleColumns.quantidade_movimentada && <th className="px-6 py-4 font-medium text-center">Quantidade Movimentada</th>}
+                    {visibleColumns.responsavel_acao && <th className="px-6 py-4 font-medium">Responsável / Ação</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -472,72 +606,117 @@ export const StockList: React.FC = () => {
                         `}
                         title="Clique para lançar baixa deste produto"
                       >
-                        <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
-                           <div className="flex flex-col text-xs">
-                              <span className="font-bold text-zinc-800 dark:text-zinc-200">{weekDay}</span>
-                              <span className="text-zinc-500 dark:text-zinc-500">{dateTime}</span>
-                            </div>
-                        </td>
-                        <td className="px-6 py-4 text-zinc-900 dark:text-zinc-100 font-bold font-mono text-xs whitespace-nowrap">
-                            {formatProductId(product)}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                            <span className="font-medium text-zinc-900 dark:text-white text-sm truncate max-w-[200px]">{product?.nome || entry.produto_nome}</span>
-                            <div className="flex gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                <span>{product?.marca || '-'}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                           {product ? <Badge variant="outline">{product.tamanho}</Badge> : '-'}
-                        </td>
-                        <td className="px-6 py-4 text-center text-sm text-zinc-600 dark:text-zinc-400">
-                           {product?.cor || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-center text-zinc-700 dark:text-zinc-300 font-mono">
-                           <div className="inline-flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-md">
-                             <Package size={12} className="text-zinc-400" />
-                             {product ? product.quantidade_estoque : '-'}
-                           </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <Badge variant={isPositive ? "success" : "destructive"} className="gap-1 px-3">
-                            {isPositive ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
-                            {isPositive ? '+' : ''}{entry.quantidade}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                             <div className="flex items-center gap-1.5">
-                                {isProvador && !isReturn && <Shirt size={14} className="text-purple-600 dark:text-purple-400" />}
-                                {isReturn && <Undo2 size={14} className="text-green-600 dark:text-green-400" />}
-                                <span className={`text-sm font-medium whitespace-nowrap ${
-                                    isReturn ? 'text-green-700 dark:text-green-300' :
-                                    isProvador ? 'text-purple-700 dark:text-purple-300' : 
-                                    'text-zinc-900 dark:text-white'
-                                }`}>
-                                    {top}
-                                </span>
-                             </div>
-                             <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-                                {isProvador && bottom.includes('Cliente') && <User size={10} />}
-                                {isProvador && entry.cliente_id && bottom.includes('Cliente') ? (
-                                    <span 
+                        {visibleColumns.data_hora && (
+                          <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
+                             <div className="flex flex-col text-xs">
+                                <span className="font-bold text-zinc-800 dark:text-zinc-200">{weekDay}</span>
+                                <span className="text-zinc-500 dark:text-zinc-500">{dateTime}</span>
+                              </div>
+                          </td>
+                        )}
+                        {visibleColumns.id_produto && (
+                          <td className="px-6 py-4 text-zinc-900 dark:text-zinc-100 font-bold font-mono text-xs whitespace-nowrap">
+                              {formatProductId(product)}
+                          </td>
+                        )}
+                        {visibleColumns.sku && (
+                          <td className="px-6 py-4">
+                             {product?.sku ? (
+                               (() => {
+                                 const link = getSupplierCatalogoLink(product.marca, product.sku);
+                                 if (link) {
+                                    return (
+                                      <a
+                                        href={link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 dark:text-blue-400 hover:underline font-mono font-bold text-xs flex items-center gap-1 w-fit"
                                         onClick={(e) => {
-                                            e.stopPropagation();
-                                            navigate(`/erp/clients/${entry.cliente_id}/history`);
+                                          e.stopPropagation();
                                         }}
-                                        className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer transition-colors"
-                                    >
-                                        {bottom}
-                                    </span>
-                                ) : (
-                                    bottom
-                                )}
-                             </span>
-                          </div>
-                        </td>
+                                        title="Abrir no catálogo do fornecedor"
+                                      >
+                                        {product.sku}
+                                        <ExternalLink size={12} className="shrink-0 text-blue-500 animate-pulse" />
+                                      </a>
+                                    );
+                                 }
+                                 return <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{product.sku}</span>;
+                               })()
+                             ) : (
+                               <span className="text-zinc-400 dark:text-zinc-600">-</span>
+                             )}
+                          </td>
+                        )}
+                        {visibleColumns.produto && (
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col">
+                              <span className="font-medium text-zinc-900 dark:text-white text-sm truncate max-w-[200px]">{product?.nome || entry.produto_nome}</span>
+                              <div className="flex gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                  <span>{product?.marca || '-'}</span>
+                              </div>
+                            </div>
+                          </td>
+                        )}
+                        {visibleColumns.tamanho && (
+                          <td className="px-6 py-4 text-center">
+                             {product ? <Badge variant="outline">{product.tamanho}</Badge> : '-'}
+                          </td>
+                        )}
+                        {visibleColumns.cor && (
+                          <td className="px-6 py-4 text-center text-sm text-zinc-600 dark:text-zinc-400">
+                             {product?.cor || '-'}
+                          </td>
+                        )}
+                        {visibleColumns.quantidade_atual && (
+                          <td className="px-6 py-4 text-center text-zinc-700 dark:text-zinc-300 font-mono">
+                             <div className="inline-flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-md">
+                               <Package size={12} className="text-zinc-400" />
+                               {product ? product.quantidade_estoque : '-'}
+                             </div>
+                          </td>
+                        )}
+                        {visibleColumns.quantidade_movimentada && (
+                          <td className="px-6 py-4 text-center">
+                            <Badge variant={isPositive ? "success" : "destructive"} className="gap-1 px-3">
+                              {isPositive ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
+                              {isPositive ? '+' : ''}{entry.quantidade}
+                            </Badge>
+                          </td>
+                        )}
+                        {visibleColumns.responsavel_acao && (
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col">
+                               <div className="flex items-center gap-1.5">
+                                  {isProvador && !isReturn && <Shirt size={14} className="text-purple-600 dark:text-purple-400" />}
+                                  {isReturn && <Undo2 size={14} className="text-green-600 dark:text-green-400" />}
+                                  <span className={`text-sm font-medium whitespace-nowrap ${
+                                      isReturn ? 'text-green-700 dark:text-green-300' :
+                                      isProvador ? 'text-purple-700 dark:text-purple-300' : 
+                                      'text-zinc-900 dark:text-white'
+                                  }`}>
+                                      {top}
+                                  </span>
+                               </div>
+                               <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
+                                  {isProvador && bottom.includes('Cliente') && <User size={10} />}
+                                  {isProvador && entry.cliente_id && bottom.includes('Cliente') ? (
+                                      <span 
+                                          onClick={(e) => {
+                                              e.stopPropagation();
+                                              navigate(`/erp/clients/${entry.cliente_id}/history`);
+                                          }}
+                                          className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer transition-colors"
+                                      >
+                                          {bottom}
+                                      </span>
+                                  ) : (
+                                      bottom
+                                  )}
+                               </span>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}

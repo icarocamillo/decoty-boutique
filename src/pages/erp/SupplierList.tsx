@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Supplier } from '@/types';
-import { Truck, Phone, Mail, MapPin, Search, Pencil, Building, Tag, User, ChevronRight, ShoppingBag } from 'lucide-react';
+import { Truck, Phone, Mail, MapPin, Search, Pencil, Building, Tag, User, ChevronRight, ShoppingBag, Globe } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -112,6 +112,19 @@ export const SupplierList: React.FC = () => {
                       <span className="truncate">{supplier.email}</span>
                    </div>
                  )}
+                 {supplier.catalogo && (
+                   <div className="flex items-center gap-2">
+                     <Globe size={12} className="text-zinc-400" />
+                     <a 
+                       href={supplier.catalogo.startsWith('http') ? supplier.catalogo : `https://${supplier.catalogo}`} 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       className="truncate text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                     >
+                       Catálogo Online
+                     </a>
+                   </div>
+                 )}
               </div>
 
               <div className="flex justify-between items-end mt-1">
@@ -201,6 +214,19 @@ export const SupplierList: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">
                         <div className="flex flex-col gap-1">
+                          {supplier.catalogo && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <Globe size={12} className="text-zinc-400" /> 
+                              <a 
+                                href={supplier.catalogo.startsWith('http') ? supplier.catalogo : `https://${supplier.catalogo}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                              >
+                                Catálogo Online
+                              </a>
+                            </div>
+                          )}
                           {supplier.email && (
                               <div className="flex items-center gap-2 text-xs">
                                 <Mail size={12} className="text-zinc-400" /> {supplier.email}

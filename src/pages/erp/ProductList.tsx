@@ -66,8 +66,8 @@ export const ProductList: React.FC = () => {
     sku: false,
     ean: false,
     categoria: true,
-    tamanho: true,
-    cor: true,
+    tamanho: false,
+    cor: false,
     tipo_material: false,
     preco_venda: true,
     estoque: true
@@ -155,6 +155,13 @@ export const ProductList: React.FC = () => {
            const idA = a.ui_id || 0;
            const idB = b.ui_id || 0;
            return sortConfig.direction === 'asc' ? idA - idB : idB - idA;
+        }
+
+        // Sort customizado de Mostrar no Site
+        if (sortConfig.key === 'show_on_site') {
+           const valA = a.show_on_site ? 1 : 0;
+           const valB = b.show_on_site ? 1 : 0;
+           return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
         }
 
         if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -446,7 +453,10 @@ export const ProductList: React.FC = () => {
                      <div className="flex items-center justify-center">Estoque <SortIcon columnKey={"quantidade_estoque" as any} /></div>
                   </th>
                 )}
-                <th className="px-4 py-3 font-medium text-right lowercase first-letter:uppercase">Ações</th>
+                <th className="px-4 py-3 font-medium text-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => handleSort('show_on_site')}>
+                  <div className="flex items-center justify-center">Mostrar no Site <SortIcon columnKey="show_on_site" /></div>
+                </th>
+                <th className="px-4 py-3 font-medium text-right">REMOVER</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -544,12 +554,27 @@ export const ProductList: React.FC = () => {
 
                     {/* Estoque */}
                     {visibleColumns.estoque && (
-                      <td className="px-4 py-2 text-center">
-                        <Badge variant={stock.variant}>
+                      <td 
+                        className="px-4 py-2 text-center cursor-pointer hover:opacity-85 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const searchVal = product.sku || formatProductId(product);
+                          navigate(`/erp/stock?search=${encodeURIComponent(searchVal)}`);
+                        }}
+                        title={`Ver lançamentos de estoque para ${formatProductId(product)}`}
+                      >
+                        <Badge variant={stock.variant} className="hover:scale-105 transition-transform duration-150">
                           {stock.label}
                         </Badge>
                       </td>
                     )}
+
+                    {/* Mostrar no Site */}
+                    <td className="px-4 py-2 text-center">
+                      <Badge variant={product.show_on_site ? "success" : "secondary"}>
+                        {product.show_on_site ? 'Sim' : 'Não'}
+                      </Badge>
+                    </td>
 
                     {/* Ações */}
                     <td className="px-4 py-2 text-right">
@@ -572,7 +597,7 @@ export const ProductList: React.FC = () => {
               })}
               {currentProducts.length === 0 && (
                  <tr>
-                    <td colSpan={10} className="p-8 text-center text-zinc-500 dark:text-zinc-400">
+                    <td colSpan={12} className="p-8 text-center text-zinc-500 dark:text-zinc-400">
                       Nenhum produto encontrado com os filtros atuais.
                     </td>
                  </tr>

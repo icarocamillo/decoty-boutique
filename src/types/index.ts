@@ -171,6 +171,7 @@ export interface Supplier {
   endereco?: string;
   observacoes?: string;
   tipo_fornecedor?: 'Roupas' | 'Acessórios' | 'Roupas e Acessórios';
+  catalogo?: string;
 }
 
 export interface StockEntry {

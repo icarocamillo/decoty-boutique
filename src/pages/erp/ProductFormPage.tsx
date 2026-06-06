@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Package, Check, Loader2, Tag, Layers, Plus, Minus, ArrowLeft, Save, AlertCircle, Barcode, Hash, Trash2, Image as ImageIcon, Upload, Star, MoreVertical, Sparkles, X } from 'lucide-react';
+import { Package, Check, Loader2, Tag, Layers, Plus, Minus, ArrowLeft, Save, AlertCircle, Barcode, Hash, Trash2, Image as ImageIcon, Upload, Star, MoreVertical, Sparkles, X, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -1209,16 +1209,34 @@ export const ProductFormPage: React.FC = () => {
                     </div>
 
                     {/* SKU */}
-                    <div className="lg:col-span-2">
+                    <div className="lg:col-span-2 text-left">
                       <label className="lg:hidden text-[10px] font-bold text-zinc-400 uppercase mb-1 block">SKU</label>
-                      <input
-                        type="text"
-                        name="sku"
-                        value={v.sku}
-                        placeholder="Referência"
-                        onChange={(e) => handleVariantChange(v.originalIndex, e)}
-                        className="w-full h-8 px-3 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-1 focus:ring-zinc-400 outline-none font-mono"
-                      />
+                      <div className="relative flex items-center">
+                        <input
+                          type="text"
+                          name="sku"
+                          value={v.sku}
+                          placeholder="Referência"
+                          onChange={(e) => handleVariantChange(v.originalIndex, e)}
+                          className={`w-full h-8 px-3 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-1 focus:ring-zinc-400 outline-none font-mono ${selectedSupplier?.catalogo && v.sku ? 'pr-8' : ''}`}
+                        />
+                        {selectedSupplier?.catalogo && v.sku && (
+                          <a
+                            href={(() => {
+                              const base = selectedSupplier.catalogo.startsWith('http') ? selectedSupplier.catalogo : `https://${selectedSupplier.catalogo}`;
+                              const parts = v.sku.split('-');
+                              const skuWithoutSize = parts.length > 1 ? parts.slice(0, -1).join('-') : v.sku;
+                              return `${base}${skuWithoutSize}`;
+                            })()}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="absolute right-2 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            title="Ver no catálogo"
+                          >
+                            <ExternalLink size={13} />
+                          </a>
+                        )}
+                      </div>
                     </div>
 
                     {/* EAN */}
@@ -1259,53 +1277,44 @@ export const ProductFormPage: React.FC = () => {
       {activeTab === 'images' && (
         <div className="w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
           <Card className="p-6 border-0 shadow-sm bg-white dark:bg-zinc-900">
-            <div className="flex justify-between items-center border-b border-zinc-100 dark:border-zinc-800 pb-2 mb-6">
-              <h3 className="text-sm font-bold text-zinc-400 uppercase flex items-center gap-2">
-                <ImageIcon size={16} className="text-zinc-400" /> Galeria de Imagens
-              </h3>
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b border-zinc-100 dark:border-zinc-800 pb-2 mb-6 gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
+                <h3 className="text-sm font-bold text-zinc-400 uppercase flex items-center gap-2">
+                  <ImageIcon size={16} className="text-zinc-400" /> Galeria de Imagens
+                </h3>
                 {productColors.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase">Pasta:</span>
+                  <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Selecionar cor:</span>
                     <select
                       value={uploadTargetColor}
                       onChange={(e) => setUploadTargetColor(e.target.value)}
-                      className="text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2 py-1 outline-none font-bold"
+                      className="text-xs bg-transparent border-0 outline-none font-bold text-zinc-800 dark:text-zinc-200 cursor-pointer"
                     >
-                      <option value="">Geral</option>
-                      {productColors.map(c => <option key={c} value={c}>{c}</option>)}
+                      <option value="" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white">Geral (Sem Cor)</option>
+                      {productColors.map(c => <option key={c} value={c} className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white">{c}</option>)}
                     </select>
                   </div>
                 )}
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      id="image-upload"
-                      disabled={uploading}
-                    />
-                    <label
-                      htmlFor="image-upload"
-                      className={`flex items-center gap-2 px-4 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 h-9 rounded-lg text-xs cursor-pointer transition-all whitespace-nowrap ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                      Adicionar Imagem
-                    </label>
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={loading || uploading}
-                    className="bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-900 dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 dark:border-zinc-200 h-9 px-4 rounded-xl text-[11px] font-bold shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
-                  >
-                    {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                    Atualizar Imagem
-                  </Button>
-                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  id="image-upload"
+                  disabled={uploading}
+                />
+                <Button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={loading || uploading}
+                  className="bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-900 dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 dark:border-zinc-200 h-9 px-4 rounded-xl text-[11px] font-bold shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
+                >
+                  {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  Atualizar Imagem
+                </Button>
               </div>
             </div>
 
@@ -1375,15 +1384,16 @@ export const ProductFormPage: React.FC = () => {
                 </div>
               ))}
 
-              {filteredImages.length === 0 && (
-                <label 
-                  htmlFor="image-upload"
-                  className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl hover:border-zinc-400 dark:hover:border-zinc-600 cursor-pointer transition-all gap-2 text-zinc-400"
-                >
-                  <Upload size={24} />
-                  <span className="text-[10px] font-bold tracking-wider">ADICIONAR FOTOS {uploadTargetColor ? `PARA ${uploadTargetColor.toUpperCase()}` : 'GERAL'}</span>
-                </label>
-              )}
+              {/* Upload Card unconditionally at the end of the grid */}
+              <label 
+                htmlFor="image-upload"
+                className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl hover:border-zinc-400 dark:hover:border-zinc-600 cursor-pointer transition-all gap-2 text-zinc-400 min-h-[150px] bg-zinc-50/20 dark:bg-zinc-900/20 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50"
+              >
+                <Upload size={24} />
+                <span className="text-[10px] font-bold tracking-wider text-center px-4 leading-normal">
+                  ADICIONAR FOTOS {uploadTargetColor ? `PARA ${uploadTargetColor.toUpperCase()}` : 'GERAL'}
+                </span>
+              </label>
             </div>
           </Card>
         </div>
