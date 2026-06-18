@@ -939,10 +939,10 @@ export const ProductDetailsPage: React.FC = () => {
             </div>
 
             <div className="relative px-1">
-              {/* Botões de Navegação - Sempre visíveis e centrados nas fotos */}
+              {/* Botões de Navegação - Visíveis apenas no desktop e centrados nas fotos */}
               <button 
                 onClick={() => scrollSimilar('left')}
-                className="absolute left-2 md:left-4 top-[40%] md:top-[32%] -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 flex items-center justify-center hover:bg-zinc-900 hover:text-white dark:hover:bg-emerald-600 transition-all active:scale-90 shadow-xl"
+                className="absolute left-2 md:left-4 top-[40%] md:top-[32%] -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 hidden lg:flex items-center justify-center hover:bg-zinc-900 hover:text-white dark:hover:bg-emerald-600 transition-all active:scale-90 shadow-xl"
                 aria-label="Anterior"
               >
                 <ChevronLeft size={24} />
@@ -950,7 +950,7 @@ export const ProductDetailsPage: React.FC = () => {
               
               <button 
                 onClick={() => scrollSimilar('right')}
-                className="absolute right-2 md:right-4 top-[40%] md:top-[32%] -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 flex items-center justify-center hover:bg-zinc-900 hover:text-white dark:hover:bg-emerald-600 transition-all active:scale-90 shadow-xl"
+                className="absolute right-2 md:right-4 top-[40%] md:top-[32%] -translate-y-1/2 z-30 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 hidden lg:flex items-center justify-center hover:bg-zinc-900 hover:text-white dark:hover:bg-emerald-600 transition-all active:scale-90 shadow-xl"
                 aria-label="Próximo"
               >
                 <ChevronRight size={24} />
