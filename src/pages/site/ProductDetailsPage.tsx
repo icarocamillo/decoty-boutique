@@ -452,7 +452,7 @@ export const ProductDetailsPage: React.FC = () => {
               
               <div 
                 ref={thumbnailRef}
-                className="flex gap-3 overflow-x-auto scrollbar-hide snap-x no-scrollbar"
+                className="flex gap-3 overflow-x-auto overflow-y-hidden touch-pan-x scrollbar-hide snap-x no-scrollbar"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {productImages.map((img, idx) => (
@@ -915,7 +915,7 @@ export const ProductDetailsPage: React.FC = () => {
 
               <div 
                 ref={similarCarouselRef}
-                className="flex gap-4 md:gap-5 overflow-x-auto pb-4 snap-x no-scrollbar scroll-smooth"
+                className="flex gap-4 md:gap-5 overflow-x-auto overflow-y-hidden touch-pan-x pb-4 snap-x no-scrollbar scroll-smooth"
               >
                 {displaySimilar.map((item) => (
                   <div key={item.displayId} className="w-[170px] md:w-[200px] lg:w-[220px] shrink-0 snap-start flex flex-col">
