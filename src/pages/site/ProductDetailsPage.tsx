@@ -29,6 +29,45 @@ export const ProductDetailsPage: React.FC = () => {
   const [loadingCombinations, setLoadingCombinations] = useState(false);
   const similarCarouselRef = useRef<HTMLDivElement>(null);
 
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      touchStartX.current = e.touches[0].clientX;
+      touchStartY.current = e.touches[0].clientY;
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+
+    if (e.changedTouches.length === 1) {
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+
+      const diffX = touchEndX - touchStartX.current;
+      const diffY = touchEndY - touchStartY.current;
+
+      const minSwipeDistance = 50; // pixels
+      // Certifica de que o movimento horizontal foi predominante em relação ao vertical
+      if (Math.abs(diffX) > Math.abs(diffY)) {
+        if (Math.abs(diffX) > minSwipeDistance) {
+          if (diffX > 0) {
+            // Swipe para a direita: imagem anterior
+            setActiveImageIndex(prev => (prev === 0 ? productImages.length - 1 : prev - 1));
+          } else {
+            // Swipe para a esquerda: próxima imagem
+            setActiveImageIndex(prev => (prev === productImages.length - 1 ? 0 : prev + 1));
+          }
+        }
+      }
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
   const scrollSimilar = (direction: 'left' | 'right') => {
     if (similarCarouselRef.current) {
       const scrollAmount = similarCarouselRef.current.clientWidth * 0.8;
@@ -364,7 +403,11 @@ export const ProductDetailsPage: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="space-y-4"
           >
-            <div className="relative aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-100 shadow-2xl group/gallery">
+            <div 
+              className="relative aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-100 shadow-2xl group/gallery touch-pan-y"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
               {/* Main Image */}
               <motion.img 
                 key={activeImageIndex}
@@ -375,8 +418,8 @@ export const ProductDetailsPage: React.FC = () => {
                 className="w-full h-full object-cover select-none"
               />
 
-              {/* Navigation Arrows & Click Handlers */}
-              <div className="absolute inset-0 z-20 pointer-events-none">
+              {/* Navigation Arrows & Click Handlers (PC only) */}
+              <div className="hidden lg:block absolute inset-0 z-20 pointer-events-none">
                 {/* Left Click Region */}
                 <div 
                   className="absolute inset-y-0 left-0 w-1/4 pointer-events-auto cursor-pointer"
@@ -388,8 +431,8 @@ export const ProductDetailsPage: React.FC = () => {
                   onClick={() => setActiveImageIndex(prev => (prev === productImages.length - 1 ? 0 : prev + 1))}
                 />
 
-                {/* Arrow Icons - More visible on mobile, hover on desktop */}
-                <div className="absolute inset-0 flex items-center justify-between px-4 opacity-100 md:opacity-0 md:group-hover/gallery:opacity-100 transition-all duration-300">
+                {/* Arrow Icons - hover on desktop */}
+                <div className="absolute inset-0 flex items-center justify-between px-4 opacity-0 group-hover/gallery:opacity-100 transition-all duration-300">
                   <div className="text-white/80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
                     <ChevronLeft size={40} strokeWidth={1.5} />
                   </div>
