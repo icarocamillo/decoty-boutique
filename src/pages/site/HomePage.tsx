@@ -353,7 +353,7 @@ export const HomePage: React.FC = () => {
                 alt="Destaque"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex flex-col justify-end p-8 md:p-12">
-                <h3 className="text-white text-3xl md:text-5xl font-serif mb-2 leading-tight">Conjuntos para Eventos</h3>
+                <h3 className="text-white text-3xl md:text-5xl font-serif mb-2 leading-tight">Conjuntos para Impressionar</h3>
                 <p className="text-white/90 mb-6 text-sm md:text-lg max-w-xs md:max-w-sm font-medium">Destaque-se com brilho e sofisticação em seus compromissos.</p>
                 <Link to="/catalogo?category=Conjuntos">
                   <Button className="w-fit bg-zinc-900 !text-white hover:bg-zinc-800 rounded-full font-bold px-8 h-12 shadow-xl border border-white/10 transition-transform active:scale-95">

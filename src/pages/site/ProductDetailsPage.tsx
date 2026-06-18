@@ -13,11 +13,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getColorValue } from '@/utils/colorUtils';
 import { backendService } from '@/services/backendService';
 import { Product } from '@/types';
+import { getDisplayBrand } from '@/utils/brand';
 
 export const ProductDetailsPage: React.FC = () => {
   const { identifier } = useParams<{ identifier: string }>();
   const navigate = useNavigate();
-  const { products, isLoading, favoriteIds, toggleFavorite: backendToggleFavorite } = useData();
+  const { products, isLoading, favoriteIds, toggleFavorite: backendToggleFavorite, suppliers } = useData();
   const { addToCart } = useCart();
   const { user } = useAuth();
   
@@ -63,6 +64,57 @@ export const ProductDetailsPage: React.FC = () => {
     
     return foundProduct;
   }, [identifier, products]);
+
+  const supplierForProduct = useMemo(() => {
+    if (!product || !suppliers) return null;
+    return suppliers.find(s => s.fantasy_name === product.marca || s.nome_empresa === product.marca);
+  }, [product, suppliers]);
+
+  const supplierRating = useMemo(() => {
+    if (!product) return null;
+    const displayBrand = getDisplayBrand(product.marca, suppliers);
+    if (displayBrand === 'Decoty') {
+      return 5;
+    }
+    if (!supplierForProduct || typeof supplierForProduct.stars !== 'number' || supplierForProduct.stars <= 0) return null;
+    return supplierForProduct.stars;
+  }, [product, suppliers, supplierForProduct]);
+
+  const renderPartialStars = (rating: number, size: number = 14) => {
+    return (
+      <div className="flex items-center gap-0.5" title={`Nota: ${rating}`}>
+        {[1, 2, 3, 4, 5].map((starVal) => {
+          const diff = rating - (starVal - 1);
+          const fillPercentage = Math.min(Math.max(diff * 100, 0), 100);
+
+          return (
+            <div 
+              key={starVal} 
+              className="relative inline-block" 
+              style={{ width: size, height: size }}
+            >
+              <Star
+                size={size}
+                className="text-zinc-200 dark:text-zinc-700/50 absolute top-0 left-0"
+              />
+              {fillPercentage > 0 && (
+                <div
+                  className="absolute top-0 left-0 overflow-hidden"
+                  style={{ width: `${fillPercentage}%`, height: '100%' }}
+                >
+                  <Star
+                    size={size}
+                    className="fill-amber-500 text-amber-500 absolute top-0 left-0"
+                    style={{ width: size, minWidth: size, maxWidth: size }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   const handleAddToCart = () => {
     if (product && selectedVariant) {
@@ -280,16 +332,20 @@ export const ProductDetailsPage: React.FC = () => {
         </button>
 
         <div className="lg:hidden mb-10">
+          <h1 className="text-3xl font-serif text-zinc-950 mb-1">{product.nome}</h1>
           <div className="flex items-center gap-3 mb-3">
             <Badge variant="outline" className="rounded-full border-zinc-200 text-zinc-500 font-bold uppercase tracking-widest text-[10px]">
-              {product.marca}
+              {getDisplayBrand(product.marca, suppliers)}
             </Badge>
-            <div className="flex items-center gap-1 text-amber-500">
-              <Star size={12} fill="currentColor" />
-              <span className="text-zinc-400 text-[10px] font-bold ml-0.5">4.9</span>
-            </div>
+            {supplierRating !== null && (
+              <div className="flex items-center gap-1.5">
+                {renderPartialStars(supplierRating, 12)}
+                <span className="text-zinc-400 text-xs font-medium font-sans">
+                  ({supplierRating.toFixed(1)})
+                </span>
+              </div>
+            )}
           </div>
-          <h1 className="text-3xl font-serif text-zinc-950 mb-1">{product.nome}</h1>
           <div className="flex items-center gap-3">
             <p className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">Referência: Decoty-{product.ui_id}</p>
             {product.is_unique_piece && (
@@ -415,20 +471,20 @@ export const ProductDetailsPage: React.FC = () => {
           {/* Info */}
           <div className="flex flex-col">
             <div className="mb-8 hidden lg:block">
+              <h1 className="text-4xl md:text-5xl font-serif text-zinc-950 mb-2">{product.nome}</h1>
               <div className="flex items-center gap-3 mb-4">
                 <Badge variant="outline" className="rounded-full border-zinc-200 text-zinc-500 font-bold uppercase tracking-widest text-[10px]">
-                  {product.marca}
+                  {getDisplayBrand(product.marca, suppliers)}
                 </Badge>
-                <div className="flex items-center gap-1 text-amber-500">
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                  <span className="text-zinc-400 text-xs ml-1">(4.9)</span>
-                </div>
+                {supplierRating !== null && (
+                  <div className="flex items-center gap-1.5">
+                    {renderPartialStars(supplierRating, 14)}
+                    <span className="text-zinc-400 text-sm font-medium font-sans">
+                      ({supplierRating.toFixed(1)})
+                    </span>
+                  </div>
+                )}
               </div>
-              <h1 className="text-4xl md:text-5xl font-serif text-zinc-950 mb-2">{product.nome}</h1>
               <div className="flex items-center gap-4 mb-4">
                 <p className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">Referência: Decoty-{product.ui_id}</p>
                 {product.is_unique_piece && (
@@ -672,7 +728,7 @@ export const ProductDetailsPage: React.FC = () => {
                         />
                       </div>
                       <div className="px-2">
-                        <p className="text-[11px] font-black text-zinc-400 uppercase tracking-widest mb-1">{product.marca}</p>
+                        <p className="text-[11px] font-black text-zinc-400 uppercase tracking-widest mb-1">{getDisplayBrand(product.marca, suppliers)}</p>
                         <h4 className="text-xl font-bold text-zinc-950 dark:text-white uppercase tracking-tight">{product.nome}</h4>
                         <div className="mt-3">
                           <p className="text-2xl font-black text-zinc-900 dark:text-zinc-100">{formatCurrency(currentPrice)}</p>
@@ -724,7 +780,7 @@ export const ProductDetailsPage: React.FC = () => {
                         />
                       </motion.div>
                       <div className="px-2">
-                        <p className="text-[11px] font-black text-zinc-400 uppercase tracking-widest mb-1">{combinedProduct.marca}</p>
+                        <p className="text-[11px] font-black text-zinc-400 uppercase tracking-widest mb-1">{getDisplayBrand(combinedProduct.marca, suppliers)}</p>
                         <h4 className="text-xl font-bold text-zinc-950 dark:text-white uppercase tracking-tight">{combinedProduct.nome} ({combinedColor})</h4>
                         <div className="mt-3">
                           <p className="text-2xl font-black text-zinc-900 dark:text-zinc-100">{formatCurrency(priceVenda)}</p>
@@ -781,7 +837,7 @@ export const ProductDetailsPage: React.FC = () => {
 
                       <div className="p-6">
                         <div className="flex justify-between items-center mb-3">
-                           <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">{combinedProduct.marca}</p>
+                           <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">{getDisplayBrand(combinedProduct.marca, suppliers)}</p>
                            <Badge className="bg-zinc-900 !text-white border-none text-[9px] font-bold">{combinedColor}</Badge>
                         </div>
                         <h3 className="text-xl font-bold text-zinc-900 dark:text-white group-hover:text-emerald-600 transition-colors uppercase tracking-tight leading-tight">{combinedProduct.nome}</h3>

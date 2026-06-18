@@ -1,19 +1,54 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Supplier } from '@/types';
-import { Truck, Phone, Mail, MapPin, Search, Pencil, Building, Tag, User, ChevronRight, ShoppingBag, Globe } from 'lucide-react';
+import { Truck, Phone, Mail, MapPin, Search, Pencil, Building, Tag, User, ChevronRight, ShoppingBag, Globe, Star } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { SupplierFormModal } from '@/components/erp/SupplierFormModal';
 
 import { useData } from '@/contexts/DataContext';
 
 export const SupplierList: React.FC = () => {
-  const { suppliers, refreshData } = useData();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [supplierToEdit, setSupplierToEdit] = useState<Supplier | null>(null);
+  const navigate = useNavigate();
+  const { suppliers } = useData();
   const [searchTerm, setSearchTerm] = useState('');
+
+  const renderPartialStars = (rating: number, size: number = 14) => {
+    return (
+      <div className="flex items-center gap-0.5" title={`Nota: ${rating}`}>
+        {[1, 2, 3, 4, 5].map((starVal) => {
+          const diff = rating - (starVal - 1);
+          const fillPercentage = Math.min(Math.max(diff * 100, 0), 100);
+
+          return (
+            <div 
+              key={starVal} 
+              className="relative inline-block" 
+              style={{ width: size, height: size }}
+            >
+              <Star
+                size={size}
+                className="text-zinc-200 dark:text-zinc-700/50 absolute top-0 left-0"
+              />
+              {fillPercentage > 0 && (
+                <div
+                  className="absolute top-0 left-0 overflow-hidden"
+                  style={{ width: `${fillPercentage}%`, height: '100%' }}
+                >
+                  <Star
+                    size={size}
+                    className="fill-amber-400 text-amber-400 absolute top-0 left-0"
+                    style={{ width: size, minWidth: size, maxWidth: size }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   const filteredSuppliers = useMemo(() => {
     return suppliers.filter(supplier => {
@@ -28,13 +63,11 @@ export const SupplierList: React.FC = () => {
   }, [suppliers, searchTerm]);
 
   const handleEdit = (supplier: Supplier) => {
-    setSupplierToEdit(supplier);
-    setIsModalOpen(true);
+    navigate(`/erp/suppliers/update/${supplier.ui_id || supplier.id}`);
   };
 
   const handleCreate = () => {
-    setSupplierToEdit(null);
-    setIsModalOpen(true);
+    navigate('/erp/suppliers/new');
   };
 
   return (
@@ -112,6 +145,23 @@ export const SupplierList: React.FC = () => {
                       <span className="truncate">{supplier.email}</span>
                    </div>
                  )}
+                 {supplier.stars && supplier.stars > 0 ? (
+                   <div className="flex items-center gap-2">
+                     <span className="text-zinc-400">Avaliação:</span>
+                     <div className="flex items-center gap-1.5">
+                       {renderPartialStars(supplier.stars, 12)}
+                       <span className="text-xs font-bold text-amber-500 font-mono">
+                         {Number(supplier.stars).toFixed(1)}
+                       </span>
+                     </div>
+                   </div>
+                 ) : null}
+                 <div className="flex items-center gap-2">
+                   <span className="text-zinc-400">No Site:</span>
+                   <Badge variant={supplier.show_on_site ? "success" : "secondary"} className="text-[8px] h-3.5 px-1 bg-transparent border-0 font-bold">
+                     {supplier.show_on_site ? 'Sim' : 'Não'}
+                   </Badge>
+                 </div>
                  {supplier.catalogo && (
                    <div className="flex items-center gap-2">
                      <Globe size={12} className="text-zinc-400" />
@@ -166,8 +216,9 @@ export const SupplierList: React.FC = () => {
                   <th className="px-6 py-4 font-medium">Marca (Fantasia)</th>
                   <th className="px-6 py-4 font-medium">Tipo de Fornecedor</th>
                   <th className="px-6 py-4 font-medium">Contato Principal</th>
-                  <th className="px-6 py-4 font-medium">Informações de Contato</th>
-                  <th className="px-6 py-4 font-medium text-center">Editar</th>
+                  <th className="px-6 py-4 font-medium font-semibold text-center">Avaliação</th>
+                  <th className="px-6 py-4 font-medium font-semibold text-center">Mostrar no Site</th>
+                  <th className="px-6 py-4 font-medium text-center">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -212,37 +263,22 @@ export const SupplierList: React.FC = () => {
                             <span className="font-medium">{supplier.nome_contato}</span>
                          ) : '-'}
                       </td>
-                      <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">
-                        <div className="flex flex-col gap-1">
-                          {supplier.catalogo && (
-                            <div className="flex items-center gap-2 text-xs">
-                              <Globe size={12} className="text-zinc-400" /> 
-                              <a 
-                                href={supplier.catalogo.startsWith('http') ? supplier.catalogo : `https://${supplier.catalogo}`} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
-                              >
-                                Catálogo Online
-                              </a>
-                            </div>
-                          )}
-                          {supplier.email && (
-                              <div className="flex items-center gap-2 text-xs">
-                                <Mail size={12} className="text-zinc-400" /> {supplier.email}
-                              </div>
-                          )}
-                          {supplier.telefone && (
-                            <div className="flex items-center gap-2 text-xs">
-                              <Phone size={12} className="text-zinc-400" /> {supplier.telefone}
-                            </div>
-                          )}
-                          {supplier.endereco && (
-                            <div className="flex items-center gap-2 text-xs truncate max-w-[200px]" title={supplier.endereco}>
-                              <MapPin size={12} className="text-zinc-400" /> {supplier.endereco}
-                            </div>
-                          )}
-                        </div>
+                      <td className="px-6 py-4">
+                         {supplier.stars && supplier.stars > 0 ? (
+                           <div className="flex items-center justify-center gap-2">
+                             {renderPartialStars(supplier.stars, 14)}
+                             <span className="text-xs font-bold text-amber-500 font-mono">
+                               {Number(supplier.stars).toFixed(1)}
+                             </span>
+                           </div>
+                         ) : (
+                           <div className="text-center text-xs text-zinc-400">-</div>
+                         )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <Badge variant={supplier.show_on_site ? "success" : "secondary"}>
+                          {supplier.show_on_site ? 'Sim' : 'Não'}
+                        </Badge>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -262,7 +298,7 @@ export const SupplierList: React.FC = () => {
                 })}
                 {filteredSuppliers.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-zinc-500 dark:text-zinc-400">
+                    <td colSpan={8} className="px-6 py-12 text-center text-zinc-500 dark:text-zinc-400">
                       Nenhum fornecedor encontrado.
                     </td>
                   </tr>
@@ -271,13 +307,6 @@ export const SupplierList: React.FC = () => {
             </table>
         </div>
       </Card>
-
-      <SupplierFormModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={refreshData}
-        supplierToEdit={supplierToEdit}
-      />
     </div>
   );
 };

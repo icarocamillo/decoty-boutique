@@ -9,6 +9,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
 import { ShareProductModal } from '@/components/site/ShareProductModal';
+import { getDisplayBrand } from '@/utils/brand';
 
 interface ProductCardProps {
   product: Product;
@@ -20,7 +21,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, preferredColo
   const [isShareOpen, setIsShareOpen] = useState(false);
   const { addToCart } = useCart();
   const { user } = useAuth();
-  const { favoriteIds, toggleFavorite: backendToggleFavorite } = useData();
+  const { favoriteIds, toggleFavorite: backendToggleFavorite, suppliers } = useData();
   
   // Favoritos
   const isFavorite = favoriteIds.includes(product.id + (preferredColor ? `:${preferredColor}` : ""));
@@ -182,7 +183,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, preferredColo
       </div>
 
       <div className="flex flex-col gap-1">
-        <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">{product.marca || 'Decoty'}</span>
+        <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">{getDisplayBrand(product.marca, suppliers)}</span>
         <Link to={`/produto/${product.slug}-${product.ui_id}${preferredColor ? `?cor=${preferredColor}` : ''}`}>
           <h3 className="text-sm font-medium text-zinc-900 group-hover:text-zinc-600 transition-colors line-clamp-1">
             {product.nome}{preferredColor ? ` - ${preferredColor}` : ''}

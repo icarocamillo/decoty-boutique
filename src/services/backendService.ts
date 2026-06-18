@@ -136,7 +136,94 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
             pagamentos_crediario: salePayments 
         };
     });
-};export const backendService = {
+};
+
+const deserializeSupplier = (raw: any): Supplier => {
+  if (!raw) return raw;
+  
+  let show_on_site = false;
+  if (raw.show_supplier_on_site !== undefined) {
+    show_on_site = !!raw.show_supplier_on_site;
+  } else if (raw.show_on_site !== undefined) {
+    show_on_site = !!raw.show_on_site;
+  }
+
+  let stars = 0;
+  if (raw.suplier_stars !== undefined) {
+    stars = Number(raw.suplier_stars) || 0;
+  } else if (raw.stars !== undefined) {
+    stars = Number(raw.stars) || 0;
+  }
+
+  let notesText = raw.observacoes || '';
+
+  // Fallback para ler dados legados no formato JSON caso as novas colunas estejam nulas/indefinidas
+  if (raw.observacoes && raw.observacoes.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw.observacoes);
+      if (parsed && typeof parsed === 'object') {
+        if (raw.show_supplier_on_site === undefined && raw.show_on_site === undefined && parsed.show_on_site !== undefined) {
+          show_on_site = !!parsed.show_on_site;
+        }
+        if (raw.suplier_stars === undefined && raw.stars === undefined && parsed.stars !== undefined) {
+          stars = typeof parsed.stars === 'number' ? parsed.stars : 0;
+        }
+        notesText = parsed.text || '';
+      }
+    } catch (e) {
+      // Ignora erro se não for JSON válido
+    }
+  }
+
+  return {
+    ...raw,
+    show_on_site,
+    stars,
+    observacoes: notesText
+  };
+};
+
+const serializeSupplier = (supplier: any): any => {
+  if (!supplier) return supplier;
+  
+  // Lista de campos opcionais que devem ser nulos caso fiquem vazios
+  const optionalFields = [
+    'fantasy_name',
+    'nome_contato',
+    'cnpj_cpf',
+    'email',
+    'telefone',
+    'endereco',
+    'observacoes',
+    'catalogo'
+  ];
+
+  const result: any = { ...supplier };
+
+  // Tratamento de campos opcionais vazios
+  for (const field of optionalFields) {
+    if (result[field] === undefined || result[field] === null || (typeof result[field] === 'string' && result[field].trim() === '')) {
+      result[field] = null;
+    } else if (typeof result[field] === 'string') {
+      result[field] = result[field].trim();
+    }
+  }
+
+  // Mapeia os campos da UI para as colunas reais recém-criadas no banco de dados
+  const show_on_site = supplier.show_on_site !== undefined ? supplier.show_on_site : false;
+  const stars = typeof supplier.stars === 'number' ? supplier.stars : 0;
+
+  result.show_supplier_on_site = !!show_on_site;
+  result.suplier_stars = stars;
+
+  // Remove as chaves antigas de mapeamento local
+  delete result.show_on_site;
+  delete result.stars;
+
+  return result;
+};
+
+export const backendService = {
   getClients: async (): Promise<Client[]> => {
     const { data, error } = await getSupabase().from('clients').select('*').order('nome');
     if (error) { console.error(error); return []; }
@@ -1134,16 +1221,16 @@ const attachPaymentsToSales = async (sales: any[]): Promise<Sale[]> => {
 
   getSuppliers: async (): Promise<Supplier[]> => {
     const { data } = await getSupabase().from('suppliers').select('*').order('nome_empresa');
-    return data || [];
+    return (data || []).map(deserializeSupplier);
   },
 
   createSupplier: async (supplier: Omit<Supplier, 'id'>): Promise<boolean> => {
-    const { error } = await getSupabase().from('suppliers').insert([supplier]);
+    const { error } = await getSupabase().from('suppliers').insert([serializeSupplier(supplier)]);
     return !error;
   },
 
   updateSupplier: async (supplier: Supplier): Promise<boolean> => {
-    const { error } = await getSupabase().from('suppliers').update(supplier).eq('id', supplier.id);
+    const { error } = await getSupabase().from('suppliers').update(serializeSupplier(supplier)).eq('id', supplier.id);
     return !error;
   },
 

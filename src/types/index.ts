@@ -162,6 +162,7 @@ export interface Client {
 
 export interface Supplier {
   id: string;
+  ui_id?: number;
   nome_empresa: string;
   fantasy_name?: string; 
   nome_contato?: string;
@@ -172,6 +173,8 @@ export interface Supplier {
   observacoes?: string;
   tipo_fornecedor?: 'Roupas' | 'Acessórios' | 'Roupas e Acessórios';
   catalogo?: string;
+  show_on_site?: boolean;
+  stars?: number;
 }
 
 export interface StockEntry {

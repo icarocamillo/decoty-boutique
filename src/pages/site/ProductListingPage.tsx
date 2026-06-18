@@ -7,9 +7,10 @@ import { ProductCard } from '@/components/site/ProductCard';
 import { FilterSidebar } from '@/components/site/FilterSidebar';
 import { PLPSkeleton } from '@/components/site/PLPSkeleton';
 import { Product } from '@/types';
+import { getDisplayBrand } from '@/utils/brand';
 
 export const ProductListingPage: React.FC = () => {
-  const { products, isLoading } = useData();
+  const { products, isLoading, suppliers } = useData();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -45,7 +46,7 @@ export const ProductListingPage: React.FC = () => {
       return (
         p.nome.toLowerCase().includes(query) ||
         p.categoria?.toLowerCase().includes(query) ||
-        (p.marca || 'Decoty').toLowerCase().includes(query) ||
+        getDisplayBrand(p.marca, suppliers).toLowerCase().includes(query) ||
         p.descricao?.toLowerCase().includes(query)
       );
     };
@@ -117,7 +118,7 @@ export const ProductListingPage: React.FC = () => {
         const query = activeFilters.search.toLowerCase();
         const matchesName = p.nome.toLowerCase().includes(query);
         const matchesCategory = p.categoria?.toLowerCase().includes(query);
-        const matchesBrand = (p.marca || 'Decoty').toLowerCase().includes(query);
+        const matchesBrand = getDisplayBrand(p.marca, suppliers).toLowerCase().includes(query);
         const matchesDescription = p.descricao?.toLowerCase().includes(query);
         
         if (!matchesName && !matchesCategory && !matchesBrand && !matchesDescription) {

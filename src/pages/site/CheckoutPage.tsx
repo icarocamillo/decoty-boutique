@@ -8,12 +8,13 @@ import { useCart } from '@/contexts/CartContext';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { backendService } from '@/services/backendService';
+import { getDisplayBrand } from '@/utils/brand';
 
 type PaymentMethod = 'pix' | 'credito' | 'debito';
 
 export const CheckoutPage: React.FC = () => {
   const { cart, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
-  const { paymentDiscounts } = useData();
+  const { paymentDiscounts, suppliers } = useData();
   const { user, userName } = useAuth();
   const navigate = useNavigate();
   const [stockError, setStockError] = useState<string | null>(null);
@@ -189,7 +190,7 @@ export const CheckoutPage: React.FC = () => {
                         <div className="flex justify-between items-start mb-4">
                           <div>
                             <span className="text-[10px] uppercase font-black tracking-widest text-emerald-600 mb-1 block">
-                              {item.marca}
+                              {getDisplayBrand(item.marca, suppliers)}
                             </span>
                             <h3 className="text-xl font-serif font-bold text-zinc-900 group-hover:text-zinc-600 transition-colors">
                               {item.nome}

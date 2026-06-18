@@ -20,6 +20,7 @@ import { DashboardHome } from '@/pages/erp/DashboardHome';
 import { ClientList } from '@/pages/erp/ClientList';
 import { ClientHistoryPage } from '@/pages/erp/ClientHistoryPage';
 import { SupplierList } from '@/pages/erp/SupplierList';
+import { SupplierFormPage } from '@/pages/erp/SupplierFormPage';
 import { ProductList } from '@/pages/erp/ProductList';
 import { ProductFormPage } from '@/pages/erp/ProductFormPage';
 import { StockList } from '@/pages/erp/StockList';
@@ -99,6 +100,8 @@ const App = () => {
               <Route path="/erp/clients" element={<ProtectedRoute><ErpLayout><ClientList /></ErpLayout></ProtectedRoute>} />
               <Route path="/erp/clients/:clientId/history" element={<ProtectedRoute><ErpLayout><ClientHistoryPage /></ErpLayout></ProtectedRoute>} />
               <Route path="/erp/suppliers" element={<ProtectedRoute><ErpLayout><SupplierList /></ErpLayout></ProtectedRoute>} />
+              <Route path="/erp/suppliers/new" element={<ProtectedRoute><ErpLayout><SupplierFormPage /></ErpLayout></ProtectedRoute>} />
+              <Route path="/erp/suppliers/update/:id" element={<ProtectedRoute><ErpLayout><SupplierFormPage /></ErpLayout></ProtectedRoute>} />
               <Route path="/erp/products" element={<ProtectedRoute><ErpLayout><ProductList /></ErpLayout></ProtectedRoute>} />
               <Route path="/erp/products/new" element={<ProtectedRoute><ErpLayout><ProductFormPage /></ErpLayout></ProtectedRoute>} />
               <Route path="/erp/products/update/:id" element={<ProtectedRoute><ErpLayout><ProductFormPage /></ErpLayout></ProtectedRoute>} />

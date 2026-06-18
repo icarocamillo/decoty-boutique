@@ -3,10 +3,13 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ShoppingBag, Plus, Minus, Trash2, ArrowRight } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
+import { useData } from '@/contexts/DataContext';
+import { getDisplayBrand } from '@/utils/brand';
 import { Link } from 'react-router-dom';
 
 export const CartDrawer: React.FC = () => {
   const { cart, removeFromCart, updateQuantity, cartTotal, cartCount, isCartOpen, setIsCartOpen } = useCart();
+  const { suppliers } = useData();
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -91,7 +94,7 @@ export const CartDrawer: React.FC = () => {
                       <div className="flex-1 flex flex-col pt-1">
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest mb-1">{item.marca}</p>
+                            <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest mb-1">{getDisplayBrand(item.marca, suppliers)}</p>
                             <h3 className="text-sm font-bold text-zinc-900 group-hover:text-zinc-600 transition-colors">{item.nome}</h3>
                             <p className="text-xs text-zinc-500 mt-0.5">Tamanho: {item.tamanho} • Cor: {item.cor}</p>
                           </div>
