@@ -69,7 +69,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       session ? backendService.getClients() : Promise.resolve([]),
       backendService.getProducts(),
       session ? backendService.getStockEntries() : Promise.resolve([]),
-      session ? backendService.getSuppliers() : Promise.resolve([]),
+      backendService.getSuppliers(),
       session ? backendService.getTopSellingBrand() : Promise.resolve('-'),
       session ? backendService.getUsers() : Promise.resolve([]),
       session?.user ? backendService.getFavorites(session.user.id) : Promise.resolve([]),
@@ -83,7 +83,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (results === null) return false;
 
     const [recentSales, dashboardChart, clientData, productData, stockData,
-           supplierData, brand, usersData, favoritesData, feesData, discountsData] =
+      supplierData, brand, usersData, favoritesData, feesData, discountsData] =
       results.map(r => r.status === 'fulfilled' ? r.value : null) as any;
 
     setSales(recentSales || []);
@@ -203,29 +203,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const toggleFavorite = useCallback(async (productId: string, color?: string) => {
     if (!session?.user) return;
-    
+
     // Otimista
     const favKey = color ? `${productId}:${color}` : productId;
     const isCurrentlyFavorite = favoriteIds.includes(favKey);
-    setFavoriteIds(prev => 
-      isCurrentlyFavorite 
-        ? prev.filter(id => id !== favKey) 
+    setFavoriteIds(prev =>
+      isCurrentlyFavorite
+        ? prev.filter(id => id !== favKey)
         : [...prev, favKey]
     );
 
     try {
       const success = await backendService.toggleFavorite(
-        session.user.id, 
-        productId, 
-        session.user.user_metadata?.name || '', 
+        session.user.id,
+        productId,
+        session.user.user_metadata?.name || '',
         session.user.email || '',
         color
       );
-      
+
       if (!success) {
         // Reverte se falhou
-        setFavoriteIds(prev => 
-          isCurrentlyFavorite 
+        setFavoriteIds(prev =>
+          isCurrentlyFavorite
             ? [...prev, favKey]
             : prev.filter(id => id !== favKey)
         );
@@ -233,8 +233,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('[DataContext] Erro ao alternar favorito:', error);
       // Reverte se falhou
-      setFavoriteIds(prev => 
-        isCurrentlyFavorite 
+      setFavoriteIds(prev =>
+        isCurrentlyFavorite
           ? [...prev, favKey]
           : prev.filter(id => id !== favKey)
       );
