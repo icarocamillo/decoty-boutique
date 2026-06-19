@@ -149,7 +149,9 @@ const deserializeSupplier = (raw: any): Supplier => {
   }
 
   let stars = 0;
-  if (raw.suplier_stars !== undefined) {
+  if (raw.supplier_stars !== undefined) {
+    stars = Number(raw.supplier_stars) || 0;
+  } else if (raw.suplier_stars !== undefined) {
     stars = Number(raw.suplier_stars) || 0;
   } else if (raw.stars !== undefined) {
     stars = Number(raw.stars) || 0;
@@ -165,7 +167,7 @@ const deserializeSupplier = (raw: any): Supplier => {
         if (raw.show_supplier_on_site === undefined && raw.show_on_site === undefined && parsed.show_on_site !== undefined) {
           show_on_site = !!parsed.show_on_site;
         }
-        if (raw.suplier_stars === undefined && raw.stars === undefined && parsed.stars !== undefined) {
+        if (raw.supplier_stars === undefined && raw.suplier_stars === undefined && raw.stars === undefined && parsed.stars !== undefined) {
           stars = typeof parsed.stars === 'number' ? parsed.stars : 0;
         }
         notesText = parsed.text || '';
@@ -215,6 +217,7 @@ const serializeSupplier = (supplier: any): any => {
 
   result.show_supplier_on_site = !!show_on_site;
   result.suplier_stars = stars;
+  result.supplier_stars = stars;
 
   // Remove as chaves antigas de mapeamento local
   delete result.show_on_site;

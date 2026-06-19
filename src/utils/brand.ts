@@ -9,13 +9,21 @@ export function getDisplayBrand(marca: string | undefined, suppliers: Supplier[]
   if (!marca) return 'Decoty';
   if (!suppliers) return marca;
 
-  // Find supplier by fantasy_name or nome_empresa
+  const cleanMarca = marca.trim().toLowerCase();
+
+  // Find supplier by ID, fantasy_name or nome_empresa (case-insensitive and trimmed)
   const supplier = suppliers.find(
-    s => s.fantasy_name === marca || s.nome_empresa === marca
+    s => s.id?.toLowerCase() === cleanMarca || 
+         s.fantasy_name?.trim().toLowerCase() === cleanMarca || 
+         s.nome_empresa?.trim().toLowerCase() === cleanMarca
   );
 
   if (supplier && supplier.show_on_site === false) {
     return 'Decoty';
+  }
+
+  if (supplier) {
+    return supplier.fantasy_name || supplier.nome_empresa || marca;
   }
 
   return marca;

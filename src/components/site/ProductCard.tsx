@@ -183,12 +183,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, preferredColo
       </div>
 
       <div className="flex flex-col gap-1">
-        <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">{getDisplayBrand(product.marca, suppliers)}</span>
         <Link to={`/produto/${product.slug}-${product.ui_id}${preferredColor ? `?cor=${preferredColor}` : ''}`}>
           <h3 className="text-sm font-medium text-zinc-900 group-hover:text-zinc-600 transition-colors line-clamp-1">
             {product.nome}{preferredColor ? ` - ${preferredColor}` : ''}
           </h3>
         </Link>
+        <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">{getDisplayBrand(product.marca, suppliers)}</span>
         
         <div className="mt-2 flex flex-col">
           <p className="text-base font-bold text-zinc-900">

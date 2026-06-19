@@ -189,12 +189,12 @@ export const CheckoutPage: React.FC = () => {
                       <div className="flex-1 flex flex-col">
                         <div className="flex justify-between items-start mb-4">
                           <div>
-                            <span className="text-[10px] uppercase font-black tracking-widest text-emerald-600 mb-1 block">
-                              {getDisplayBrand(item.marca, suppliers)}
-                            </span>
-                            <h3 className="text-xl font-serif font-bold text-zinc-900 group-hover:text-zinc-600 transition-colors">
+                            <h3 className="text-xl font-serif font-bold text-zinc-900 group-hover:text-zinc-600 transition-colors mb-1">
                               {item.nome}
                             </h3>
+                            <span className="text-[10px] uppercase font-black tracking-widest text-emerald-600 block">
+                              {getDisplayBrand(item.marca, suppliers)}
+                            </span>
                           </div>
                           <button
                             onClick={() => removeFromCart(item.produto_id)}

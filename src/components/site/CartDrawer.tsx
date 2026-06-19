@@ -94,8 +94,8 @@ export const CartDrawer: React.FC = () => {
                       <div className="flex-1 flex flex-col pt-1">
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest mb-1">{getDisplayBrand(item.marca, suppliers)}</p>
-                            <h3 className="text-sm font-bold text-zinc-900 group-hover:text-zinc-600 transition-colors">{item.nome}</h3>
+                            <h3 className="text-sm font-bold text-zinc-900 group-hover:text-zinc-600 transition-colors mb-1">{item.nome}</h3>
+                            <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest">{getDisplayBrand(item.marca, suppliers)}</p>
                             <p className="text-xs text-zinc-500 mt-0.5">Tamanho: {item.tamanho} • Cor: {item.cor}</p>
                           </div>
                           <button 

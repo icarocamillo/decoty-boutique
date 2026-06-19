@@ -105,14 +105,19 @@ export const ProductDetailsPage: React.FC = () => {
   }, [identifier, products]);
 
   const supplierForProduct = useMemo(() => {
-    if (!product || !suppliers) return null;
-    return suppliers.find(s => s.fantasy_name === product.marca || s.nome_empresa === product.marca);
+    if (!product || !suppliers || !product.marca) return null;
+    const marca = product.marca.trim().toLowerCase();
+    return suppliers.find(
+      s => s.id?.toLowerCase() === marca || 
+           s.fantasy_name?.trim().toLowerCase() === marca || 
+           s.nome_empresa?.trim().toLowerCase() === marca
+    );
   }, [product, suppliers]);
 
   const supplierRating = useMemo(() => {
     if (!product) return null;
     const displayBrand = getDisplayBrand(product.marca, suppliers);
-    if (displayBrand === 'Decoty') {
+    if (displayBrand.toUpperCase() === 'DECOTY') {
       return 5;
     }
     if (!supplierForProduct || typeof supplierForProduct.stars !== 'number' || supplierForProduct.stars <= 0) return null;
@@ -771,8 +776,8 @@ export const ProductDetailsPage: React.FC = () => {
                         />
                       </div>
                       <div className="px-2">
-                        <p className="text-[11px] font-black text-zinc-400 uppercase tracking-widest mb-1">{getDisplayBrand(product.marca, suppliers)}</p>
-                        <h4 className="text-xl font-bold text-zinc-950 dark:text-white uppercase tracking-tight">{product.nome}</h4>
+                        <h4 className="text-xl font-bold text-zinc-950 dark:text-white uppercase tracking-tight mb-1">{product.nome}</h4>
+                        <p className="text-[11px] font-black text-zinc-400 uppercase tracking-widest">{getDisplayBrand(product.marca, suppliers)}</p>
                         <div className="mt-3">
                           <p className="text-2xl font-black text-zinc-900 dark:text-zinc-100">{formatCurrency(currentPrice)}</p>
                         </div>
@@ -823,8 +828,8 @@ export const ProductDetailsPage: React.FC = () => {
                         />
                       </motion.div>
                       <div className="px-2">
-                        <p className="text-[11px] font-black text-zinc-400 uppercase tracking-widest mb-1">{getDisplayBrand(combinedProduct.marca, suppliers)}</p>
-                        <h4 className="text-xl font-bold text-zinc-950 dark:text-white uppercase tracking-tight">{combinedProduct.nome} ({combinedColor})</h4>
+                        <h4 className="text-xl font-bold text-zinc-950 dark:text-white uppercase tracking-tight mb-1">{combinedProduct.nome} ({combinedColor})</h4>
+                        <p className="text-[11px] font-black text-zinc-400 uppercase tracking-widest">{getDisplayBrand(combinedProduct.marca, suppliers)}</p>
                         <div className="mt-3">
                           <p className="text-2xl font-black text-zinc-900 dark:text-zinc-100">{formatCurrency(priceVenda)}</p>
                         </div>
@@ -879,11 +884,11 @@ export const ProductDetailsPage: React.FC = () => {
                       </div>
 
                       <div className="p-6">
-                        <div className="flex justify-between items-center mb-3">
-                           <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">{getDisplayBrand(combinedProduct.marca, suppliers)}</p>
-                           <Badge className="bg-zinc-900 !text-white border-none text-[9px] font-bold">{combinedColor}</Badge>
+                        <div className="flex justify-between items-start gap-2 mb-1">
+                           <h3 className="text-xl font-bold text-zinc-900 dark:text-white group-hover:text-emerald-600 transition-colors uppercase tracking-tight leading-tight">{combinedProduct.nome}</h3>
+                           <Badge className="bg-zinc-900 !text-white border-none text-[9px] font-bold shrink-0">{combinedColor}</Badge>
                         </div>
-                        <h3 className="text-xl font-bold text-zinc-900 dark:text-white group-hover:text-emerald-600 transition-colors uppercase tracking-tight leading-tight">{combinedProduct.nome}</h3>
+                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">{getDisplayBrand(combinedProduct.marca, suppliers)}</p>
                       </div>
                     </motion.div>
                   </div>
