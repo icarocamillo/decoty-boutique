@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useData } from '@/contexts/DataContext';
 import { ProductCard } from '@/components/site/ProductCard';
-import { ShoppingBag, ArrowRight, Sparkles, ChevronDown, X } from 'lucide-react';
+import { ShoppingBag, ArrowRight, Sparkles, ChevronDown, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { backendService } from '@/services/backendService';
 
@@ -40,6 +40,50 @@ export const HomePage: React.FC = () => {
 
   // State for product rotation offset across refreshes
   const [rotationOffset, setRotationOffset] = React.useState(0);
+
+  const [banners, setBanners] = React.useState<string[]>([
+    "https://izixlmmljvhdyoecgjur.supabase.co/storage/v1/object/public/marketing/banners/banner_main.webp"
+  ]);
+  const [currentBannerIndex, setCurrentBannerIndex] = React.useState(0);
+  const [bannersLoading, setBannersLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let active = true;
+    const fetchBanners = async () => {
+      try {
+        const fetched = await backendService.getMarketingBanners();
+        if (active && fetched && fetched.length > 0) {
+          setBanners(fetched);
+        }
+      } catch (err) {
+        console.warn("Aviso ao carregar banners (usando lista estática):", err);
+      } finally {
+        if (active) {
+          setBannersLoading(false);
+        }
+      }
+    };
+    fetchBanners();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleNextBanner = () => {
+    setCurrentBannerIndex((prev) => (prev + 1) % banners.length);
+  };
+
+  const handlePrevBanner = () => {
+    setCurrentBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
+  };
+
+  React.useEffect(() => {
+    if (banners.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentBannerIndex((prev) => (prev + 1) % banners.length);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [banners.length]);
 
   React.useEffect(() => {
     try {
@@ -236,14 +280,53 @@ export const HomePage: React.FC = () => {
     <div className="flex flex-col">
       {/* Hero Section */}
       <section className="relative h-[50vh] min-h-[550px] flex items-center overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <img
-            src="https://izixlmmljvhdyoecgjur.supabase.co/storage/v1/object/public/marketing/banners/banner_main.webp"
-            alt="Hero Fashion"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
+        <div className="absolute inset-0 z-0 select-none">
+          <AnimatePresence mode="popLayout">
+            <motion.img
+              key={currentBannerIndex}
+              src={banners[currentBannerIndex]}
+              alt={`Banner ${currentBannerIndex + 1}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8 }}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          </AnimatePresence>
+          <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-transparent" />
         </div>
+
+        {banners.length > 1 && (
+          <>
+            <button
+              onClick={handlePrevBanner}
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm transition-all border border-white/10 group active:scale-95 cursor-pointer"
+              aria-label="Anterior"
+            >
+              <ChevronLeft className="w-6 h-6 group-hover:-translate-x-0.5 transition-transform" />
+            </button>
+            <button
+              onClick={handleNextBanner}
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm transition-all border border-white/10 group active:scale-95 cursor-pointer"
+              aria-label="Próximo"
+            >
+              <ChevronRight className="w-6 h-6 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+            
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-1.5 bg-black/25 px-3 py-1.5 rounded-full backdrop-blur-sm">
+              {banners.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentBannerIndex(idx)}
+                  className={`w-2 h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                    idx === currentBannerIndex ? 'bg-white w-5' : 'bg-white/40 hover:bg-white/70'
+                  }`}
+                  aria-label={`Ir para o banner ${idx + 1}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="container mx-auto px-4 sm:px-6 z-10 pt-16 sm:pt-20">
           <motion.div
@@ -259,7 +342,7 @@ export const HomePage: React.FC = () => {
             <h1 className="text-4xl md:text-6xl font-serif mb-4 sm:mb-6 leading-tight">
               {randomHeadline}
             </h1>
-            <p className="text-sm sm:text-base text-white/80 mb-6 sm:mb-8 max-w-lg leading-relaxed">
+            <p className="text-sm sm:text-base text-white/95 mb-6 sm:mb-8 max-w-lg leading-relaxed font-bold">
               Descubra uma boutique experiente que celebra a feminilidade e o estilo moderno. Peças elegantes que contam sua história.
             </p>
             <div className="flex flex-wrap gap-3 sm:gap-4">

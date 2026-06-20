@@ -1227,6 +1227,43 @@ export const backendService = {
     return (data || []).map(deserializeSupplier);
   },
 
+  getMarketingBanners: async (): Promise<string[]> => {
+    try {
+      const { data, error } = await getSupabase()
+        .storage
+        .from('marketing')
+        .list('banners');
+
+      if (error) {
+        console.warn("Aviso ao carregar banners do storage (usando banner padrão):", error.message || error);
+        return ["https://izixlmmljvhdyoecgjur.supabase.co/storage/v1/object/public/marketing/banners/banner_main.webp"];
+      }
+
+      if (!data || data.length === 0) {
+        return ["https://izixlmmljvhdyoecgjur.supabase.co/storage/v1/object/public/marketing/banners/banner_main.webp"];
+      }
+
+      // Filtrar apenas imagens que começam com "banner_main"
+      const filtered = data
+        .filter(item => item.name.toLowerCase().startsWith('banner_main'))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(item => {
+          const { data: { publicUrl } } = getSupabase()
+            .storage
+            .from('marketing')
+            .getPublicUrl(`banners/${item.name}`);
+          return publicUrl;
+        });
+
+      return filtered.length > 0 
+        ? filtered 
+        : ["https://izixlmmljvhdyoecgjur.supabase.co/storage/v1/object/public/marketing/banners/banner_main.webp"];
+    } catch (err: any) {
+      console.warn("Falha de conexão com o bucket de marketing (usando banner padrão):", err?.message || err);
+      return ["https://izixlmmljvhdyoecgjur.supabase.co/storage/v1/object/public/marketing/banners/banner_main.webp"];
+    }
+  },
+
   createSupplier: async (supplier: Omit<Supplier, 'id'>): Promise<boolean> => {
     const { error } = await getSupabase().from('suppliers').insert([serializeSupplier(supplier)]);
     return !error;
