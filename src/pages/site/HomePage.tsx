@@ -77,6 +77,43 @@ export const HomePage: React.FC = () => {
     setCurrentBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
   };
 
+  const touchRef = React.useRef<{ x: number; y: number; time: number } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now()
+    };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchRef.current) return;
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchRef.current.x;
+    const deltaY = touch.clientY - touchRef.current.y;
+    const duration = Date.now() - touchRef.current.time;
+
+    touchRef.current = null;
+
+    const minDistanceX = 60; // Pelo menos 60px de arraste horizontal
+    const maxDistanceY = 50; // No máximo 50px de desvio vertical para não atrapalhar o scroll
+    const maxDuration = 400; // Swipe rápido (menos de 400ms)
+
+    if (
+      Math.abs(deltaX) > minDistanceX && 
+      Math.abs(deltaY) < maxDistanceY && 
+      duration < maxDuration
+    ) {
+      if (deltaX > 0) {
+        handlePrevBanner();
+      } else {
+        handleNextBanner();
+      }
+    }
+  };
+
   React.useEffect(() => {
     if (banners.length <= 1) return;
     const interval = setInterval(() => {
@@ -279,7 +316,11 @@ export const HomePage: React.FC = () => {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative h-[50vh] min-h-[550px] flex items-center overflow-hidden">
+      <section 
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        className="relative h-[50vh] min-h-[550px] flex items-center overflow-hidden"
+      >
         <div className="absolute inset-0 z-0 select-none">
           <AnimatePresence mode="popLayout">
             <motion.img
@@ -300,14 +341,14 @@ export const HomePage: React.FC = () => {
           <>
             <button
               onClick={handlePrevBanner}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm transition-all border border-white/10 group active:scale-95 cursor-pointer"
+              className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm transition-all border border-white/10 group active:scale-95 cursor-pointer items-center justify-center"
               aria-label="Anterior"
             >
               <ChevronLeft className="w-6 h-6 group-hover:-translate-x-0.5 transition-transform" />
             </button>
             <button
               onClick={handleNextBanner}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm transition-all border border-white/10 group active:scale-95 cursor-pointer"
+              className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm transition-all border border-white/10 group active:scale-95 cursor-pointer items-center justify-center"
               aria-label="Próximo"
             >
               <ChevronRight className="w-6 h-6 group-hover:translate-x-0.5 transition-transform" />
