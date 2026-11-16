@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -21,35 +21,52 @@ import { Shirt, Trash2 } from 'lucide-react';
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<OrderReservation | null>(null);
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!user) return;
-      try {
-        const [reservationsData, cData] = await Promise.all([
-          backendService.getOrderReservationsByUserId(user.id),
-          backendService.getClientByUserId(user.id)
-        ]);
-        
-        setReservations(reservationsData);
-        if (cData) {
-          setClientData(cData);
-          setGiftCardBalance(cData.saldo_vale_presente || 0);
+  // Só a carga mais recente grava o resultado (duas voltas rápidas para a aba podem
+  // terminar fora de ordem).
+  const loadSeqRef = useRef(0);
 
-          // Se tiver itens pendentes ou puder provador, buscamos o histórico de estoque
-          if ((cData.itens_pendentes_provador || 0) > 0 || cData.pode_provador) {
-            const history = await backendService.getClientStockHistory(cData.id);
-            setStockHistory(history);
-          }
+  const loadData = useCallback(async () => {
+    if (!user) return;
+    const seq = ++loadSeqRef.current;
+    try {
+      const [reservationsData, cData] = await Promise.all([
+        backendService.getOrderReservationsByUserId(user.id),
+        backendService.getClientByUserId(user.id)
+      ]);
+      if (seq !== loadSeqRef.current) return;
+      
+      setReservations(reservationsData);
+      if (cData) {
+        setClientData(cData);
+        setGiftCardBalance(cData.saldo_vale_presente || 0);
+
+        // Se tiver itens pendentes ou puder provador, buscamos o histórico de estoque
+        if ((cData.itens_pendentes_provador || 0) > 0 || cData.pode_provador) {
+          const history = await backendService.getClientStockHistory(cData.id);
+          if (seq !== loadSeqRef.current) return;
+          setStockHistory(history);
         }
-      } catch (err) {
-        console.error("Erro ao carregar dados do perfil:", err);
-      } finally {
-        setLoading(false);
       }
-    };
-
-    loadData();
+    } catch (err) {
+      console.error("Erro ao carregar dados do perfil:", err);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Esta tela busca os próprios dados (pedidos, saldo e provador), fora do DataContext.
+  // Ao voltar para a aba, atualiza: um pedido pode ter sido enviado em outra aba.
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') loadData();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [loadData]);
 
   // Filtra itens que estão no provador (saídas de provador)
   const pendingProvadorItems = stockHistory

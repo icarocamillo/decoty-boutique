@@ -28,9 +28,28 @@ export const isSupabaseConfigured = (): boolean => {
   return true;
 };
 
-// Cliente único e simples — sem fetch customizado, sem AbortController.
-// O keep-alive no App.tsx (ping a cada 2 min) mantém a conexão ativa.
-// O visibilitychange no App.tsx faz re-fetch ao voltar para a aba.
+// Limite de tempo das chamadas de autenticação (/auth/v1/: login, renovação de token, logout).
+// A renovação de token roda segurando a trava de sessão compartilhada entre as abas. Sem limite,
+// uma requisição pendurada (rede instável, volta de suspensão) deixaria todas as abas sem
+// resposta até ela terminar. Com o limite, a tentativa falha, a trava é liberada e a renovação
+// é tentada de novo. As demais chamadas (dados e Storage) não são afetadas.
+const AUTH_REQUEST_TIMEOUT_MS = 15000;
+
+const fetchWithAuthTimeout: typeof fetch = (input, init) => {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  if (!url.includes('/auth/v1/') || init?.signal) return fetch(input, init);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS);
+  return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+};
+
+// Cliente único, compartilhado pelo ERP e pelo site.
+// As requisições são HTTP sem conexão persistente: não há o que manter vivo com ping.
+// A sessão é renovada pelo próprio supabase-js (autoRefreshToken) e coordenada entre as abas
+// por uma trava do navegador (navigator.locks). Por isso o callback de onAuthStateChange
+// não pode chamar o Supabase: ver o aviso em src/contexts/AuthContext.tsx.
+// A recarga de dados ao voltar para a aba fica no DataContext.
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     autoRefreshToken: true,
@@ -39,7 +58,8 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     flowType: 'pkce'
   },
   global: {
-    headers: { 'x-client-info': 'decoty-boutique@1.0.0' }
+    headers: { 'x-client-info': 'decoty-boutique@1.0.0' },
+    fetch: fetchWithAuthTimeout
   }
 });
 

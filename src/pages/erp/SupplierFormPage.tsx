@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Truck, ArrowLeft, Save, Loader2, Building, Tag, ShoppingBag, User, Phone, Mail, MapPin, Globe, StickyNote, Star, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -33,6 +33,19 @@ export const SupplierFormPage: React.FC = () => {
     stars: 0
   });
 
+  // Depois que o usuário mexe no formulário, uma recarga de dados em segundo plano (ao voltar
+  // para a aba, ou outra pessoa alterando o mesmo cadastro) não sobrescreve o que ele digitou.
+  // Antes de qualquer edição, o formulário acompanha o banco normalmente. Salvar com sucesso
+  // libera a sincronização de novo.
+  const userEditedRef = useRef(false);
+  const loadedSupplierIdRef = useRef<string | null>(null);
+  const markEdited = useCallback(() => { userEditedRef.current = true; }, []);
+  const markEditedOnClick = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button, [role="button"], input, select, textarea, label')) {
+      userEditedRef.current = true;
+    }
+  }, []);
+
   const supplierToEdit = useMemo(() => {
     if (!id) return null;
     const numericId = parseInt(id, 10);
@@ -50,20 +63,25 @@ export const SupplierFormPage: React.FC = () => {
   useEffect(() => {
     if (id) {
       if (supplierToEdit) {
-        setFormData({
-          nome_empresa: supplierToEdit.nome_empresa,
-          fantasy_name: supplierToEdit.fantasy_name || '',
-          nome_contato: supplierToEdit.nome_contato || '',
-          cnpj_cpf: supplierToEdit.cnpj_cpf || '',
-          email: supplierToEdit.email || '',
-          telefone: supplierToEdit.telefone || '',
-          endereco: supplierToEdit.endereco || '',
-          observacoes: supplierToEdit.observacoes || '',
-          tipo_fornecedor: supplierToEdit.tipo_fornecedor || '',
-          catalogo: supplierToEdit.catalogo || '',
-          show_on_site: supplierToEdit.show_on_site || false,
-          stars: supplierToEdit.stars || 0
-        });
+        // Mesmo fornecedor e o usuário já mexeu: mantém o que está na tela.
+        if (!(loadedSupplierIdRef.current === supplierToEdit.id && userEditedRef.current)) {
+          loadedSupplierIdRef.current = supplierToEdit.id;
+          userEditedRef.current = false;
+          setFormData({
+            nome_empresa: supplierToEdit.nome_empresa,
+            fantasy_name: supplierToEdit.fantasy_name || '',
+            nome_contato: supplierToEdit.nome_contato || '',
+            cnpj_cpf: supplierToEdit.cnpj_cpf || '',
+            email: supplierToEdit.email || '',
+            telefone: supplierToEdit.telefone || '',
+            endereco: supplierToEdit.endereco || '',
+            observacoes: supplierToEdit.observacoes || '',
+            tipo_fornecedor: supplierToEdit.tipo_fornecedor || '',
+            catalogo: supplierToEdit.catalogo || '',
+            show_on_site: supplierToEdit.show_on_site || false,
+            stars: supplierToEdit.stars || 0
+          });
+        }
         setFetching(false);
       } else {
         // If suppliers are still loading or not populated yet, wait
@@ -186,7 +204,7 @@ export const SupplierFormPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} onChange={markEdited} onClickCapture={markEditedOnClick} className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-5">
           <div className="flex items-center gap-4">

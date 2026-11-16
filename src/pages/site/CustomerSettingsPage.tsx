@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -58,38 +58,56 @@ export const CustomerSettingsPage: React.FC = () => {
     return `${numbers.substring(0, 3)}.***.***-*${numbers.substring(10)}`;
   };
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!user) return;
-      setLoading(true);
-      try {
-        const data = await backendService.getClientByUserId(user.id);
-        if (data) {
-          setClientData(data);
-          setFormData({
-            nome: data.nome || '',
-            celular: data.celular || '',
-            telefone_fixo: data.telefone_fixo || '',
-            receber_ofertas: data.receber_ofertas ?? true,
-            is_whatsapp: data.is_whatsapp ?? false,
-            cep: data.endereco?.cep || '',
-            logradouro: data.endereco?.logradouro || '',
-            numero: data.endereco?.numero || '',
-            complemento: data.endereco?.complemento || '',
-            bairro: data.endereco?.bairro || '',
-            cidade: data.endereco?.cidade || '',
-            estado: data.endereco?.estado || ''
-          });
-        }
-      } catch (err) {
-        console.error("Erro ao carregar dados do cliente:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Depois que o cliente começa a editar os dados pessoais, nenhuma recarga em segundo plano
+  // sobrescreve o que ele digitou. Antes disso, ao voltar para a aba os dados são atualizados
+  // (podem ter sido alterados pela loja), sem trocar a tela pelo indicador de carregamento.
+  const profileEditedRef = useRef(false);
+  const loadSeqRef = useRef(0);
 
-    loadData();
+  const loadData = useCallback(async (silent = false) => {
+    if (!user) return;
+    const seq = ++loadSeqRef.current;
+    if (!silent) setLoading(true);
+    try {
+      const data = await backendService.getClientByUserId(user.id);
+      if (seq !== loadSeqRef.current) return;
+      if (silent && profileEditedRef.current) return;
+      if (data) {
+        setClientData(data);
+        setFormData({
+          nome: data.nome || '',
+          celular: data.celular || '',
+          telefone_fixo: data.telefone_fixo || '',
+          receber_ofertas: data.receber_ofertas ?? true,
+          is_whatsapp: data.is_whatsapp ?? false,
+          cep: data.endereco?.cep || '',
+          logradouro: data.endereco?.logradouro || '',
+          numero: data.endereco?.numero || '',
+          complemento: data.endereco?.complemento || '',
+          bairro: data.endereco?.bairro || '',
+          cidade: data.endereco?.cidade || '',
+          estado: data.endereco?.estado || ''
+        });
+      }
+    } catch (err) {
+      console.error("Erro ao carregar dados do cliente:", err);
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    profileEditedRef.current = false;
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !profileEditedRef.current) loadData(true);
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [loadData]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +135,7 @@ export const CustomerSettingsPage: React.FC = () => {
     try {
       const ok = await backendService.updateClientProfile(user.id, payload);
       if (ok) {
+        profileEditedRef.current = false;
         setSuccess('Perfil atualizado com sucesso!');
       } else {
         setError('Ocorreu um erro ao atualizar o perfil.');
@@ -240,7 +259,7 @@ export const CustomerSettingsPage: React.FC = () => {
                       Dados Pessoais
                     </h4>
                     
-                    <form onSubmit={handleUpdateProfile} className="space-y-6 relative">
+                    <form onSubmit={handleUpdateProfile} onChange={() => { profileEditedRef.current = true; }} className="space-y-6 relative">
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="md:col-span-2">
                              <label className="block text-xs font-black uppercase tracking-widest text-zinc-400 mb-2">Nome Completo</label>
