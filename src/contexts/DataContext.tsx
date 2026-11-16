@@ -32,8 +32,55 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
+const sameContent = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Devolve `prev` quando o conteúdo recém-buscado é igual ao que já está na tela e, em listas
+ * de registros com `id`, reaproveita o objeto anterior de cada registro que não mudou.
+ *
+ * Por quê: toda recarga (ao voltar para a aba, depois de uma ação) trocava as listas por
+ * objetos novos, mesmo sem nenhuma mudança no banco. Telas que montam o formulário a partir
+ * de um registro (edição de produto, de fornecedor) reiniciavam e apagavam o que estava sendo
+ * digitado. Com as referências estáveis, só o registro que realmente mudou dispara atualização.
+ */
+function reuseUnchanged<T>(prev: T, next: T): T {
+  if (prev === next) return prev;
+
+  if (Array.isArray(prev) && Array.isArray(next)) {
+    const idOf = (item: unknown) =>
+      item !== null && typeof item === 'object' ? (item as { id?: unknown }).id : undefined;
+
+    const prevById = new Map<unknown, unknown>();
+    for (const item of prev) {
+      const id = idOf(item);
+      if (id === undefined || id === null || prevById.has(id)) {
+        // Lista sem identificador único por item: compara o conjunto inteiro.
+        return sameContent(prev, next) ? prev : next;
+      }
+      prevById.set(id, item);
+    }
+
+    let unchanged = prev.length === next.length;
+    const merged = next.map((item, index) => {
+      const previous = prevById.get(idOf(item));
+      if (previous !== undefined && sameContent(previous, item)) {
+        if (prev[index] !== previous) unchanged = false;
+        return previous;
+      }
+      unchanged = false;
+      return item;
+    });
+    return (unchanged ? prev : merged) as T;
+  }
+
+  return sameContent(prev, next) ? prev : next;
+}
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
+  // Identificador estável do usuário logado. O objeto `session` é trocado a cada renovação de
+  // token; depender dele recarregava todos os dados sem que nada tivesse mudado.
+  const userId = session?.user?.id ?? null;
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
@@ -56,23 +103,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isInitialLoadDone = useRef(false);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Número da recarga mais recente. Só ela grava o resultado: uma recarga antiga que termina
+  // depois (rede lenta, ou iniciada antes de um logout) não sobrescreve os dados atuais.
+  const querySeqRef = useRef(0);
 
   // Função base que executa as queries sem retry
   const executeQueries = useCallback(async (): Promise<boolean> => {
+    const seq = ++querySeqRef.current;
     const timeoutPromise = new Promise<null>(resolve =>
       setTimeout(() => resolve(null), 10000)
     );
 
     const fetchPromise = Promise.allSettled([
-      session ? backendService.getRecentSales() : Promise.resolve([]),
-      session ? backendService.getDashboardChartData() : Promise.resolve([]),
-      session ? backendService.getClients() : Promise.resolve([]),
+      userId ? backendService.getRecentSales() : Promise.resolve([]),
+      userId ? backendService.getDashboardChartData() : Promise.resolve([]),
+      userId ? backendService.getClients() : Promise.resolve([]),
       backendService.getProducts(),
-      session ? backendService.getStockEntries() : Promise.resolve([]),
+      userId ? backendService.getStockEntries() : Promise.resolve([]),
       backendService.getSuppliers(),
-      session ? backendService.getTopSellingBrand() : Promise.resolve('-'),
-      session ? backendService.getUsers() : Promise.resolve([]),
-      session?.user ? backendService.getFavorites(session.user.id) : Promise.resolve([]),
+      userId ? backendService.getTopSellingBrand() : Promise.resolve('-'),
+      userId ? backendService.getUsers() : Promise.resolve([]),
+      userId ? backendService.getFavorites(userId) : Promise.resolve([]),
       backendService.getPaymentFees(),
       backendService.getPaymentDiscounts()
     ]);
@@ -82,24 +133,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Timeout — queries ainda travadas
     if (results === null) return false;
 
+    // Uma recarga mais nova já começou (ou o usuário mudou): descarta este resultado.
+    if (seq !== querySeqRef.current) return true;
+
     const [recentSales, dashboardChart, clientData, productData, stockData,
            supplierData, brand, usersData, favoritesData, feesData, discountsData] =
       results.map(r => r.status === 'fulfilled' ? r.value : null) as any;
 
-    setSales(recentSales || []);
-    setChartData(dashboardChart || []);
-    setClients(clientData || []);
-    setProducts(productData || []);
-    setStockEntries(stockData || []);
-    setSuppliers(supplierData || []);
+    // Mantém as referências do que não mudou (ver reuseUnchanged).
+    setSales(prev => reuseUnchanged(prev, recentSales || []));
+    setChartData(prev => reuseUnchanged(prev, dashboardChart || []));
+    setClients(prev => reuseUnchanged(prev, clientData || []));
+    setProducts(prev => reuseUnchanged(prev, productData || []));
+    setStockEntries(prev => reuseUnchanged(prev, stockData || []));
+    setSuppliers(prev => reuseUnchanged(prev, supplierData || []));
     setTopBrand(brand || '-');
-    setUsers(usersData || []);
-    setFavoriteIds(favoritesData || []);
-    setPaymentFees(feesData || null);
-    setPaymentDiscounts(discountsData || null);
+    setUsers(prev => reuseUnchanged(prev, usersData || []));
+    setFavoriteIds(prev => reuseUnchanged(prev, favoritesData || []));
+    setPaymentFees(prev => reuseUnchanged(prev, feesData || null));
+    setPaymentDiscounts(prev => reuseUnchanged(prev, discountsData || null));
     setLastUpdated(new Date());
     return true;
-  }, [session]);
+  }, [userId]);
 
   const refreshData = useCallback(async () => {
     // Cancela retry pendente se houver
@@ -202,7 +257,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const toggleFavorite = useCallback(async (productId: string, color?: string) => {
-    if (!session?.user) return;
+    if (!user) return;
     
     // Otimista
     const favKey = color ? `${productId}:${color}` : productId;
@@ -215,10 +270,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const success = await backendService.toggleFavorite(
-        session.user.id, 
+        user.id, 
         productId, 
-        session.user.user_metadata?.name || '', 
-        session.user.email || '',
+        user.user_metadata?.name || '', 
+        user.email || '',
         color
       );
       
@@ -239,39 +294,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           : prev.filter(id => id !== favKey)
       );
     }
-  }, [session, favoriteIds]);
+  }, [user, favoriteIds]);
 
-  // Busca inicial e quando a sessão muda
+  // Busca inicial e quando o usuário muda (login, logout ou troca de conta).
+  // `refreshData` só muda de identidade quando `userId` muda.
   useEffect(() => {
     refreshData();
-  }, [refreshData, session]);
+  }, [refreshData]);
 
-  // Ao voltar para a aba: aguarda 1s antes de tentar (deixa conexão se reestabelecer)
+  // Os favoritos são de quem está logado: ao trocar de usuário, saem da tela na hora,
+  // sem esperar a recarga terminar.
   useEffect(() => {
+    setFavoriteIds(prev => (prev.length ? [] : prev));
+  }, [userId]);
+
+  // Ao voltar para a aba: aguarda 1s antes de recarregar (dá tempo de a rede voltar depois de
+  // uma suspensão; uma consulta que falha devolve lista vazia e apagaria o que está na tela).
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && session) {
+      if (document.visibilityState === 'visible' && userId) {
         // Cancela retry pendente para não duplicar
         if (retryTimeoutRef.current) {
           clearTimeout(retryTimeoutRef.current);
           retryTimeoutRef.current = null;
         }
-        // Delay de 1s ao voltar para a aba
-        setTimeout(() => refreshData(), 1000);
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          timer = null;
+          refreshData();
+        }, 1000);
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [session, refreshData]);
-
-  // Keep-alive a cada 4 minutos
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible' && session) {
-        backendService.getPaymentFees();
-      }
-    }, 15 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [session]);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (timer) clearTimeout(timer);
+    };
+  }, [userId, refreshData]);
 
   // Limpa retry ao desmontar
   useEffect(() => {

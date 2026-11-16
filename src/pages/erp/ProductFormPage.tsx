@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Package, Check, Loader2, Tag, Layers, Plus, Minus, ArrowLeft, Save, AlertCircle, Barcode, Hash, Trash2, Image as ImageIcon, Upload, Star, MoreVertical, Sparkles, X, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -68,6 +68,20 @@ export const ProductFormPage: React.FC = () => {
 
   // State for successful saves toast
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Depois que o usuário mexe no formulário, uma recarga de dados em segundo plano (ao voltar
+  // para a aba, ou outra pessoa alterando o mesmo cadastro) não sobrescreve o que ele digitou.
+  // Antes de qualquer edição, o formulário acompanha o banco normalmente. Salvar com sucesso
+  // libera a sincronização de novo.
+  const userEditedRef = useRef(false);
+  const loadedProductIdRef = useRef<string | null>(null);
+  const loadedCombosKeyRef = useRef<string | null>(null);
+  const markEdited = useCallback(() => { userEditedRef.current = true; }, []);
+  const markEditedOnClick = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button, [role="button"], input, select, textarea, label')) {
+      userEditedRef.current = true;
+    }
+  }, []);
 
   useEffect(() => {
     if (successMessage) {
@@ -210,6 +224,13 @@ export const ProductFormPage: React.FC = () => {
 
   useEffect(() => {
     if (id && productToEdit) {
+      // Mesmo produto e o usuário já mexeu: mantém o que está na tela.
+      if (loadedProductIdRef.current === productToEdit.id && userEditedRef.current) {
+        return;
+      }
+      loadedProductIdRef.current = productToEdit.id;
+      userEditedRef.current = false;
+
       setFormData({
         nome: productToEdit.nome,
         marca: productToEdit.marca,
@@ -253,8 +274,13 @@ export const ProductFormPage: React.FC = () => {
   // Buscar combinações da cor selecionada
   useEffect(() => {
     if (id && productToEdit && selectedSourceColor) {
+      // Só busca de novo ao trocar de produto ou de cor, ou se o usuário ainda não mexeu.
+      const combosKey = `${productToEdit.id}|${selectedSourceColor}`;
+      if (loadedCombosKeyRef.current === combosKey && userEditedRef.current) return;
+      loadedCombosKeyRef.current = combosKey;
       backendService.getColorCombinations(productToEdit.id, selectedSourceColor).then(setColorCombinations);
     } else {
+      loadedCombosKeyRef.current = null;
       setColorCombinations([]);
     }
   }, [id, productToEdit, selectedSourceColor]);
@@ -781,6 +807,8 @@ export const ProductFormPage: React.FC = () => {
             await backendService.saveColorCombinations(productId, selectedSourceColor, mappedCombos);
         }
         
+        // Gravou: o formulário volta a acompanhar o banco (pega os ids das variações novas).
+        userEditedRef.current = false;
         await refreshData();
         
         if (stayOnPage) {
@@ -810,7 +838,7 @@ export const ProductFormPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full space-y-6 animate-fade-in pb-12">
+    <div className="w-full space-y-6 animate-fade-in pb-12" onChange={markEdited} onClickCapture={markEditedOnClick}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => navigate('/erp/products')} className="p-2">
